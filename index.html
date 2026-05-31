@@ -1235,7 +1235,7 @@ function setVsMonth(idx) { vsMonth = idx; renderVersus(); }
 
 // cargarTodo with 10s safety timeout
 async function cargarTodo() {
-    const hideTimer = setTimeout(() => { document.getElementById('loadOv').style.display='none'; }, 10000);
+    const hideTimer = setTimeout(() => { document.getElementById('loadOv').style.display='none'; }, 3000);
     document.getElementById('refreshIco').className = 'fas fa-spinner fa-spin';
     await Promise.allSettled([loadPlanillas(), loadEncuestas(), loadBariloche(), loadMetrics()]);
     clearTimeout(hideTimer);
