@@ -360,6 +360,90 @@ tr:hover td{background:#fafbfc;}
 .enc-unavail-title{font-size:1.05rem;font-weight:800;color:#64748b;margin-bottom:8px;}
 .enc-unavail-sub{font-size:.83rem;color:#94a3b8;line-height:1.75;max-width:440px;margin:0 auto;}
 .enc-unavail-code{font-family:monospace;background:#f1f5f9;padding:2px 8px;border-radius:4px;font-size:.78rem;color:#475569;}
+
+/* ── AUDITORÍA ── */
+.aud-stats{display:grid;grid-template-columns:repeat(auto-fit,minmax(160px,1fr));gap:14px;margin-bottom:20px;}
+.aud-stat{background:var(--card);border:1px solid var(--border);border-radius:14px;padding:18px;box-shadow:var(--shadow);}
+.aud-stat-num{font-size:2rem;font-weight:800;color:var(--text);line-height:1;}
+.aud-stat-lbl{font-size:.68rem;font-weight:700;color:var(--muted);text-transform:uppercase;letter-spacing:.8px;margin-top:5px;}
+.aud-stat-sub{font-size:.7rem;color:var(--muted);margin-top:3px;}
+.aud-grid{display:grid;grid-template-columns:repeat(auto-fill,minmax(320px,1fr));gap:16px;margin-bottom:20px;}
+.aud-card{background:var(--card);border:1px solid var(--border);border-radius:16px;padding:20px;box-shadow:var(--shadow);cursor:pointer;transition:all .2s;position:relative;overflow:hidden;}
+.aud-card::before{content:'';position:absolute;top:0;left:0;right:0;height:3px;background:linear-gradient(90deg,var(--accent),#34d399);transform:scaleX(0);transform-origin:left;transition:transform .3s;}
+.aud-card:hover{transform:translateY(-2px);box-shadow:0 8px 32px rgba(0,0,0,.1);}
+.aud-card:hover::before{transform:scaleX(1);}
+.aud-card-top{display:flex;justify-content:space-between;align-items:flex-start;margin-bottom:14px;}
+.aud-avatar{width:42px;height:42px;border-radius:12px;background:var(--accent);display:flex;align-items:center;justify-content:center;font-size:1rem;font-weight:800;color:#fff;flex-shrink:0;}
+.aud-badge{font-size:.7rem;font-weight:700;padding:3px 9px;border-radius:20px;}
+.aud-badge.g{background:#d1fae5;color:#065f46;}
+.aud-badge.y{background:#fef3c7;color:#92400e;}
+.aud-badge.r{background:#fee2e2;color:#991b1b;}
+.aud-name{font-size:1rem;font-weight:800;color:var(--text);}
+.aud-meta{font-size:.75rem;color:var(--muted);margin-top:2px;}
+.aud-kpis{display:grid;grid-template-columns:1fr 1fr;gap:8px;margin:12px 0;}
+.aud-kpi{background:var(--bg);border-radius:10px;padding:9px 12px;}
+.aud-kpi-val{font-size:1.3rem;font-weight:800;color:var(--text);}
+.aud-kpi-lbl{font-size:.62rem;font-weight:600;color:var(--muted);text-transform:uppercase;letter-spacing:.5px;margin-top:2px;}
+.aud-progress{height:3px;background:var(--border);border-radius:2px;margin-top:5px;overflow:hidden;}
+.aud-progress-fill{height:100%;border-radius:2px;background:var(--accent);}
+.aud-footer{margin-top:12px;padding-top:10px;border-top:1px solid var(--border);display:flex;justify-content:space-between;align-items:center;}
+.aud-score{font-size:1.1rem;font-weight:800;}
+.aud-arrow{width:26px;height:26px;border-radius:7px;background:#f0fdf4;border:1px solid #bbf7d0;display:flex;align-items:center;justify-content:center;color:var(--accent);font-size:.75rem;transition:all .2s;}
+.aud-card:hover .aud-arrow{background:var(--accent);color:#fff;}
+/* Detail */
+.aud-detail-header{display:flex;align-items:center;gap:16px;padding:24px 0;border-bottom:1px solid var(--border);margin-bottom:20px;flex-wrap:wrap;}
+.aud-detail-avatar{width:52px;height:52px;border-radius:14px;background:var(--accent);display:flex;align-items:center;justify-content:center;font-size:1.3rem;font-weight:800;color:#fff;}
+.aud-detail-name{font-size:1.3rem;font-weight:800;color:var(--text);}
+.aud-detail-sub{font-size:.78rem;color:var(--muted);margin-top:3px;}
+.aud-detail-score{margin-left:auto;text-align:right;}
+.aud-detail-score-num{font-size:2.5rem;font-weight:900;line-height:1;}
+.aud-detail-score-lbl{font-size:.65rem;color:var(--muted);text-transform:uppercase;letter-spacing:.8px;}
+.aud-audit-list{display:flex;flex-direction:column;gap:10px;}
+.aud-audit-item{background:var(--card);border:1px solid var(--border);border-radius:12px;padding:16px;cursor:pointer;transition:all .18s;}
+.aud-audit-item:hover{border-color:var(--accent);background:#f0fdf4;}
+.aud-audit-top{display:flex;justify-content:space-between;align-items:center;margin-bottom:10px;}
+.aud-audit-socio{font-size:.95rem;font-weight:700;color:var(--text);}
+.aud-audit-date{font-size:.72rem;color:var(--muted);}
+.aud-chips{display:flex;gap:5px;flex-wrap:wrap;}
+.aud-chip{font-size:.68rem;font-weight:700;padding:2px 7px;border-radius:5px;}
+.aud-chip.g{background:#d1fae5;color:#065f46;}
+.aud-chip.y{background:#fef3c7;color:#92400e;}
+.aud-chip.r{background:#fee2e2;color:#991b1b;}
+.aud-audit-obs{font-size:.78rem;color:var(--muted);margin-top:6px;line-height:1.5;}
+.aud-expanded{display:none;margin-top:12px;padding-top:12px;border-top:1px solid var(--border);}
+.aud-expanded.open{display:block;}
+.aud-exp-grid{display:grid;grid-template-columns:1fr 1fr;gap:10px;margin-bottom:10px;}
+.aud-exp-block{background:var(--bg);border-radius:10px;padding:12px;}
+.aud-exp-block-title{font-size:.62rem;font-weight:700;text-transform:uppercase;letter-spacing:.8px;color:var(--accent);margin-bottom:6px;}
+.aud-exp-block-content{font-size:.79rem;color:var(--muted);line-height:1.6;}
+.aud-plan-list{list-style:none;padding:0;display:flex;flex-direction:column;gap:4px;}
+.aud-plan-list li{display:flex;gap:5px;font-size:.79rem;color:var(--muted);}
+.aud-plan-list li::before{content:'→';color:var(--accent);flex-shrink:0;}
+.aud-btn-back{display:inline-flex;align-items:center;gap:6px;background:var(--bg);border:1px solid var(--border);color:var(--muted);font-size:.79rem;font-weight:600;padding:7px 14px;border-radius:9px;cursor:pointer;margin-bottom:20px;font-family:inherit;transition:all .15s;}
+.aud-btn-back:hover{background:var(--border);color:var(--text);}
+.aud-modal-overlay{display:none;position:fixed;inset:0;background:rgba(0,0,0,.5);z-index:500;justify-content:center;align-items:center;}
+.aud-modal-overlay.open{display:flex;}
+.aud-modal{background:var(--card);border:1px solid var(--border);border-radius:16px;padding:28px;width:520px;max-width:94vw;max-height:90vh;overflow-y:auto;}
+.aud-modal-title{font-size:1rem;font-weight:800;color:var(--text);margin-bottom:18px;}
+.aud-form-group{display:flex;flex-direction:column;gap:5px;margin-bottom:12px;}
+.aud-form-label{font-size:.75rem;font-weight:600;color:var(--muted);}
+.aud-form-input,.aud-form-textarea{background:var(--bg);border:1px solid var(--border);border-radius:9px;padding:9px 13px;color:var(--text);font-size:.84rem;font-family:inherit;outline:none;transition:border-color .18s;}
+.aud-form-input:focus,.aud-form-textarea:focus{border-color:var(--accent);}
+.aud-form-textarea{resize:vertical;min-height:60px;line-height:1.5;}
+.aud-sem-group{display:flex;gap:6px;}
+.aud-sem-radio{display:none;}
+.aud-sem-lbl{display:flex;align-items:center;gap:4px;padding:5px 11px;border-radius:7px;cursor:pointer;border:1px solid var(--border);font-size:.78rem;font-weight:600;background:var(--bg);transition:all .15s;user-select:none;}
+.aud-sem-radio.g:checked+.aud-sem-lbl{background:#d1fae5;color:#065f46;border-color:#6ee7b7;}
+.aud-sem-radio.y:checked+.aud-sem-lbl{background:#fef3c7;color:#92400e;border-color:#fcd34d;}
+.aud-sem-radio.r:checked+.aud-sem-lbl{background:#fee2e2;color:#991b1b;border-color:#fca5a5;}
+.aud-section-block{border:1px solid var(--border);border-radius:10px;padding:13px;margin-bottom:9px;}
+.aud-modal-actions{display:flex;gap:9px;justify-content:flex-end;margin-top:18px;}
+.aud-btn-cancel{background:var(--bg);border:1px solid var(--border);color:var(--muted);font-size:.82rem;font-weight:600;padding:8px 16px;border-radius:8px;cursor:pointer;font-family:inherit;}
+.aud-btn-save{background:var(--accent);color:#fff;border:none;font-size:.82rem;font-weight:700;padding:8px 18px;border-radius:8px;cursor:pointer;font-family:inherit;transition:opacity .15s;}
+.aud-btn-save:hover{opacity:.88;}
+.aud-empty{text-align:center;padding:48px 16px;color:var(--muted);}
+.aud-empty i{font-size:2.2rem;opacity:.25;margin-bottom:10px;display:block;}
+@media(max-width:700px){.aud-exp-grid{grid-template-columns:1fr;}.aud-grid{grid-template-columns:1fr;}}
 </style>
 </head>
 <body>
@@ -419,6 +503,12 @@ tr:hover td{background:#fafbfc;}
             </div>
             <div class="nav-item" onclick="go('bari-enc')">
                 <i class="fas fa-mountain"></i> Bariloche
+            </div>
+        </div>
+        <div class="sb-group">
+            <div class="sb-group-label">Gesti&oacute;n</div>
+            <div class="nav-item" onclick="go('auditoria')">
+                <i class="fas fa-clipboard-check"></i> Auditor&iacute;a
             </div>
         </div>
     </div>
@@ -983,6 +1073,89 @@ tr:hover td{background:#fafbfc;}
             </div>
         </div><!-- /section-bari-enc -->
 
+        <!-- ═══ SECTION: AUDITORÍA ═══ -->
+        <div class="section" id="section-auditoria">
+
+            <!-- Vista: Grid de entrenadores -->
+            <div id="audGrid">
+                <div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:20px;flex-wrap:wrap;gap:10px;">
+                    <div>
+                        <div style="font-size:1rem;font-weight:800;color:var(--text);">Panel de Supervisión</div>
+                        <div style="font-size:.75rem;color:var(--muted);margin-top:2px;">Metodología MOVE · Sistema de Semáforos</div>
+                    </div>
+                    <button class="aud-btn-save" onclick="audShowAddTrainer()" style="display:flex;align-items:center;gap:7px;"><i class="fas fa-user-plus"></i> Nuevo Entrenador</button>
+                </div>
+                <div class="aud-stats" id="audStatsBar"></div>
+                <div class="aud-grid" id="audCardsGrid"></div>
+            </div>
+
+            <!-- Vista: Detalle de entrenador -->
+            <div id="audDetail" style="display:none;">
+                <button class="aud-btn-back" onclick="audGoGrid()"><i class="fas fa-arrow-left" style="font-size:.7rem;"></i> Todos los Entrenadores</button>
+                <div class="aud-detail-header" id="audDetailHeader"></div>
+                <div class="kpi-grid" id="audDetailKpis" style="margin-bottom:20px;"></div>
+                <div class="row c2" style="margin-bottom:18px;">
+                    <div class="card">
+                        <div class="card-hd"><div class="card-title"><i class="fas fa-circle-dot"></i> Distribución Semáforos</div></div>
+                        <div style="display:flex;justify-content:center;"><canvas id="audDonut" width="200" height="200"></canvas></div>
+                    </div>
+                    <div class="card">
+                        <div class="card-hd"><div class="card-title"><i class="fas fa-bars"></i> Score por Sección</div></div>
+                        <div style="height:180px;position:relative;"><canvas id="audBar"></canvas></div>
+                    </div>
+                </div>
+                <div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:14px;flex-wrap:wrap;gap:8px;">
+                    <div style="font-size:.95rem;font-weight:800;color:var(--text);">Auditorías Registradas <span id="audCount" style="font-size:.82rem;font-weight:400;color:var(--muted);"></span></div>
+                    <button class="aud-btn-save" onclick="audShowForm()" style="display:flex;align-items:center;gap:7px;"><i class="fas fa-plus"></i> Nueva Auditoría</button>
+                </div>
+                <div class="aud-audit-list" id="audAuditList"></div>
+            </div>
+        </div><!-- /section-auditoria -->
+
+        <!-- Modal Nuevo Entrenador -->
+        <div class="aud-modal-overlay" id="audTrainerModal">
+            <div class="aud-modal" style="max-width:380px;">
+                <div class="aud-modal-title">Agregar Entrenador</div>
+                <div class="aud-form-group">
+                    <label class="aud-form-label">Nombre completo *</label>
+                    <input class="aud-form-input" id="audTName" placeholder="Ej: Laura Méndez">
+                </div>
+                <div class="aud-form-group">
+                    <label class="aud-form-label">Socios activos</label>
+                    <input class="aud-form-input" id="audTSocios" type="number" placeholder="Ej: 12" min="0">
+                </div>
+                <div class="aud-modal-actions">
+                    <button class="aud-btn-cancel" onclick="audCloseTrainerModal()">Cancelar</button>
+                    <button class="aud-btn-save" onclick="audAddTrainer()"><i class="fas fa-user-plus"></i> Agregar</button>
+                </div>
+            </div>
+        </div>
+
+        <!-- Modal Nueva Auditoría -->
+        <div class="aud-modal-overlay" id="audFormModal">
+            <div class="aud-modal">
+                <div class="aud-modal-title" id="audFormTitle">Nueva Auditoría</div>
+                <div class="aud-form-group">
+                    <label class="aud-form-label">Nombre del Socio *</label>
+                    <input class="aud-form-input" id="audFSocio" placeholder="Ej: Carlos Rivera">
+                </div>
+                <div style="font-size:.75rem;font-weight:700;color:var(--muted);text-transform:uppercase;letter-spacing:.8px;margin-bottom:10px;">Evaluación por Sección</div>
+                <div id="audFormSections"></div>
+                <div class="aud-form-group">
+                    <label class="aud-form-label">Hallazgos Técnicos</label>
+                    <textarea class="aud-form-textarea" id="audFHallazgos" rows="3" placeholder="Describir hallazgos observados..."></textarea>
+                </div>
+                <div style="font-size:.75rem;font-weight:700;color:var(--muted);text-transform:uppercase;letter-spacing:.8px;margin-bottom:8px;">Plan de Acción</div>
+                <div class="aud-form-group"><input class="aud-form-input" id="audFP1" placeholder="Acción correctiva 1..."></div>
+                <div class="aud-form-group"><input class="aud-form-input" id="audFP2" placeholder="Acción correctiva 2..."></div>
+                <div class="aud-form-group"><input class="aud-form-input" id="audFP3" placeholder="Acción correctiva 3..."></div>
+                <div class="aud-modal-actions">
+                    <button class="aud-btn-cancel" onclick="audCloseFormModal()">Cancelar</button>
+                    <button class="aud-btn-save" onclick="audSaveAudit()"><i class="fas fa-floppy-disk"></i> Guardar</button>
+                </div>
+            </div>
+        </div>
+
     </div><!-- /content -->
 </div><!-- /main -->
 
@@ -1311,6 +1484,7 @@ const META = {
     bajas:     {title:'An\u00e1lisis de Bajas',  sub:'Encuestas de ex-socios'},
     'bari-enc':  {title:'Bariloche \u2014 Encuestas', sub:'Bienvenida & An\u00e1lisis de Bajas sede Bariloche'},
     'bolson-enc':{title:'Bols\u00f3n & Lago Puelo \u2014 Encuestas', sub:'Bienvenida & An\u00e1lisis de Bajas'},
+    'auditoria': {title:'Auditor\u00eda', sub:'Supervisi\u00f3n de entrenadores \u00b7 Metodolog\u00eda MOVE'},
 };
 function go(sec){
     document.querySelectorAll('.section').forEach(s=>s.classList.remove('active'));
@@ -2427,6 +2601,274 @@ function renderEnc(){
 // ══════════════════════════════════════════════════
 // INIT
 // ══════════════════════════════════════════════════
+
+// ══════════════════════════════════════════════════
+// AUDITORÍA
+// ══════════════════════════════════════════════════
+const AUD_SECTIONS = [
+    {key:'gestion',     label:'Gestión y Vigencia',     icon:'fa-calendar-check'},
+    {key:'diagnostico', label:'Diagnóstico y Evolución', icon:'fa-chart-line'},
+    {key:'metodologia', label:'Rigor Metodológico',      icon:'fa-dumbbell'},
+    {key:'custom',      label:'Customización',           icon:'fa-user-check'}
+];
+
+let audStore = {
+    trainers: [
+        {
+            id:'t1', name:'Laura Méndez', sociosActivos:14,
+            audits:[
+                {id:'a1',socio:'Carlos Rivera',date:'2025-04-12',
+                 semaforos:{gestion:'verde',diagnostico:'verde',metodologia:'amarillo',custom:'verde'},
+                 hallazgos:'El socio presenta buena adherencia. Falta progresión de carga en las últimas 2 semanas.',
+                 planes:['Agregar progresión semanal al bloque de fuerza','Incorporar reevaluación de movilidad','Actualizar notas en CRM'],
+                 obs:{gestion:'Plan vigente y actualizado.',diagnostico:'Evaluación inicial completa. Reevaluación pendiente.',metodologia:'Falta control de carga (RIR) en bloque principal.',custom:'Buena adaptación por lesión de rodilla previa.'}},
+                {id:'a2',socio:'Ana Suárez',date:'2025-04-10',
+                 semaforos:{gestion:'amarillo',diagnostico:'verde',metodologia:'verde',custom:'verde'},
+                 hallazgos:'CRM con tareas atrasadas. Metodología correcta.',
+                 planes:['Actualizar tareas en CRM','Seguimiento semanal','Revisar progresión mensual'],
+                 obs:{gestion:'2 tareas de seguimiento pendientes.',diagnostico:'Reevaluación realizada correctamente.',metodologia:'Estructura de sesión ejemplar.',custom:'Adaptaciones bien documentadas.'}}
+            ]
+        },
+        {
+            id:'t2', name:'Marcos Torres', sociosActivos:9,
+            audits:[
+                {id:'a3',socio:'Luis Herrera',date:'2025-04-08',
+                 semaforos:{gestion:'rojo',diagnostico:'amarillo',metodologia:'rojo',custom:'amarillo'},
+                 hallazgos:'Planificación desactualizada. Sin control de carga RPE. Reevaluación demorada.',
+                 planes:['Actualizar plan inmediatamente','Incorporar RPE en todos los ejercicios','Agendar reevaluación esta semana'],
+                 obs:{gestion:'Plan con 3 semanas de atraso.',diagnostico:'Reevaluación no realizada en el ciclo.',metodologia:'Sin RPE/RIR en ningún ejercicio.',custom:'Ejercicios no ajustados al nivel biomecánico.'}}
+            ]
+        },
+        {
+            id:'t3', name:'Valentina Cruz', sociosActivos:18,
+            audits:[
+                {id:'a4',socio:'Pedro Jiménez',date:'2025-04-15',
+                 semaforos:{gestion:'verde',diagnostico:'verde',metodologia:'verde',custom:'verde'},
+                 hallazgos:'Sin observaciones críticas. Entrenadora referente del equipo.',
+                 planes:['Mantener estándar actual','Compartir buenas prácticas','Evaluar mentoreo a nuevos entrenadores'],
+                 obs:{gestion:'Todas las tareas CRM al día.',diagnostico:'Evaluaciones y reevaluaciones completas.',metodologia:'Estructura perfecta, RPE en todos los bloques.',custom:'Excelente personalización por patologías.'}}
+            ]
+        }
+    ]
+};
+
+let audCurrentTrainer = null;
+let audDonutInst = null, audBarInst = null;
+
+function audS2N(s){return s==='verde'?100:s==='amarillo'?60:20;}
+function audS2C(s){return s==='verde'?'g':s==='amarillo'?'y':'r';}
+function audS2Lbl(s){return s==='verde'?'🟢 Verde':s==='amarillo'?'🟡 Amarillo':'🔴 Rojo';}
+function audInitials(name){return name.split(' ').map(w=>w[0]).join('').slice(0,2);}
+
+function audCalcStats(trainer){
+    const audits=trainer.audits;
+    if(!audits.length) return {score:0,verde:0,amarillo:0,rojo:0,planScore:0,evalScore:0,reevalScore:0,total:0};
+    let v=0,a=0,r=0,tot=0;
+    audits.forEach(au=>{Object.values(au.semaforos).forEach(s=>{tot++;if(s==='verde')v++;else if(s==='amarillo')a++;else r++;});});
+    const planScore=Math.round(audits.filter(au=>au.semaforos.gestion==='verde').length/audits.length*100);
+    const evalScore=Math.round(audits.filter(au=>au.semaforos.diagnostico!=='rojo').length/audits.length*100);
+    const reevalScore=Math.round(audits.filter(au=>au.semaforos.diagnostico==='verde').length/audits.length*100);
+    const score=Math.round((v/tot)*100);
+    return {score,verde:v,amarillo:a,rojo:r,planScore,evalScore,reevalScore,total:tot};
+}
+
+function audScoreColor(s){return s>=80?'#10b981':s>=50?'#f59e0b':'#ef4444';}
+
+function audRenderGrid(){
+    const trainers=audStore.trainers;
+    const totalSocios=trainers.reduce((s,t)=>s+t.sociosActivos,0);
+    const totalAudits=trainers.reduce((s,t)=>s+t.audits.length,0);
+    const avgScore=trainers.length?Math.round(trainers.reduce((s,t)=>s+audCalcStats(t).score,0)/trainers.length):0;
+
+    document.getElementById('audStatsBar').innerHTML=`
+        <div class="aud-stat"><div class="aud-stat-num" style="color:var(--accent)">${trainers.length}</div><div class="aud-stat-lbl">Entrenadores</div><div class="aud-stat-sub">activos</div></div>
+        <div class="aud-stat"><div class="aud-stat-num" style="color:var(--accent)">${totalSocios}</div><div class="aud-stat-lbl">Socios</div><div class="aud-stat-sub">bajo supervisión</div></div>
+        <div class="aud-stat"><div class="aud-stat-num" style="color:var(--accent)">${totalAudits}</div><div class="aud-stat-lbl">Auditorías</div><div class="aud-stat-sub">registradas</div></div>
+        <div class="aud-stat"><div class="aud-stat-num" style="color:${audScoreColor(avgScore)}">${avgScore}%</div><div class="aud-stat-lbl">Score Promedio</div><div class="aud-stat-sub">cumplimiento</div></div>`;
+
+    const grid=document.getElementById('audCardsGrid');
+    if(!trainers.length){
+        grid.innerHTML=`<div class="aud-empty" style="grid-column:1/-1"><i class="fas fa-user-slash"></i>No hay entrenadores registrados.</div>`;
+        return;
+    }
+    grid.innerHTML='';
+    trainers.forEach(trainer=>{
+        const stats=audCalcStats(trainer);
+        const badgeClass=stats.score>=80?'g':stats.score>=50?'y':'r';
+        const badgeText=stats.score>=80?'Óptimo':stats.score>=50?'A mejorar':'Crítico';
+        const div=document.createElement('div');
+        div.className='aud-card';
+        div.onclick=()=>audShowDetail(trainer.id);
+        div.innerHTML=`
+            <div class="aud-card-top">
+                <div style="display:flex;align-items:center;gap:10px;">
+                    <div class="aud-avatar">${audInitials(trainer.name)}</div>
+                    <div><div class="aud-name">${trainer.name}</div><div class="aud-meta">${trainer.sociosActivos} socios · ${trainer.audits.length} auditorías</div></div>
+                </div>
+                <span class="aud-badge ${badgeClass}">${badgeText}</span>
+            </div>
+            <div class="aud-kpis">
+                <div class="aud-kpi"><div class="aud-kpi-val">${stats.planScore}%</div><div class="aud-kpi-lbl">Planificación</div><div class="aud-progress"><div class="aud-progress-fill" style="width:${stats.planScore}%"></div></div></div>
+                <div class="aud-kpi"><div class="aud-kpi-val">${stats.evalScore}%</div><div class="aud-kpi-lbl">Evaluaciones</div><div class="aud-progress"><div class="aud-progress-fill" style="width:${stats.evalScore}%"></div></div></div>
+            </div>
+            <div class="aud-footer">
+                <span style="font-size:.75rem;color:var(--muted);">Score global</span>
+                <div style="display:flex;align-items:center;gap:8px;">
+                    <span class="aud-score" style="color:${audScoreColor(stats.score)}">${stats.score}%</span>
+                    <div class="aud-arrow"><i class="fas fa-arrow-right"></i></div>
+                </div>
+            </div>`;
+        grid.appendChild(div);
+    });
+}
+
+function audShowDetail(trainerId){
+    audCurrentTrainer=trainerId;
+    const trainer=audStore.trainers.find(t=>t.id===trainerId);
+    if(!trainer) return;
+    const stats=audCalcStats(trainer);
+    if(audDonutInst){audDonutInst.destroy();audDonutInst=null;}
+    if(audBarInst){audBarInst.destroy();audBarInst=null;}
+
+    document.getElementById('audDetailHeader').innerHTML=`
+        <div class="aud-detail-avatar">${audInitials(trainer.name)}</div>
+        <div><div class="aud-detail-name">${trainer.name}</div><div class="aud-detail-sub">${trainer.sociosActivos} socios · ${trainer.audits.length} auditorías</div></div>
+        <div class="aud-detail-score" style="margin-left:auto;text-align:right;">
+            <div class="aud-detail-score-num" style="color:${audScoreColor(stats.score)}">${stats.score}%</div>
+            <div class="aud-detail-score-lbl">Score Global</div>
+        </div>`;
+
+    document.getElementById('audDetailKpis').innerHTML=`
+        <div class="kpi-card"><div class="kpi-label">Socios Activos</div><div class="kpi-value" style="color:var(--accent)">${trainer.sociosActivos}</div></div>
+        <div class="kpi-card"><div class="kpi-label">Planes al Día</div><div class="kpi-value" style="color:var(--accent)">${stats.planScore}%</div></div>
+        <div class="kpi-card"><div class="kpi-label">Evaluaciones</div><div class="kpi-value" style="color:var(--accent)">${stats.evalScore}%</div></div>
+        <div class="kpi-card"><div class="kpi-label">Reevaluaciones</div><div class="kpi-value" style="color:var(--accent)">${stats.reevalScore}%</div></div>`;
+
+    audRenderAudits(trainer);
+    document.getElementById('audGrid').style.display='none';
+    document.getElementById('audDetail').style.display='block';
+
+    setTimeout(()=>{
+        const dc=document.getElementById('audDonut');
+        if(dc) audDonutInst=new Chart(dc,{type:'doughnut',data:{labels:['Verde','Amarillo','Rojo'],datasets:[{data:[stats.verde||0.1,stats.amarillo,stats.rojo],backgroundColor:['#10b981','#f59e0b','#ef4444'],borderWidth:2,borderColor:'#fff'}]},options:{responsive:true,cutout:'65%',plugins:{legend:{position:'bottom',labels:{font:{size:11}}}}}});
+        const bc=document.getElementById('audBar');
+        if(bc){
+            const vals=AUD_SECTIONS.map(sec=>trainer.audits.length?Math.round(trainer.audits.reduce((s,au)=>s+audS2N(au.semaforos[sec.key]),0)/trainer.audits.length):0);
+            audBarInst=new Chart(bc,{type:'bar',data:{labels:AUD_SECTIONS.map(s=>s.label.split(' ')[0]),datasets:[{data:vals,backgroundColor:vals.map(v=>v>=80?'rgba(16,185,129,.15)':v>=50?'rgba(245,158,11,.15)':'rgba(239,68,68,.15)'),borderColor:vals.map(v=>v>=80?'#10b981':v>=50?'#f59e0b':'#ef4444'),borderWidth:2,borderRadius:7}]},options:{responsive:true,maintainAspectRatio:false,scales:{y:{beginAtZero:true,max:100,grid:{color:'rgba(0,0,0,.04)'},ticks:{callback:v=>v+'%'}},x:{grid:{display:false}}},plugins:{legend:{display:false}}}});
+        }
+    },80);
+}
+
+function audRenderAudits(trainer){
+    document.getElementById('audCount').textContent=`(${trainer.audits.length})`;
+    const list=document.getElementById('audAuditList');
+    if(!trainer.audits.length){
+        list.innerHTML=`<div class="aud-empty"><i class="fas fa-clipboard"></i>Sin auditorías. Hacé click en "Nueva Auditoría".</div>`;
+        return;
+    }
+    list.innerHTML=trainer.audits.map(audit=>{
+        const chips=AUD_SECTIONS.map(s=>`<span class="aud-chip ${audS2C(audit.semaforos[s.key])}">${s.label.split(' ')[0]}</span>`).join('');
+        const obsItems=AUD_SECTIONS.map(s=>audit.obs&&audit.obs[s.key]?`<div style="margin-bottom:6px;"><strong style="font-size:.68rem;text-transform:uppercase;letter-spacing:.6px;color:var(--accent);">${s.label.split(' ')[0]}:</strong> <span>${audit.obs[s.key]}</span></div>`:'').join('');
+        const planes=audit.planes.filter(Boolean).map(p=>`<li>${p}</li>`).join('');
+        return `
+        <div class="aud-audit-item" onclick="audToggle('${audit.id}')">
+            <div class="aud-audit-top">
+                <div><div class="aud-audit-socio"><i class="fas fa-user" style="font-size:.7rem;color:var(--muted);margin-right:5px;"></i>${audit.socio}</div><div class="aud-audit-date">${audit.date}</div></div>
+                <div style="display:flex;align-items:center;gap:6px;"><div class="aud-chips">${chips}</div><i class="fas fa-chevron-down" id="audChev_${audit.id}" style="color:var(--muted);font-size:.75rem;transition:transform .2s;"></i></div>
+            </div>
+            ${audit.hallazgos?`<div class="aud-audit-obs"><i class="fas fa-circle-info" style="color:var(--accent);margin-right:4px;font-size:.72rem;"></i>${audit.hallazgos.slice(0,100)}${audit.hallazgos.length>100?'…':''}</div>`:''}
+            <div class="aud-expanded" id="audExp_${audit.id}">
+                <div class="aud-exp-grid">
+                    <div class="aud-exp-block"><div class="aud-exp-block-title">Observaciones</div><div class="aud-exp-block-content">${obsItems||'Sin observaciones.'}</div></div>
+                    <div class="aud-exp-block"><div class="aud-exp-block-title">Plan de Acción</div><ul class="aud-plan-list">${planes||'<li>Sin plan.</li>'}</ul></div>
+                </div>
+                ${audit.hallazgos?`<div class="aud-exp-block"><div class="aud-exp-block-title">Hallazgos Técnicos</div><div class="aud-exp-block-content">${audit.hallazgos}</div></div>`:''}
+            </div>
+        </div>`;
+    }).join('');
+}
+
+function audToggle(id){
+    const exp=document.getElementById('audExp_'+id);
+    const chev=document.getElementById('audChev_'+id);
+    if(!exp) return;
+    exp.classList.toggle('open');
+    if(chev) chev.style.transform=exp.classList.contains('open')?'rotate(180deg)':'';
+}
+
+function audGoGrid(){
+    document.getElementById('audDetail').style.display='none';
+    document.getElementById('audGrid').style.display='block';
+    audRenderGrid();
+}
+
+function audShowAddTrainer(){
+    document.getElementById('audTName').value='';
+    document.getElementById('audTSocios').value='';
+    document.getElementById('audTrainerModal').classList.add('open');
+}
+function audCloseTrainerModal(){document.getElementById('audTrainerModal').classList.remove('open');}
+function audAddTrainer(){
+    const name=document.getElementById('audTName').value.trim();
+    const socios=parseInt(document.getElementById('audTSocios').value)||0;
+    if(!name){alert('El nombre es requerido');return;}
+    audStore.trainers.push({id:'t'+Date.now(),name,sociosActivos:socios,audits:[]});
+    audCloseTrainerModal();
+    audRenderGrid();
+}
+
+function audShowForm(){
+    const trainer=audStore.trainers.find(t=>t.id===audCurrentTrainer);
+    document.getElementById('audFormTitle').textContent=`Nueva Auditoría · ${trainer.name}`;
+    document.getElementById('audFSocio').value='';
+    document.getElementById('audFHallazgos').value='';
+    document.getElementById('audFP1').value='';
+    document.getElementById('audFP2').value='';
+    document.getElementById('audFP3').value='';
+    const container=document.getElementById('audFormSections');
+    container.innerHTML=AUD_SECTIONS.map(sec=>`
+        <div class="aud-section-block">
+            <div style="display:flex;justify-content:space-between;align-items:center;flex-wrap:wrap;gap:8px;margin-bottom:8px;">
+                <div style="font-size:.84rem;font-weight:700;display:flex;align-items:center;gap:6px;"><i class="fas ${sec.icon}" style="color:var(--accent);font-size:.8rem;"></i>${sec.label}</div>
+                <div class="aud-sem-group">
+                    <input type="radio" class="aud-sem-radio g" name="asem_${sec.key}" id="asem_${sec.key}_v" value="verde" checked><label class="aud-sem-lbl" for="asem_${sec.key}_v">🟢 Verde</label>
+                    <input type="radio" class="aud-sem-radio y" name="asem_${sec.key}" id="asem_${sec.key}_a" value="amarillo"><label class="aud-sem-lbl" for="asem_${sec.key}_a">🟡 Amarillo</label>
+                    <input type="radio" class="aud-sem-radio r" name="asem_${sec.key}" id="asem_${sec.key}_r" value="rojo"><label class="aud-sem-lbl" for="asem_${sec.key}_r">🔴 Rojo</label>
+                </div>
+            </div>
+            <textarea class="aud-form-textarea" id="aobs_${sec.key}" rows="2" placeholder="Observaciones para ${sec.label.toLowerCase()}..."></textarea>
+        </div>`).join('');
+    document.getElementById('audFormModal').classList.add('open');
+}
+function audCloseFormModal(){document.getElementById('audFormModal').classList.remove('open');}
+function audSaveAudit(){
+    const socio=document.getElementById('audFSocio').value.trim();
+    if(!socio){alert('El nombre del socio es requerido');return;}
+    const semaforos={},obs={};
+    AUD_SECTIONS.forEach(sec=>{
+        const checked=document.querySelector(`input[name="asem_${sec.key}"]:checked`);
+        semaforos[sec.key]=checked?checked.value:'verde';
+        obs[sec.key]=document.getElementById('aobs_'+sec.key).value.trim();
+    });
+    const hallazgos=document.getElementById('audFHallazgos').value.trim();
+    const planes=[document.getElementById('audFP1').value.trim(),document.getElementById('audFP2').value.trim(),document.getElementById('audFP3').value.trim()].filter(Boolean);
+    const trainer=audStore.trainers.find(t=>t.id===audCurrentTrainer);
+    if(trainer){trainer.audits.unshift({id:'a'+Date.now(),socio,date:new Date().toISOString().split('T')[0],semaforos,hallazgos,planes,obs});}
+    audCloseFormModal();
+    audShowDetail(audCurrentTrainer);
+}
+
+// Inicializar auditoría cuando se navega a esa sección
+const _origGo=go;
+function go(sec){
+    _origGo(sec);
+    if(sec==='auditoria'){
+        document.getElementById('audDetail').style.display='none';
+        document.getElementById('audGrid').style.display='block';
+        audRenderGrid();
+    }
+}
+
 cargarTodo();
 </script>
 </body>
