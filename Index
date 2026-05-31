@@ -2048,7 +2048,7 @@ function renderEncBariBajas(C){
         mejEl.innerHTML=mc||'<div class="quote-empty">Sin respuestas</div>';
     }
 }
-// ── END BARILOCHE ────────────────────────────────────────────
+// ── END BARILOCHE ───────────────────────────────────────────
 
 function renderEnc(){
     const W=wData,C=cData;
