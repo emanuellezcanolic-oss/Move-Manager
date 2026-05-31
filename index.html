@@ -1076,69 +1076,80 @@ tr:hover td{background:#fafbfc;}
         <!-- ═══ SECTION: AUDITORÍA ═══ -->
         <div class="section" id="section-auditoria">
 
-            <!-- Vista: Grid de entrenadores -->
-            <div id="audGrid">
-                <div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:20px;flex-wrap:wrap;gap:10px;">
-                    <div>
-                        <div style="font-size:1rem;font-weight:800;color:var(--text);">Panel de Supervisión</div>
-                        <div style="font-size:.75rem;color:var(--muted);margin-top:2px;">Metodología MOVE · Sistema de Semáforos</div>
-                    </div>
-                    <button class="aud-btn-save" onclick="audShowAddTrainer()" style="display:flex;align-items:center;gap:7px;"><i class="fas fa-user-plus"></i> Nuevo Entrenador</button>
+            <!-- Vista: Selector inicial -->
+            <div id="audSelector">
+                <div style="margin-bottom:24px;">
+                    <div style="font-size:1rem;font-weight:800;color:var(--text);">Nueva Auditoría</div>
+                    <div style="font-size:.75rem;color:var(--muted);margin-top:2px;">Supervisión de entrenadores · Metodología MOVE</div>
                 </div>
-                <div class="aud-stats" id="audStatsBar"></div>
-                <div class="aud-grid" id="audCardsGrid"></div>
+
+                <!-- Step 1: elegir entrenador -->
+                <div class="card" style="margin-bottom:16px;">
+                    <div class="card-hd"><div class="card-title"><i class="fas fa-user-tie"></i> 1. Elegir Entrenador</div></div>
+                    <div style="display:flex;flex-wrap:wrap;gap:8px;" id="audTrainerBtns"></div>
+                </div>
+
+                <!-- Step 2: cantidad de planes a auditar -->
+                <div class="card" id="audStep2" style="display:none;margin-bottom:16px;">
+                    <div class="card-hd"><div class="card-title"><i class="fas fa-list-check"></i> 2. ¿Cuántos planes vas a auditar hoy?</div></div>
+                    <div style="display:flex;gap:8px;flex-wrap:wrap;" id="audCantBtns">
+                        <button class="tab" onclick="audSetCant(3)">3 planes</button>
+                        <button class="tab" onclick="audSetCant(5)">5 planes</button>
+                        <button class="tab" onclick="audSetCant(8)">8 planes</button>
+                        <button class="tab" onclick="audSetCant(10)">10 planes</button>
+                        <button class="tab" onclick="audSetCant(15)">15 planes</button>
+                    </div>
+                </div>
+
+                <!-- KPIs de la planilla real -->
+                <div id="audPlanillaKpis" style="display:none;">
+                    <div style="font-size:.75rem;font-weight:700;color:var(--muted);text-transform:uppercase;letter-spacing:.8px;margin-bottom:10px;display:flex;align-items:center;gap:8px;">
+                        <i class="fas fa-table" style="color:var(--accent);"></i> Datos de la Planilla — <span id="audProfeNombre"></span>
+                        <span id="audCargandoTag" style="font-size:.68rem;background:#f1f5f9;padding:2px 8px;border-radius:10px;">Cargando...</span>
+                    </div>
+                    <div class="aud-stats" id="audPlanKpis"></div>
+
+                    <!-- Tabla planes vencidos -->
+                    <div class="card" style="margin-bottom:16px;">
+                        <div class="card-hd">
+                            <div class="card-title"><i class="fas fa-calendar-xmark" style="color:#ef4444;"></i> Planes Vencidos (Socios Activos)</div>
+                            <span class="card-badge" id="audVencBadge"></span>
+                        </div>
+                        <div class="tw"><table><thead><tr><th>Socio</th><th>Vencimiento</th><th>Días vencido</th><th>Evaluación</th><th>Objetivo APP</th></tr></thead><tbody id="audVencTable"></tbody></table></div>
+                    </div>
+
+                    <!-- Tabla socios auditados hoy -->
+                    <div class="card" style="margin-bottom:16px;">
+                        <div class="card-hd">
+                            <div class="card-title"><i class="fas fa-magnifying-glass" style="color:var(--accent);"></i> Planes a Auditar Hoy</div>
+                            <span class="card-badge" id="audHoyBadge"></span>
+                        </div>
+                        <div class="tw"><table><thead><tr><th>Socio</th><th>Última Evaluación</th><th>Evaluación Cargada</th><th>Objetivo APP</th><th>Semáforo</th></tr></thead><tbody id="audHoyTable"></tbody></table></div>
+                    </div>
+
+                    <!-- Botón iniciar auditoría -->
+                    <div style="display:flex;justify-content:flex-end;margin-bottom:20px;">
+                        <button class="aud-btn-save" onclick="audIniciarFormulario()" style="display:flex;align-items:center;gap:8px;font-size:.9rem;padding:11px 24px;">
+                            <i class="fas fa-clipboard-check"></i> Completar Auditoría
+                        </button>
+                    </div>
+                </div>
             </div>
 
-            <!-- Vista: Detalle de entrenador -->
-            <div id="audDetail" style="display:none;">
-                <button class="aud-btn-back" onclick="audGoGrid()"><i class="fas fa-arrow-left" style="font-size:.7rem;"></i> Todos los Entrenadores</button>
-                <div class="aud-detail-header" id="audDetailHeader"></div>
-                <div class="kpi-grid" id="audDetailKpis" style="margin-bottom:20px;"></div>
-                <div class="row c2" style="margin-bottom:18px;">
-                    <div class="card">
-                        <div class="card-hd"><div class="card-title"><i class="fas fa-circle-dot"></i> Distribución Semáforos</div></div>
-                        <div style="display:flex;justify-content:center;"><canvas id="audDonut" width="200" height="200"></canvas></div>
-                    </div>
-                    <div class="card">
-                        <div class="card-hd"><div class="card-title"><i class="fas fa-bars"></i> Score por Sección</div></div>
-                        <div style="height:180px;position:relative;"><canvas id="audBar"></canvas></div>
-                    </div>
-                </div>
+            <!-- Vista: Historial de auditorías -->
+            <div id="audHistorial" style="margin-top:24px;">
                 <div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:14px;flex-wrap:wrap;gap:8px;">
-                    <div style="font-size:.95rem;font-weight:800;color:var(--text);">Auditorías Registradas <span id="audCount" style="font-size:.82rem;font-weight:400;color:var(--muted);"></span></div>
-                    <button class="aud-btn-save" onclick="audShowForm()" style="display:flex;align-items:center;gap:7px;"><i class="fas fa-plus"></i> Nueva Auditoría</button>
+                    <div style="font-size:.95rem;font-weight:800;color:var(--text);">Historial de Auditorías <span id="audCount" style="font-size:.82rem;font-weight:400;color:var(--muted);"></span></div>
                 </div>
                 <div class="aud-audit-list" id="audAuditList"></div>
             </div>
         </div><!-- /section-auditoria -->
 
-        <!-- Modal Nuevo Entrenador -->
-        <div class="aud-modal-overlay" id="audTrainerModal">
-            <div class="aud-modal" style="max-width:380px;">
-                <div class="aud-modal-title">Agregar Entrenador</div>
-                <div class="aud-form-group">
-                    <label class="aud-form-label">Nombre completo *</label>
-                    <input class="aud-form-input" id="audTName" placeholder="Ej: Laura Méndez">
-                </div>
-                <div class="aud-form-group">
-                    <label class="aud-form-label">Socios activos</label>
-                    <input class="aud-form-input" id="audTSocios" type="number" placeholder="Ej: 12" min="0">
-                </div>
-                <div class="aud-modal-actions">
-                    <button class="aud-btn-cancel" onclick="audCloseTrainerModal()">Cancelar</button>
-                    <button class="aud-btn-save" onclick="audAddTrainer()"><i class="fas fa-user-plus"></i> Agregar</button>
-                </div>
-            </div>
-        </div>
-
-        <!-- Modal Nueva Auditoría -->
+        <!-- Modal Auditoría completa -->
         <div class="aud-modal-overlay" id="audFormModal">
             <div class="aud-modal">
-                <div class="aud-modal-title" id="audFormTitle">Nueva Auditoría</div>
-                <div class="aud-form-group">
-                    <label class="aud-form-label">Nombre del Socio *</label>
-                    <input class="aud-form-input" id="audFSocio" placeholder="Ej: Carlos Rivera">
-                </div>
+                <div class="aud-modal-title" id="audFormTitle">Auditoría · <span id="audFormProfe"></span></div>
+                <div style="font-size:.72rem;color:var(--muted);margin-bottom:16px;" id="audFormFecha"></div>
                 <div style="font-size:.75rem;font-weight:700;color:var(--muted);text-transform:uppercase;letter-spacing:.8px;margin-bottom:10px;">Evaluación por Sección</div>
                 <div id="audFormSections"></div>
                 <div class="aud-form-group">
@@ -1151,7 +1162,7 @@ tr:hover td{background:#fafbfc;}
                 <div class="aud-form-group"><input class="aud-form-input" id="audFP3" placeholder="Acción correctiva 3..."></div>
                 <div class="aud-modal-actions">
                     <button class="aud-btn-cancel" onclick="audCloseFormModal()">Cancelar</button>
-                    <button class="aud-btn-save" onclick="audSaveAudit()"><i class="fas fa-floppy-disk"></i> Guardar</button>
+                    <button class="aud-btn-save" onclick="audSaveAudit()"><i class="fas fa-floppy-disk"></i> Guardar Auditoría</button>
                 </div>
             </div>
         </div>
@@ -2608,230 +2619,154 @@ function renderEnc(){
 // ══════════════════════════════════════════════════
 
 // ══════════════════════════════════════════════════
-// AUDITORÍA
+// AUDITORÍA — lee planilla real de Google Sheets
 // ══════════════════════════════════════════════════
 const AUD_SECTIONS = [
-    {key:'gestion',     label:'Gestión y Vigencia',     icon:'fa-calendar-check'},
-    {key:'diagnostico', label:'Diagnóstico y Evolución', icon:'fa-chart-line'},
-    {key:'metodologia', label:'Rigor Metodológico',      icon:'fa-dumbbell'},
-    {key:'custom',      label:'Customización',           icon:'fa-user-check'}
+    {key:'gestion',     label:'Gestión y Vigencia',      icon:'fa-calendar-check'},
+    {key:'diagnostico', label:'Diagnóstico y Evolución',  icon:'fa-chart-line'},
+    {key:'metodologia', label:'Rigor Metodológico',       icon:'fa-dumbbell'},
+    {key:'custom',      label:'Customización',            icon:'fa-user-check'}
 ];
 
-let audStore = {
-    trainers: [
-        {
-            id:'t1', name:'Laura Méndez', sociosActivos:14,
-            audits:[
-                {id:'a1',socio:'Carlos Rivera',date:'2025-04-12',
-                 semaforos:{gestion:'verde',diagnostico:'verde',metodologia:'amarillo',custom:'verde'},
-                 hallazgos:'El socio presenta buena adherencia. Falta progresión de carga en las últimas 2 semanas.',
-                 planes:['Agregar progresión semanal al bloque de fuerza','Incorporar reevaluación de movilidad','Actualizar notas en CRM'],
-                 obs:{gestion:'Plan vigente y actualizado.',diagnostico:'Evaluación inicial completa. Reevaluación pendiente.',metodologia:'Falta control de carga (RIR) en bloque principal.',custom:'Buena adaptación por lesión de rodilla previa.'}},
-                {id:'a2',socio:'Ana Suárez',date:'2025-04-10',
-                 semaforos:{gestion:'amarillo',diagnostico:'verde',metodologia:'verde',custom:'verde'},
-                 hallazgos:'CRM con tareas atrasadas. Metodología correcta.',
-                 planes:['Actualizar tareas en CRM','Seguimiento semanal','Revisar progresión mensual'],
-                 obs:{gestion:'2 tareas de seguimiento pendientes.',diagnostico:'Reevaluación realizada correctamente.',metodologia:'Estructura de sesión ejemplar.',custom:'Adaptaciones bien documentadas.'}}
-            ]
-        },
-        {
-            id:'t2', name:'Marcos Torres', sociosActivos:9,
-            audits:[
-                {id:'a3',socio:'Luis Herrera',date:'2025-04-08',
-                 semaforos:{gestion:'rojo',diagnostico:'amarillo',metodologia:'rojo',custom:'amarillo'},
-                 hallazgos:'Planificación desactualizada. Sin control de carga RPE. Reevaluación demorada.',
-                 planes:['Actualizar plan inmediatamente','Incorporar RPE en todos los ejercicios','Agendar reevaluación esta semana'],
-                 obs:{gestion:'Plan con 3 semanas de atraso.',diagnostico:'Reevaluación no realizada en el ciclo.',metodologia:'Sin RPE/RIR en ningún ejercicio.',custom:'Ejercicios no ajustados al nivel biomecánico.'}}
-            ]
-        },
-        {
-            id:'t3', name:'Valentina Cruz', sociosActivos:18,
-            audits:[
-                {id:'a4',socio:'Pedro Jiménez',date:'2025-04-15',
-                 semaforos:{gestion:'verde',diagnostico:'verde',metodologia:'verde',custom:'verde'},
-                 hallazgos:'Sin observaciones críticas. Entrenadora referente del equipo.',
-                 planes:['Mantener estándar actual','Compartir buenas prácticas','Evaluar mentoreo a nuevos entrenadores'],
-                 obs:{gestion:'Todas las tareas CRM al día.',diagnostico:'Evaluaciones y reevaluaciones completas.',metodologia:'Estructura perfecta, RPE en todos los bloques.',custom:'Excelente personalización por patologías.'}}
-            ]
-        }
-    ]
-};
+const AUD_TRAINERS = [
+    {id:'belu', name:'Belén',    sheetId:'1_sQLCugQmvqxpL7LdfQ0UyWqwQfpsDfR', gid:'24691950'},
+    {id:'enzo', name:'Enzo',     sheetId:'', gid:''},
+    {id:'fer',  name:'Fernando', sheetId:'', gid:''},
+];
 
-let audCurrentTrainer = null;
-let audDonutInst = null, audBarInst = null;
+let audHistorial = [];
+let audCurrentProfe = null;
+let audCantPlanes = 5;
+let audSociosData = [];
+let audSociosSeleccionados = [];
 
-function audS2N(s){return s==='verde'?100:s==='amarillo'?60:20;}
 function audS2C(s){return s==='verde'?'g':s==='amarillo'?'y':'r';}
-function audS2Lbl(s){return s==='verde'?'🟢 Verde':s==='amarillo'?'🟡 Amarillo':'🔴 Rojo';}
-function audInitials(name){return name.split(' ').map(w=>w[0]).join('').slice(0,2);}
 
-function audCalcStats(trainer){
-    const audits=trainer.audits;
-    if(!audits.length) return {score:0,verde:0,amarillo:0,rojo:0,planScore:0,evalScore:0,reevalScore:0,total:0};
-    let v=0,a=0,r=0,tot=0;
-    audits.forEach(au=>{Object.values(au.semaforos).forEach(s=>{tot++;if(s==='verde')v++;else if(s==='amarillo')a++;else r++;});});
-    const planScore=Math.round(audits.filter(au=>au.semaforos.gestion==='verde').length/audits.length*100);
-    const evalScore=Math.round(audits.filter(au=>au.semaforos.diagnostico!=='rojo').length/audits.length*100);
-    const reevalScore=Math.round(audits.filter(au=>au.semaforos.diagnostico==='verde').length/audits.length*100);
-    const score=Math.round((v/tot)*100);
-    return {score,verde:v,amarillo:a,rojo:r,planScore,evalScore,reevalScore,total:tot};
+function audInitSelector(){
+    const btns = document.getElementById('audTrainerBtns');
+    btns.innerHTML = AUD_TRAINERS.map(t=>`
+        <button class="tab ${audCurrentProfe===t.id?'active':''}"
+            onclick="audSelProfe('${t.id}')"
+            ${!t.sheetId?'style="opacity:.5;cursor:not-allowed"':''}>
+            ${t.name}${!t.sheetId?' <span style="font-size:.65rem;">(sin datos)</span>':''}</button>`).join('');
+    document.getElementById('audStep2').style.display='none';
+    document.getElementById('audPlanillaKpis').style.display='none';
+    audRenderHistorial();
 }
 
-function audScoreColor(s){return s>=80?'#10b981':s>=50?'#f59e0b':'#ef4444';}
+function audSelProfe(id){
+    const t = AUD_TRAINERS.find(x=>x.id===id);
+    if(!t.sheetId){ alert('Este entrenador no tiene planilla conectada todavía.'); return; }
+    audCurrentProfe = id;
+    document.querySelectorAll('#audTrainerBtns .tab').forEach(b=>b.classList.remove('active'));
+    document.querySelector(`#audTrainerBtns .tab:nth-child(${AUD_TRAINERS.findIndex(x=>x.id===id)+1})`).classList.add('active');
+    document.getElementById('audStep2').style.display='block';
+    document.getElementById('audPlanillaKpis').style.display='none';
+}
 
-function audRenderGrid(){
-    const trainers=audStore.trainers;
-    const totalSocios=trainers.reduce((s,t)=>s+t.sociosActivos,0);
-    const totalAudits=trainers.reduce((s,t)=>s+t.audits.length,0);
-    const avgScore=trainers.length?Math.round(trainers.reduce((s,t)=>s+audCalcStats(t).score,0)/trainers.length):0;
+function audSetCant(n){
+    audCantPlanes = n;
+    document.querySelectorAll('#audCantBtns .tab').forEach(b=>b.classList.remove('active'));
+    event.target.classList.add('active');
+    audCargarPlanilla();
+}
 
-    document.getElementById('audStatsBar').innerHTML=`
-        <div class="aud-stat"><div class="aud-stat-num" style="color:var(--accent)">${trainers.length}</div><div class="aud-stat-lbl">Entrenadores</div><div class="aud-stat-sub">activos</div></div>
-        <div class="aud-stat"><div class="aud-stat-num" style="color:var(--accent)">${totalSocios}</div><div class="aud-stat-lbl">Socios</div><div class="aud-stat-sub">bajo supervisión</div></div>
-        <div class="aud-stat"><div class="aud-stat-num" style="color:var(--accent)">${totalAudits}</div><div class="aud-stat-lbl">Auditorías</div><div class="aud-stat-sub">registradas</div></div>
-        <div class="aud-stat"><div class="aud-stat-num" style="color:${audScoreColor(avgScore)}">${avgScore}%</div><div class="aud-stat-lbl">Score Promedio</div><div class="aud-stat-sub">cumplimiento</div></div>`;
-
-    const grid=document.getElementById('audCardsGrid');
-    if(!trainers.length){
-        grid.innerHTML=`<div class="aud-empty" style="grid-column:1/-1"><i class="fas fa-user-slash"></i>No hay entrenadores registrados.</div>`;
-        return;
+async function audCargarPlanilla(){
+    const t = AUD_TRAINERS.find(x=>x.id===audCurrentProfe);
+    document.getElementById('audPlanillaKpis').style.display='block';
+    document.getElementById('audProfeNombre').textContent = t.name;
+    document.getElementById('audCargandoTag').style.display='inline';
+    document.getElementById('audPlanKpis').innerHTML='<div style="color:var(--muted);font-size:.8rem;">Cargando planilla...</div>';
+    document.getElementById('audVencTable').innerHTML='';
+    document.getElementById('audHoyTable').innerHTML='';
+    try {
+        const url = `https://docs.google.com/spreadsheets/d/${t.sheetId}/export?format=csv&gid=${t.gid}`;
+        const resp = await fetch(url);
+        const csv = await resp.text();
+        audProcesarCSV(csv);
+    } catch(e){
+        document.getElementById('audPlanKpis').innerHTML=`<div class="alert"><i class="fas fa-exclamation-triangle"></i> Error: ${e.message}</div>`;
     }
-    grid.innerHTML='';
-    trainers.forEach(trainer=>{
-        const stats=audCalcStats(trainer);
-        const badgeClass=stats.score>=80?'g':stats.score>=50?'y':'r';
-        const badgeText=stats.score>=80?'Óptimo':stats.score>=50?'A mejorar':'Crítico';
-        const div=document.createElement('div');
-        div.className='aud-card';
-        div.onclick=()=>audShowDetail(trainer.id);
-        div.innerHTML=`
-            <div class="aud-card-top">
-                <div style="display:flex;align-items:center;gap:10px;">
-                    <div class="aud-avatar">${audInitials(trainer.name)}</div>
-                    <div><div class="aud-name">${trainer.name}</div><div class="aud-meta">${trainer.sociosActivos} socios · ${trainer.audits.length} auditorías</div></div>
-                </div>
-                <span class="aud-badge ${badgeClass}">${badgeText}</span>
-            </div>
-            <div class="aud-kpis">
-                <div class="aud-kpi"><div class="aud-kpi-val">${stats.planScore}%</div><div class="aud-kpi-lbl">Planificación</div><div class="aud-progress"><div class="aud-progress-fill" style="width:${stats.planScore}%"></div></div></div>
-                <div class="aud-kpi"><div class="aud-kpi-val">${stats.evalScore}%</div><div class="aud-kpi-lbl">Evaluaciones</div><div class="aud-progress"><div class="aud-progress-fill" style="width:${stats.evalScore}%"></div></div></div>
-            </div>
-            <div class="aud-footer">
-                <span style="font-size:.75rem;color:var(--muted);">Score global</span>
-                <div style="display:flex;align-items:center;gap:8px;">
-                    <span class="aud-score" style="color:${audScoreColor(stats.score)}">${stats.score}%</span>
-                    <div class="aud-arrow"><i class="fas fa-arrow-right"></i></div>
-                </div>
-            </div>`;
-        grid.appendChild(div);
+    document.getElementById('audCargandoTag').style.display='none';
+}
+
+function audProcesarCSV(csv){
+    const lines = csv.split('\n').map(l=>{
+        const row=[];let cur='',inQ=false;
+        for(let c of l){if(c==='"'){inQ=!inQ;}else if(c===','&&!inQ){row.push(cur);cur='';}else cur+=c;}
+        row.push(cur);return row;
     });
-}
+    const hoy = new Date(); hoy.setHours(0,0,0,0);
+    const socios = [];
 
-function audShowDetail(trainerId){
-    audCurrentTrainer=trainerId;
-    const trainer=audStore.trainers.find(t=>t.id===trainerId);
-    if(!trainer) return;
-    const stats=audCalcStats(trainer);
-    if(audDonutInst){audDonutInst.destroy();audDonutInst=null;}
-    if(audBarInst){audBarInst.destroy();audBarInst=null;}
+    for(let i=3;i<lines.length;i++){
+        const row=lines[i];
+        if(row.length<5) continue;
+        const num=(row[1]||'').trim();
+        const condicion=(row[2]||'').trim().toUpperCase();
+        const nombre=(row[3]||'').trim();
+        if(!nombre||!/^\d/.test(num)) continue;
+        if(!['ACTIVO','ACTIVO OL'].includes(condicion)) continue;
 
-    document.getElementById('audDetailHeader').innerHTML=`
-        <div class="aud-detail-avatar">${audInitials(trainer.name)}</div>
-        <div><div class="aud-detail-name">${trainer.name}</div><div class="aud-detail-sub">${trainer.sociosActivos} socios · ${trainer.audits.length} auditorías</div></div>
-        <div class="aud-detail-score" style="margin-left:auto;text-align:right;">
-            <div class="aud-detail-score-num" style="color:${audScoreColor(stats.score)}">${stats.score}%</div>
-            <div class="aud-detail-score-lbl">Score Global</div>
-        </div>`;
-
-    document.getElementById('audDetailKpis').innerHTML=`
-        <div class="kpi-card"><div class="kpi-label">Socios Activos</div><div class="kpi-value" style="color:var(--accent)">${trainer.sociosActivos}</div></div>
-        <div class="kpi-card"><div class="kpi-label">Planes al Día</div><div class="kpi-value" style="color:var(--accent)">${stats.planScore}%</div></div>
-        <div class="kpi-card"><div class="kpi-label">Evaluaciones</div><div class="kpi-value" style="color:var(--accent)">${stats.evalScore}%</div></div>
-        <div class="kpi-card"><div class="kpi-label">Reevaluaciones</div><div class="kpi-value" style="color:var(--accent)">${stats.reevalScore}%</div></div>`;
-
-    audRenderAudits(trainer);
-    document.getElementById('audGrid').style.display='none';
-    document.getElementById('audDetail').style.display='block';
-
-    setTimeout(()=>{
-        const dc=document.getElementById('audDonut');
-        if(dc) audDonutInst=new Chart(dc,{type:'doughnut',data:{labels:['Verde','Amarillo','Rojo'],datasets:[{data:[stats.verde||0.1,stats.amarillo,stats.rojo],backgroundColor:['#10b981','#f59e0b','#ef4444'],borderWidth:2,borderColor:'#fff'}]},options:{responsive:true,cutout:'65%',plugins:{legend:{position:'bottom',labels:{font:{size:11}}}}}});
-        const bc=document.getElementById('audBar');
-        if(bc){
-            const vals=AUD_SECTIONS.map(sec=>trainer.audits.length?Math.round(trainer.audits.reduce((s,au)=>s+audS2N(au.semaforos[sec.key]),0)/trainer.audits.length):0);
-            audBarInst=new Chart(bc,{type:'bar',data:{labels:AUD_SECTIONS.map(s=>s.label.split(' ')[0]),datasets:[{data:vals,backgroundColor:vals.map(v=>v>=80?'rgba(16,185,129,.15)':v>=50?'rgba(245,158,11,.15)':'rgba(239,68,68,.15)'),borderColor:vals.map(v=>v>=80?'#10b981':v>=50?'#f59e0b':'#ef4444'),borderWidth:2,borderRadius:7}]},options:{responsive:true,maintainAspectRatio:false,scales:{y:{beginAtZero:true,max:100,grid:{color:'rgba(0,0,0,.04)'},ticks:{callback:v=>v+'%'}},x:{grid:{display:false}}},plugins:{legend:{display:false}}}});
+        const vencStr=(row[4]||'').trim();
+        const evalStr=(row[7]||'').trim();
+        // Buscar columnas de Objetivo APP y Evaluación Cargada (son variables según fila)
+        let objetivoApp='', evalCargada='';
+        for(let c=20;c<Math.min(row.length,32);c++){
+            const v=(row[c]||'').trim().toLowerCase();
+            if(v==='si'||v==='no'||v==='sí'){ if(!evalCargada) evalCargada=v; else if(!objetivoApp) objetivoApp=v; }
         }
-    },80);
-}
+        // Buscar específicamente col 25 y 26
+        if(row[25]) objetivoApp=(row[25]||'').trim();
+        if(row[26]) evalCargada=(row[26]||'').trim();
 
-function audRenderAudits(trainer){
-    document.getElementById('audCount').textContent=`(${trainer.audits.length})`;
-    const list=document.getElementById('audAuditList');
-    if(!trainer.audits.length){
-        list.innerHTML=`<div class="aud-empty"><i class="fas fa-clipboard"></i>Sin auditorías. Hacé click en "Nueva Auditoría".</div>`;
-        return;
+        function parseDate(s){
+            if(!s||s.length<3) return null;
+            const p=s.split('/');
+            if(p.length<2) return null;
+            const d=parseInt(p[0]),m=parseInt(p[1])-1,y=parseInt(p[2])||2026;
+            return new Date(y<100?2026:y,m,d);
+        }
+        socios.push({nombre,condicion,venc:parseDate(vencStr),ultimaEval:parseDate(evalStr),objetivoApp,evalCargada});
     }
-    list.innerHTML=trainer.audits.map(audit=>{
-        const chips=AUD_SECTIONS.map(s=>`<span class="aud-chip ${audS2C(audit.semaforos[s.key])}">${s.label.split(' ')[0]}</span>`).join('');
-        const obsItems=AUD_SECTIONS.map(s=>audit.obs&&audit.obs[s.key]?`<div style="margin-bottom:6px;"><strong style="font-size:.68rem;text-transform:uppercase;letter-spacing:.6px;color:var(--accent);">${s.label.split(' ')[0]}:</strong> <span>${audit.obs[s.key]}</span></div>`:'').join('');
-        const planes=audit.planes.filter(Boolean).map(p=>`<li>${p}</li>`).join('');
-        return `
-        <div class="aud-audit-item" onclick="audToggle('${audit.id}')">
-            <div class="aud-audit-top">
-                <div><div class="aud-audit-socio"><i class="fas fa-user" style="font-size:.7rem;color:var(--muted);margin-right:5px;"></i>${audit.socio}</div><div class="aud-audit-date">${audit.date}</div></div>
-                <div style="display:flex;align-items:center;gap:6px;"><div class="aud-chips">${chips}</div><i class="fas fa-chevron-down" id="audChev_${audit.id}" style="color:var(--muted);font-size:.75rem;transition:transform .2s;"></i></div>
-            </div>
-            ${audit.hallazgos?`<div class="aud-audit-obs"><i class="fas fa-circle-info" style="color:var(--accent);margin-right:4px;font-size:.72rem;"></i>${audit.hallazgos.slice(0,100)}${audit.hallazgos.length>100?'…':''}</div>`:''}
-            <div class="aud-expanded" id="audExp_${audit.id}">
-                <div class="aud-exp-grid">
-                    <div class="aud-exp-block"><div class="aud-exp-block-title">Observaciones</div><div class="aud-exp-block-content">${obsItems||'Sin observaciones.'}</div></div>
-                    <div class="aud-exp-block"><div class="aud-exp-block-title">Plan de Acción</div><ul class="aud-plan-list">${planes||'<li>Sin plan.</li>'}</ul></div>
-                </div>
-                ${audit.hallazgos?`<div class="aud-exp-block"><div class="aud-exp-block-title">Hallazgos Técnicos</div><div class="aud-exp-block-content">${audit.hallazgos}</div></div>`:''}
-            </div>
-        </div>`;
+
+    audSociosData=socios;
+    const activos=socios;
+    const vencidos=activos.filter(s=>s.venc&&s.venc<hoy);
+    const conEval=activos.filter(s=>/(si|sí)/i.test(s.evalCargada)).length;
+    const conObj=activos.filter(s=>/(si|sí)/i.test(s.objetivoApp)).length;
+
+    document.getElementById('audPlanKpis').innerHTML=`
+        <div class="aud-stat"><div class="aud-stat-num" style="color:var(--accent)">${activos.length}</div><div class="aud-stat-lbl">Socios Activos</div></div>
+        <div class="aud-stat"><div class="aud-stat-num" style="color:${vencidos.length>0?'#ef4444':'#10b981'}">${vencidos.length}</div><div class="aud-stat-lbl">Planes Vencidos</div></div>
+        <div class="aud-stat"><div class="aud-stat-num" style="color:var(--accent)">${conEval}</div><div class="aud-stat-lbl">Con Evaluación</div><div class="aud-stat-sub">${activos.length?Math.round(conEval/activos.length*100):0}% del total</div></div>
+        <div class="aud-stat"><div class="aud-stat-num" style="color:var(--accent)">${conObj}</div><div class="aud-stat-lbl">Objetivo APP</div><div class="aud-stat-sub">${activos.length?Math.round(conObj/activos.length*100):0}% del total</div></div>`;
+
+    document.getElementById('audVencBadge').textContent=`${vencidos.length} socios`;
+    document.getElementById('audVencTable').innerHTML=vencidos.length===0
+        ?'<tr><td colspan="5" style="text-align:center;color:var(--muted);padding:16px;">✅ Sin planes vencidos</td></tr>'
+        :vencidos.map(s=>{
+            const dias=Math.floor((hoy-s.venc)/(864e5));
+            const eS=/(si|sí)/i.test(s.evalCargada),oS=/(si|sí)/i.test(s.objetivoApp);
+            return `<tr><td style="font-weight:600;">${s.nombre}</td><td>${s.venc.toLocaleDateString('es-AR')}</td><td><span style="color:#ef4444;font-weight:700;">+${dias}d</span></td><td><span class="badge ${eS?'bg':'br'}">${eS?'Sí':'No'}</span></td><td><span class="badge ${oS?'bg':'br'}">${oS?'Sí':'No'}</span></td></tr>`;
+        }).join('');
+
+    const paraAud=activos.slice(0,audCantPlanes);
+    audSociosSeleccionados=paraAud;
+    document.getElementById('audHoyBadge').textContent=`${paraAud.length} planes`;
+    document.getElementById('audHoyTable').innerHTML=paraAud.map(s=>{
+        const eS=/(si|sí)/i.test(s.evalCargada),oS=/(si|sí)/i.test(s.objetivoApp);
+        const sem=eS&&oS?'🟢':eS||oS?'🟡':'🔴';
+        return `<tr><td style="font-weight:600;">${s.nombre}</td><td style="font-size:.78rem;">${s.ultimaEval?s.ultimaEval.toLocaleDateString('es-AR'):'Sin evaluar'}</td><td><span class="badge ${eS?'bg':'br'}">${eS?'Sí':'No'}</span></td><td><span class="badge ${oS?'bg':'br'}">${oS?'Sí':'No'}</span></td><td>${sem}</td></tr>`;
     }).join('');
 }
 
-function audToggle(id){
-    const exp=document.getElementById('audExp_'+id);
-    const chev=document.getElementById('audChev_'+id);
-    if(!exp) return;
-    exp.classList.toggle('open');
-    if(chev) chev.style.transform=exp.classList.contains('open')?'rotate(180deg)':'';
-}
-
-function audGoGrid(){
-    document.getElementById('audDetail').style.display='none';
-    document.getElementById('audGrid').style.display='block';
-    audRenderGrid();
-}
-
-function audShowAddTrainer(){
-    document.getElementById('audTName').value='';
-    document.getElementById('audTSocios').value='';
-    document.getElementById('audTrainerModal').classList.add('open');
-}
-function audCloseTrainerModal(){document.getElementById('audTrainerModal').classList.remove('open');}
-function audAddTrainer(){
-    const name=document.getElementById('audTName').value.trim();
-    const socios=parseInt(document.getElementById('audTSocios').value)||0;
-    if(!name){alert('El nombre es requerido');return;}
-    audStore.trainers.push({id:'t'+Date.now(),name,sociosActivos:socios,audits:[]});
-    audCloseTrainerModal();
-    audRenderGrid();
-}
-
-function audShowForm(){
-    const trainer=audStore.trainers.find(t=>t.id===audCurrentTrainer);
-    document.getElementById('audFormTitle').textContent=`Nueva Auditoría · ${trainer.name}`;
-    document.getElementById('audFSocio').value='';
-    document.getElementById('audFHallazgos').value='';
-    document.getElementById('audFP1').value='';
-    document.getElementById('audFP2').value='';
-    document.getElementById('audFP3').value='';
-    const container=document.getElementById('audFormSections');
-    container.innerHTML=AUD_SECTIONS.map(sec=>`
+function audIniciarFormulario(){
+    const t=AUD_TRAINERS.find(x=>x.id===audCurrentProfe);
+    document.getElementById('audFormProfe').textContent=t.name;
+    document.getElementById('audFormFecha').textContent=`Fecha: ${new Date().toLocaleDateString('es-AR')} · ${audSociosSeleccionados.length} planes auditados`;
+    ['audFHallazgos','audFP1','audFP2','audFP3'].forEach(id=>document.getElementById(id).value='');
+    document.getElementById('audFormSections').innerHTML=AUD_SECTIONS.map(sec=>`
         <div class="aud-section-block">
             <div style="display:flex;justify-content:space-between;align-items:center;flex-wrap:wrap;gap:8px;margin-bottom:8px;">
                 <div style="font-size:.84rem;font-weight:700;display:flex;align-items:center;gap:6px;"><i class="fas ${sec.icon}" style="color:var(--accent);font-size:.8rem;"></i>${sec.label}</div>
@@ -2841,31 +2776,70 @@ function audShowForm(){
                     <input type="radio" class="aud-sem-radio r" name="asem_${sec.key}" id="asem_${sec.key}_r" value="rojo"><label class="aud-sem-lbl" for="asem_${sec.key}_r">🔴 Rojo</label>
                 </div>
             </div>
-            <textarea class="aud-form-textarea" id="aobs_${sec.key}" rows="2" placeholder="Observaciones para ${sec.label.toLowerCase()}..."></textarea>
+            <textarea class="aud-form-textarea" id="aobs_${sec.key}" rows="2" placeholder="Observaciones..."></textarea>
         </div>`).join('');
     document.getElementById('audFormModal').classList.add('open');
 }
+
 function audCloseFormModal(){document.getElementById('audFormModal').classList.remove('open');}
+
 function audSaveAudit(){
-    const socio=document.getElementById('audFSocio').value.trim();
-    if(!socio){alert('El nombre del socio es requerido');return;}
+    const t=AUD_TRAINERS.find(x=>x.id===audCurrentProfe);
     const semaforos={},obs={};
     AUD_SECTIONS.forEach(sec=>{
-        const checked=document.querySelector(`input[name="asem_${sec.key}"]:checked`);
-        semaforos[sec.key]=checked?checked.value:'verde';
-        obs[sec.key]=document.getElementById('aobs_'+sec.key).value.trim();
+        const ch=document.querySelector(`input[name="asem_${sec.key}"]:checked`);
+        semaforos[sec.key]=ch?ch.value:'verde';
+        obs[sec.key]=(document.getElementById('aobs_'+sec.key).value||'').trim();
     });
-    const hallazgos=document.getElementById('audFHallazgos').value.trim();
-    const planes=[document.getElementById('audFP1').value.trim(),document.getElementById('audFP2').value.trim(),document.getElementById('audFP3').value.trim()].filter(Boolean);
-    const trainer=audStore.trainers.find(t=>t.id===audCurrentTrainer);
-    if(trainer){trainer.audits.unshift({id:'a'+Date.now(),socio,date:new Date().toISOString().split('T')[0],semaforos,hallazgos,planes,obs});}
+    const hoy=new Date();hoy.setHours(0,0,0,0);
+    const vencidos=audSociosData.filter(s=>s.venc&&s.venc<hoy);
+    const conEval=audSociosData.filter(s=>/(si|sí)/i.test(s.evalCargada)).length;
+    const conObj=audSociosData.filter(s=>/(si|sí)/i.test(s.objetivoApp)).length;
+    audHistorial.unshift({
+        id:'aud'+Date.now(), profe:t.name,
+        date:new Date().toLocaleDateString('es-AR'),
+        planesAuditados:audSociosSeleccionados.length,
+        planesVencidos:vencidos.length,
+        totalActivos:audSociosData.length,
+        conEvaluacion:conEval, conObjetivo:conObj,
+        semaforos,
+        hallazgos:(document.getElementById('audFHallazgos').value||'').trim(),
+        planes:['audFP1','audFP2','audFP3'].map(id=>(document.getElementById(id).value||'').trim()).filter(Boolean),
+        obs
+    });
     audCloseFormModal();
-    audShowDetail(audCurrentTrainer);
+    audRenderHistorial();
+    document.getElementById('audHistorial').scrollIntoView({behavior:'smooth'});
 }
 
+function audRenderHistorial(){
+    document.getElementById('audCount').textContent=`(${audHistorial.length})`;
+    const list=document.getElementById('audAuditList');
+    if(!audHistorial.length){list.innerHTML='<div class="aud-empty"><i class="fas fa-clipboard"></i>Sin auditorías registradas aún.</div>';return;}
+    list.innerHTML=audHistorial.map(a=>{
+        const chips=AUD_SECTIONS.map(s=>`<span class="aud-chip ${audS2C(a.semaforos[s.key])}">${s.label.split(' ')[0]}</span>`).join('');
+        return `<div class="aud-audit-item" onclick="audToggle('${a.id}')">
+            <div class="aud-audit-top">
+                <div><div class="aud-audit-socio"><i class="fas fa-user-tie" style="font-size:.7rem;color:var(--muted);margin-right:5px;"></i>${a.profe} · ${a.date}</div>
+                <div class="aud-audit-date">${a.planesAuditados} auditados · ${a.planesVencidos} vencidos · ${a.conEvaluacion}/${a.totalActivos} con evaluación</div></div>
+                <div style="display:flex;align-items:center;gap:6px;"><div class="aud-chips">${chips}</div><i class="fas fa-chevron-down" id="audChev_${a.id}" style="color:var(--muted);font-size:.75rem;transition:transform .2s;"></i></div>
+            </div>
+            ${a.hallazgos?`<div class="aud-audit-obs"><i class="fas fa-circle-info" style="color:var(--accent);margin-right:4px;font-size:.72rem;"></i>${a.hallazgos.slice(0,120)}${a.hallazgos.length>120?'…':''}</div>`:''}
+            <div class="aud-expanded" id="audExp_${a.id}">
+                <div class="aud-exp-grid">
+                    <div class="aud-exp-block"><div class="aud-exp-block-title">📊 Datos Planilla</div><div class="aud-exp-block-content"><b>Activos:</b> ${a.totalActivos} · <b>Vencidos:</b> ${a.planesVencidos}<br><b>Con evaluación:</b> ${a.conEvaluacion} (${a.totalActivos?Math.round(a.conEvaluacion/a.totalActivos*100):0}%)<br><b>Con objetivo APP:</b> ${a.conObjetivo}</div></div>
+                    <div class="aud-exp-block"><div class="aud-exp-block-title">Plan de Acción</div><ul class="aud-plan-list">${a.planes.map(p=>`<li>${p}</li>`).join('')||'<li>Sin plan.</li>'}</ul></div>
+                </div>
+                ${a.hallazgos?`<div class="aud-exp-block"><div class="aud-exp-block-title">Hallazgos</div><div class="aud-exp-block-content">${a.hallazgos}</div></div>`:''}
+            </div></div>`;
+    }).join('');
+}
 
+function audToggle(id){
+    const exp=document.getElementById('audExp_'+id);
+    const chev=document.getElementById('audChev_'+id);
+    if(!exp)return;
+    exp.classList.toggle('open');
+    if(chev)chev.style.transform=exp.classList.contains('open')?'rotate(180deg)':'';}
 
 cargarTodo();
-</script>
-</body>
-</html>
