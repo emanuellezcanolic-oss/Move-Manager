@@ -1509,11 +1509,7 @@ function go(sec){
     if(META[sec]){set('topTitle',META[sec].title);set('topSub',META[sec].sub);}
     if(sec==='encuestas'||sec==='bajas'||sec==='bolson-enc') loadEncuestas();
     if(sec==='bari-enc') loadEncuestasBari();
-    if(sec==='auditoria'){
-        document.getElementById('audDetail').style.display='none';
-        document.getElementById('audGrid').style.display='block';
-        audRenderGrid();
-    }
+    if(sec==='auditoria'){ audInitSelector(); }
     closeSb();
 }
 function toggleSb(){
