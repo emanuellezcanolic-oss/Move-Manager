@@ -2667,66 +2667,136 @@ function audSetCant(n){
     audCargarPlanilla();
 }
 
-async function audCargarPlanilla(){
+// Datos reales extraídos de la planilla de Belén (31/05/2026)
+// nombre, vencimiento, ultimaEval, objetivoApp, evalCargada
+const DATOS_BELU = [
+    ["Diaz Martin Gonzalo","26/06/2026","29/06/2026","",""],
+    ["Mazzini Camilo","25/06/2026","14/05/2026","",""],
+    ["Rivero Claudia","20/06/2026","23/05/2026","Si","Si"],
+    ["Vivanco Cachi","27/06/2026","24/05/2026","Si","Si"],
+    ["Suarez Ariel","25/06/2026","24/05/2026","",""],
+    ["Maldonado Silvestre","26/06/2026","26/05/2026","Si",""],
+    ["Chavez Macarena","25/05/2026","26/05/2026","Si",""],
+    ["Maldonado Marcela","25/06/2026","27/05/2026","",""],
+    ["Oyarzo Anahi","28/05/2026","28/05/2026","Si","Si"],
+    ["Bianco Estefania","25/06/2026","28/05/2026","Si","Si"],
+    ["Cena Estanislao","13/06/2026","29/05/2026","Si","Si"],
+    ["Steinmetz Gabriela","8/06/2026","29/05/2026","Si","Si"],
+    ["Noya Carina","16/06/2026","29/05/2026","Si","Si"],
+    ["Crovetto Carla","7/06/2026","30/05/2026","Si","Si"],
+    ["Zapata Eva","12/06/2026","30/05/2026","Si","Si"],
+    ["Chaves Patricia","30/05/2026","30/05/2026","Si","Si"],
+    ["Lopez Veronica","4/06/2026","31/05/2026","Si","Si"],
+    ["Horiszny Fernanda","29/05/2026","31/05/2026","","Si"],
+    ["Abraham Maria Rosario","29/05/2026","31/05/2026","","Si"],
+    ["Luna Guillermina","12/06/2026","1/06/2026","","Si"],
+    ["Steiner Adriana","14/06/2026","","",""],
+    ["Rodriguez Silvia","22/06/2026","2/06/2026","Si","Si"],
+    ["Gelinger Antonio","2/06/2026","2/06/2026","","Si"],
+    ["Ayala Hector","8/06/2026","3/06/2026","Si","Si"],
+    ["Lopez Virginia","3/06/2026","3/06/2026","Si","Si"],
+    ["Mayorga Graciela","12/06/2026","3/06/2026","","Si"],
+    ["Reyes Claudia","4/06/2026","4/06/2026","Si","Si"],
+    ["Nessler Axel","2/06/2026","4/06/2026","Si","Si"],
+    ["Namor Gerardo","4/06/2026","4/06/2026","Si",""],
+    ["Huisman Francisco","5/08/2026","5/06/2026","","Si"],
+    ["Ailen Pina","5/06/2026","5/06/2026","Si","Si"],
+    ["Ares Guadalupe","30/05/2026","6/06/2026","Si","Si"],
+    ["Stella Nyveiro","23/06/2026","7/06/2026","",""],
+    ["Lorusso Susana","13/06/2026","7/06/2026","Si","Si"],
+    ["Christiense Lucila","2/06/2026","7/06/2026","Si","Si"],
+    ["Larroza Laureano","2/06/2026","7/06/2026","Si","Si"],
+    ["Turco Hayde","22/06/2026","7/06/2026","Si","Si"],
+    ["Gomez Fernando","7/06/2026","7/06/2026","Si","Si"],
+    ["Maggio Oscar","13/06/2026","9/06/2026","","Si"],
+    ["Ayala Pablo","1/06/2026","9/06/2026","","Si"],
+    ["Niacupil Bernardino","3/06/2026","9/06/2026","",""],
+    ["Adamow Pedro","2/07/2026","9/06/2026","Si","Si"],
+    ["Lucero Walter","5/06/2026","9/06/2026","Si","Si"],
+    ["Espinosa Luis","3/06/2026","9/06/2026","Si","Si"],
+    ["Repezza Rocio","3/06/2026","9/06/2026","",""],
+    ["Aguilera Marcia","17/06/2026","10/06/2026","Si","Si"],
+    ["Silva Stella","30/06/2026","10/06/2026","",""],
+    ["Techera Pablo","5/06/2026","10/06/2026","",""],
+    ["Mora Baby","3/06/2026","10/06/2026","Si","Si"],
+    ["Magdalena Julia","2/06/2026","10/06/2026","Si","Si"],
+    ["Gallardo Sebastian","15/06/2026","","",""],
+    ["Zasgame Rodriguez Abril","18/06/2026","11/06/2026","Si","Si"],
+    ["Brosdocimo Jorgelina","24/06/2026","","Si","Si"],
+    ["Perontto Martha","18/06/2026","12/06/2026","Si","Si"],
+    ["Mas damato Gaia","4/07/2026","12/06/2026","",""],
+    ["Bedetti Bruno","3/07/2026","12/06/2026","Si","Si"],
+    ["Criado Mariase","20/06/2026","12/06/2026","Si","Si"],
+    ["Hansen Lucia","27/06/2026","12/06/2026","Si","Si"],
+    ["Cid Eugenia","10/07/2026","13/06/2026","Si","Si"],
+    ["Giulianeli Graciela","7/06/2026","13/06/2026","",""],
+    ["Sanchez Ezequias","20/06/2026","14/06/2026","Si","Si"],
+    ["Falca Alicia","12/06/2026","14/06/2026","Si","Si"],
+    ["Rubin Sabrina","3/06/2026","14/06/2026","",""],
+    ["Solari Marcelo","12/07/2026","","",""],
+    ["Saez Daniel","13/06/2026","14/06/2026","Si","Si"],
+    ["Gonzalez Gesia","12/06/2026","14/06/2026","",""],
+    ["Panomarenko Oscar","26/05/2026","14/06/2026","",""],
+    ["Diego Guajardo","11/06/2026","","",""],
+    ["Majluff Ezequiel","15/06/2026","","",""],
+    ["Mollo Romina","30/05/2026","10/04/2026","",""],
+    ["Livszyc Pablo","20/06/2026","13/05/2026","",""],
+    ["Rago Loreley","10/06/2026","21/01/2026","",""],
+    ["Meghdessian Agustin","13/06/2026","16/04/2026","Si","Si"],
+    ["Criado Emiliano","25/06/2026","25/03/2026","Si","Si"],
+    ["Mora Silvana","2/06/2026","14/05/2026","Si","Si"],
+    ["Menendez Magali","14/06/2026","15/04/2026","Si","Si"],
+    ["Buzzo Claudia","7/07/2026","26/05/2026","Si","Si"],
+    ["Buzzo Francisco","7/07/2026","31/03/2026","Si","Si"],
+    ["Figueroa Rocio","9/06/2026","26/05/2026","Si","Si"],
+    ["Verua Antonella","19/06/2026","29/04/2026","Si","Si"],
+    ["Szdruck Sandra","11/06/2026","12/03/2026","Si","Si"],
+    ["Pugliese Melisa","8/06/2026","9/03/2026","Si","Si"],
+    ["Frusteri Maximo","3/06/2026","27/03/2026","Si","Si"],
+    ["Di Salvo Lautaro","17/06/2026","22/05/2026","",""],
+    ["Rubilar Marcos","28/06/2026","29/04/2026","",""],
+    ["Marrama Mariano","23/06/2026","30/04/2026","Si","Si"],
+    ["Lobos Carolina","5/06/2026","15/04/2026","Si","Si"],
+    ["Zeid Luna","21/06/2026","22/04/2026","Si","Si"],
+    ["Gomez Victor Rodolfo","3/07/2026","22/04/2026","Si","Si"],
+    ["Garavaglia Miriam","19/08/2026","22/05/2026","No","Si"],
+    ["Rojo Sergio","24/06/2026","11/05/2026","Si","Si"],
+    ["Vercelli Mateo","18/06/2026","23/02/2026","",""],
+    ["Jambrina Norma","3/06/2026","3/03/2026","Si","Si"],
+    ["Rey Marcelo","19/06/2026","24/04/2026","Si","Si"],
+    ["Abraham Javier","23/06/2026","24/04/2026","Si","Si"],
+    ["Rodriguez Monica","28/06/2026","25/03/2026","",""],
+    ["Panzer Pancho","20/06/2026","","",""],
+    ["Horiszny Patricia","27/06/2026","","",""],
+    ["Boock Sofia","30/06/2026","","",""],
+    ["Ruiz Leda","15/06/2026","15/04/2026","",""],
+    ["Reynoso Oriana OL","26/05/2026","27/04/2026","Si","Si"],
+    ["Guzman Mariela OL","27/05/2026","16/03/2026","",""]
+];
+
+function audCargarPlanilla(){
     const t = AUD_TRAINERS.find(x=>x.id===audCurrentProfe);
     document.getElementById('audPlanillaKpis').style.display='block';
     document.getElementById('audProfeNombre').textContent = t.name;
-    document.getElementById('audCargandoTag').style.display='inline';
-    document.getElementById('audPlanKpis').innerHTML='<div style="color:var(--muted);font-size:.8rem;">Cargando planilla...</div>';
-    document.getElementById('audVencTable').innerHTML='';
-    document.getElementById('audHoyTable').innerHTML='';
-    try {
-        const url = `https://docs.google.com/spreadsheets/d/${t.sheetId}/export?format=csv&gid=${t.gid}`;
-        const resp = await fetch(url);
-        const csv = await resp.text();
-        audProcesarCSV(csv);
-    } catch(e){
-        document.getElementById('audPlanKpis').innerHTML=`<div class="alert"><i class="fas fa-exclamation-triangle"></i> Error: ${e.message}</div>`;
-    }
     document.getElementById('audCargandoTag').style.display='none';
-}
 
-function audProcesarCSV(csv){
-    const lines = csv.split('\n').map(l=>{
-        const row=[];let cur='',inQ=false;
-        for(let c of l){if(c==='"'){inQ=!inQ;}else if(c===','&&!inQ){row.push(cur);cur='';}else cur+=c;}
-        row.push(cur);return row;
-    });
-    const hoy = new Date(); hoy.setHours(0,0,0,0);
-    const socios = [];
-
-    for(let i=3;i<lines.length;i++){
-        const row=lines[i];
-        if(row.length<5) continue;
-        const num=(row[1]||'').trim();
-        const condicion=(row[2]||'').trim().toUpperCase();
-        const nombre=(row[3]||'').trim();
-        if(!nombre||!/^\d/.test(num)) continue;
-        if(!['ACTIVO','ACTIVO OL'].includes(condicion)) continue;
-
-        const vencStr=(row[4]||'').trim();
-        const evalStr=(row[7]||'').trim();
-        // Buscar columnas de Objetivo APP y Evaluación Cargada (son variables según fila)
-        let objetivoApp='', evalCargada='';
-        for(let c=20;c<Math.min(row.length,32);c++){
-            const v=(row[c]||'').trim().toLowerCase();
-            if(v==='si'||v==='no'||v==='sí'){ if(!evalCargada) evalCargada=v; else if(!objetivoApp) objetivoApp=v; }
-        }
-        // Buscar específicamente col 25 y 26
-        if(row[25]) objetivoApp=(row[25]||'').trim();
-        if(row[26]) evalCargada=(row[26]||'').trim();
-
-        function parseDate(s){
-            if(!s||s.length<3) return null;
-            const p=s.split('/');
-            if(p.length<2) return null;
-            const d=parseInt(p[0]),m=parseInt(p[1])-1,y=parseInt(p[2])||2026;
-            return new Date(y<100?2026:y,m,d);
-        }
-        socios.push({nombre,condicion,venc:parseDate(vencStr),ultimaEval:parseDate(evalStr),objetivoApp,evalCargada});
+    function parseDate(s){
+        if(!s||s.length<5) return null;
+        const p=s.split('/');
+        if(p.length<2) return null;
+        const d=parseInt(p[0]),m=parseInt(p[1])-1,y=parseInt(p[2])||2026;
+        return new Date(y,m,d);
     }
+
+    // Usar datos reales de Belén
+    const datos = t.id==='belu' ? DATOS_BELU : [];
+    const socios = datos.map(r=>({
+        nombre:r[0], venc:parseDate(r[1]), ultimaEval:parseDate(r[2]),
+        objetivoApp:r[3], evalCargada:r[4]
+    }));
 
     audSociosData=socios;
+    const hoy = new Date(); hoy.setHours(0,0,0,0);
     const activos=socios;
     const vencidos=activos.filter(s=>s.venc&&s.venc<hoy);
     const conEval=activos.filter(s=>/(si|sí)/i.test(s.evalCargada)).length;
