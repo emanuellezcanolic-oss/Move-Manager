@@ -2656,6 +2656,42 @@ const AUD_TRAINERS = [
 ];
 
 let audHistorial = [];
+const AUD_GIST_ID = '0894016bb00afb2f7fd49964896ee0db';
+const AUD_GIST_FILE = 'auditoria_historial.json';
+
+// Cargar historial desde Gist al iniciar
+async function audCargarHistorial(){
+    try {
+        const resp = await fetch(`https://api.github.com/gists/${AUD_GIST_ID}`, {
+            headers: {'Accept':'application/vnd.github.v3+json'}
+        });
+        const data = await resp.json();
+        const content = data.files[AUD_GIST_FILE]?.content;
+        if(content){
+            const parsed = JSON.parse(content);
+            audHistorial = parsed.historial || [];
+            audRenderHistorial();
+        }
+    } catch(e){ console.warn('No se pudo cargar historial:', e); }
+}
+
+// Guardar historial en Gist
+async function audGuardarHistorial(){
+    try {
+        const payload = JSON.stringify({
+            files: {
+                [AUD_GIST_FILE]: {
+                    content: JSON.stringify({historial: audHistorial, version:1, updated: new Date().toISOString()})
+                }
+            }
+        });
+        await fetch(`https://api.github.com/gists/${AUD_GIST_ID}`, {
+            method: 'PATCH',
+            headers: {'Accept':'application/vnd.github.v3+json','Content-Type':'application/json'},
+            body: payload
+        });
+    } catch(e){ console.warn('No se pudo guardar historial:', e); }
+}
 let audCurrentProfe = null;
 let audCantPlanes = 5;
 let audSociosData = [];
@@ -2682,7 +2718,7 @@ function audInitSelector(){
             ${t.name}${!t.sheetId?' <span style="font-size:.65rem;">(sin datos)</span>':''}</button>`).join('');
     document.getElementById('audStep2').style.display='none';
     document.getElementById('audPlanillaKpis').style.display='none';
-    audRenderHistorial();
+    audCargarHistorial();
 }
 
 function audSelProfe(id){
@@ -2940,24 +2976,23 @@ function audAbrirSocio(nombre){
 
     // Info del socio
     const eS=/(si|sí)/i.test(socio.evalCargada), oS=/(si|sí)/i.test(socio.objetivoApp)&&socio.objetivoApp.toLowerCase()!=='no';
-    document.getElementById('audSocioEval').textContent=audEvalLabel(socio.ultimaEval);
+    document.getElementById('audSocioEval').innerHTML=audEvalLabel(socio.ultimaEval);
     document.getElementById('audSocioEvalCarg').innerHTML=`<span class="badge ${eS?'bg':'br'}" style="font-size:.72rem;">${eS?'Sí':'No'}</span>`;
     document.getElementById('audSocioObj').innerHTML=`<span class="badge ${oS?'bg':'br'}" style="font-size:.72rem;">${oS?'Sí':'No'}</span>`;
     document.getElementById('audSocioVenc').innerHTML=socio.vencPlan
         ?`${socio.vencPlan.toLocaleDateString('es-AR')} ${socio.vencPlan<new Date()?'<span style="color:#ef4444;font-size:.7rem;">VENCIDO</span>':''}`
         :'S/D';
-    // Adherencia en el modal
-    const MESES_FULL = ['Enero','Febrero','Marzo','Abril','Mayo'];
-    const ACTIVAS_S2 = new Set(['RENUEVA','RENUEVA X2','NUEVO','LUCIA','TANI','RAYU','LIBERADO','VACACIONES','DERIV. A RF','DERIV. ONLINE','DERIV. PROFE.']);
-    const adhModalHtml = (socio.meses||[]).map((m,i)=>{
+    // Adherencia en el modal - abreviada
+    const MESES_FULL=['Ene','Feb','Mar','Abr','May'];
+    const adhModalHtml=(socio.meses||[]).map((m,i)=>{
         const v=(m||'').toUpperCase();
         const color=v==='BAJA'?'#ef4444':v?'#10b981':'#d1d5db';
         const bg=v==='BAJA'?'#fee2e2':v?'#d1fae5':'#f3f4f6';
-        return `<div style="text-align:center;"><div style="font-size:.6rem;color:var(--muted);margin-bottom:2px;">${MESES_FULL[i].slice(0,3)}</div><span style="display:inline-flex;align-items:center;justify-content:center;width:28px;height:28px;border-radius:6px;font-size:.65rem;font-weight:700;background:${bg};color:${color};">${m||'—'}</span></div>`;
+        const label=v==='BAJA'?'BAJA':v?'✓':'—';
+        return `<div style="text-align:center;"><div style="font-size:.58rem;color:var(--muted);margin-bottom:2px;">${MESES_FULL[i]}</div><span style="display:inline-flex;align-items:center;justify-content:center;width:32px;height:24px;border-radius:5px;font-size:.6rem;font-weight:700;background:${bg};color:${color};">${label}</span></div>`;
     }).join('');
-    // Insertar adherencia en el bloque de info si existe el elemento
-    const adhEl = document.getElementById('audSocioAdh');
-    if(adhEl) adhEl.innerHTML=`<div style="display:flex;gap:6px;align-items:flex-start;">${adhModalHtml}</div>`;
+    const adhEl=document.getElementById('audSocioAdh');
+    if(adhEl) adhEl.innerHTML=`<div style="display:flex;gap:5px;">${adhModalHtml}<span style="font-size:.75rem;font-weight:700;color:${socio.pctAdh>=80?'#10b981':socio.pctAdh>=60?'#f59e0b':'#ef4444'};margin-left:6px;align-self:center;">${socio.pctAdh}%</span></div>`;
 
     // Restaurar valores si ya fue auditado
     const prev = audSociosAuditados[nombre];
@@ -3056,6 +3091,7 @@ function audFinalizarDia(){
 
     audSociosAuditados={};
     audRenderHistorial();
+    audGuardarHistorial();
     document.getElementById('audProgresoWrap').style.display='none';
     document.getElementById('audBtnFinalizar').style.display='none';
     audRenderTablaHoy();
@@ -3065,33 +3101,69 @@ function audFinalizarDia(){
 function audRenderHistorial(){
     document.getElementById('audCount').textContent=`(${audHistorial.length})`;
     const list=document.getElementById('audAuditList');
-    if(!audHistorial.length){list.innerHTML='<div class="aud-empty"><i class="fas fa-clipboard"></i>Sin auditorías registradas aún.</div>';return;}
+    if(!audHistorial.length){
+        list.innerHTML='<div class="aud-empty"><i class="fas fa-clipboard"></i>Sin auditorías registradas aún.<br><span style="font-size:.75rem;">Completá tu primera auditoría para verla acá.</span></div>';
+        return;
+    }
     list.innerHTML=audHistorial.map(a=>{
         const chips=AUD_SECTIONS.map(s=>`<span class="aud-chip ${audS2C(a.semaforos[s.key])}">${s.label.split(' ')[0]}</span>`).join('');
         const detSocios=a.detalleSocios?a.detalleSocios.map(d=>{
             const dChips=AUD_SECTIONS.map(s=>`<span class="aud-chip ${audS2C(d.semaforos[s.key])}" style="font-size:.62rem;">${s.label.split(' ')[0]}</span>`).join('');
-            return `<div style="border:1px solid var(--border);border-radius:8px;padding:8px 12px;margin-bottom:6px;">
-                <div style="display:flex;justify-content:space-between;align-items:center;flex-wrap:wrap;gap:4px;">
-                    <span style="font-weight:700;font-size:.84rem;">${d.nombre}</span>
+            const semD=d.semaforos?Object.values(d.semaforos).filter(v=>v==='rojo').length>1?'🔴':Object.values(d.semaforos).filter(v=>v==='amarillo').length>0?'🟡':'🟢':'';
+            return `<div style="border:1px solid var(--border);border-radius:8px;padding:10px 14px;margin-bottom:6px;background:var(--bg);">
+                <div style="display:flex;justify-content:space-between;align-items:flex-start;flex-wrap:wrap;gap:4px;margin-bottom:4px;">
+                    <span style="font-weight:700;font-size:.88rem;">${semD} ${d.nombre}</span>
                     <div class="aud-chips">${dChips}</div>
                 </div>
-                ${d.hallazgos?`<div style="font-size:.75rem;color:var(--muted);margin-top:4px;">${d.hallazgos}</div>`:''}
-                ${d.planes&&d.planes.length?`<div style="font-size:.72rem;color:var(--muted);margin-top:3px;">${d.planes.map(p=>`→ ${p}`).join(' · ')}</div>`:''}
+                ${d.hallazgos?`<div style="font-size:.76rem;color:var(--muted);margin-top:4px;line-height:1.4;"><i class="fas fa-circle-info" style="color:var(--accent);margin-right:3px;font-size:.7rem;"></i>${d.hallazgos}</div>`:''}
+                ${d.planes&&d.planes.length?`<div style="font-size:.72rem;color:var(--muted);margin-top:5px;">${d.planes.map(p=>`<span style="display:inline-block;background:var(--card);border:1px solid var(--border);border-radius:4px;padding:1px 6px;margin:1px;">→ ${p}</span>`).join('')}</div>`:''}
+                ${Object.keys(d.obs||{}).filter(k=>d.obs[k]).map(k=>{
+                    const sec=AUD_SECTIONS.find(s=>s.key===k);
+                    return sec&&d.obs[k]?`<div style="font-size:.7rem;color:var(--muted);margin-top:3px;"><span style="color:var(--accent);font-weight:600;">${sec.label.split(' ')[0]}:</span> ${d.obs[k]}</div>`:'';
+                }).join('')}
             </div>`;
         }).join(''):'';
-        const vencList=a.vencidosDetalle&&a.vencidosDetalle.length?`<div style="margin-top:8px;"><div style="font-size:.68rem;font-weight:700;text-transform:uppercase;color:#ef4444;margin-bottom:4px;">Vencidos al ${a.date}</div><div style="font-size:.75rem;color:var(--muted);">${a.vencidosDetalle.join(', ')}</div></div>`:'';
+        const vencList=a.vencidosDetalle&&a.vencidosDetalle.length
+            ?`<div style="margin-top:8px;padding:8px;background:#fee2e2;border-radius:7px;"><div style="font-size:.68rem;font-weight:700;text-transform:uppercase;color:#ef4444;margin-bottom:4px;"><i class="fas fa-calendar-xmark" style="margin-right:4px;"></i>Planes vencidos al ${a.date}</div><div style="font-size:.75rem;color:#7f1d1d;">${a.vencidosDetalle.join(' · ')}</div></div>`:'';
+        const scoreColor=a.semaforos?Object.values(a.semaforos).filter(v=>v==='rojo').length>1?'#ef4444':Object.values(a.semaforos).filter(v=>v==='amarillo').length>0?'#f59e0b':'#10b981':'#10b981';
         return `<div class="aud-audit-item" onclick="audToggle('${a.id}')">
             <div class="aud-audit-top">
-                <div><div class="aud-audit-socio"><i class="fas fa-user-tie" style="font-size:.7rem;color:var(--muted);margin-right:5px;"></i>${a.profe} · ${a.date}</div>
-                <div class="aud-audit-date">${a.planesAuditados} auditados · ${a.planesVencidos} vencidos · ${a.conEvaluacion}/${a.totalActivos} con eval · ${a.conObjetivo}/${a.totalActivos} con objetivo</div></div>
-                <div style="display:flex;align-items:center;gap:6px;"><div class="aud-chips">${chips}</div><i class="fas fa-chevron-down" id="audChev_${a.id}" style="color:var(--muted);font-size:.75rem;transition:transform .2s;"></i></div>
+                <div style="flex:1;">
+                    <div class="aud-audit-socio">
+                        <i class="fas fa-user-tie" style="font-size:.7rem;color:var(--muted);margin-right:5px;"></i>
+                        <strong>${a.profe}</strong>
+                        <span style="color:var(--muted);font-size:.78rem;margin-left:6px;">${a.date}</span>
+                    </div>
+                    <div class="aud-audit-date" style="margin-top:3px;">
+                        <span style="background:#f0fdf4;border:1px solid #bbf7d0;border-radius:4px;padding:1px 6px;font-size:.7rem;color:#166534;margin-right:4px;">${a.planesAuditados} auditados</span>
+                        ${a.planesVencidos>0?`<span style="background:#fee2e2;border:1px solid #fca5a5;border-radius:4px;padding:1px 6px;font-size:.7rem;color:#991b1b;margin-right:4px;">${a.planesVencidos} vencidos</span>`:''}
+                        <span style="font-size:.7rem;color:var(--muted);">${a.conEvaluacion}/${a.totalActivos} con eval · ${a.conObjetivo}/${a.totalActivos} con objetivo</span>
+                    </div>
+                </div>
+                <div style="display:flex;align-items:center;gap:6px;flex-shrink:0;">
+                    <div class="aud-chips">${chips}</div>
+                    <i class="fas fa-chevron-down" id="audChev_${a.id}" style="color:var(--muted);font-size:.75rem;transition:transform .2s;"></i>
+                </div>
             </div>
             <div class="aud-expanded" id="audExp_${a.id}">
-                <div class="aud-exp-grid" style="margin-bottom:10px;">
-                    <div class="aud-exp-block"><div class="aud-exp-block-title">📊 Datos Planilla</div><div class="aud-exp-block-content"><b>Activos:</b> ${a.totalActivos} · <b>Vencidos:</b> ${a.planesVencidos}<br><b>Con evaluación:</b> ${a.conEvaluacion} (${Math.round(a.conEvaluacion/a.totalActivos*100)}%)<br><b>Con objetivo APP:</b> ${a.conObjetivo} (${Math.round(a.conObjetivo/a.totalActivos*100)}%)${vencList}</div></div>
-                    <div class="aud-exp-block"><div class="aud-exp-block-title">📋 Socios Auditados</div>${detSocios||'<div style="font-size:.78rem;color:var(--muted);">Sin detalle.</div>'}</div>
+                <div style="display:grid;grid-template-columns:1fr 1.5fr;gap:10px;margin-bottom:10px;">
+                    <div class="aud-exp-block">
+                        <div class="aud-exp-block-title">📊 Snapshot de la Planilla</div>
+                        <div class="aud-exp-block-content">
+                            <b>Socios activos:</b> ${a.totalActivos}<br>
+                            <b>Planes vencidos:</b> <span style="color:${a.planesVencidos>0?'#ef4444':'#10b981'};font-weight:700;">${a.planesVencidos}</span><br>
+                            <b>Con evaluación:</b> ${a.conEvaluacion} <span style="color:var(--muted);">(${a.totalActivos?Math.round(a.conEvaluacion/a.totalActivos*100):0}%)</span><br>
+                            <b>Con objetivo APP:</b> ${a.conObjetivo} <span style="color:var(--muted);">(${a.totalActivos?Math.round(a.conObjetivo/a.totalActivos*100):0}%)</span>
+                            ${vencList}
+                        </div>
+                    </div>
+                    <div class="aud-exp-block">
+                        <div class="aud-exp-block-title">📋 Planes Auditados (${a.planesAuditados})</div>
+                        ${detSocios||'<div style="font-size:.78rem;color:var(--muted);">Sin detalle registrado.</div>'}
+                    </div>
                 </div>
-            </div></div>`;
+            </div>
+        </div>`;
     }).join('');
 }
 
