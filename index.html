@@ -1115,7 +1115,7 @@ tr:hover td{background:#fafbfc;}
                             <div class="card-title"><i class="fas fa-calendar-xmark" style="color:#ef4444;"></i> Planes Vencidos (Socios Activos)</div>
                             <span class="card-badge" id="audVencBadge"></span>
                         </div>
-                        <div class="tw"><table><thead><tr><th>Socio</th><th>Vencimiento</th><th>Días vencido</th><th>Evaluación</th><th>Objetivo APP</th></tr></thead><tbody id="audVencTable"></tbody></table></div>
+                        <div class="tw"><table><thead><tr><th>Socio</th><th>Venc. Servicio (col E)</th><th>Venc. Plan (col I)</th><th>Días vencido</th><th>Evaluación</th><th>Objetivo APP</th></tr></thead><tbody id="audVencTable"></tbody></table></div>
                     </div>
 
                     <!-- Tabla socios auditados hoy -->
@@ -1190,7 +1190,8 @@ tr:hover td{background:#fafbfc;}
                         <div><span style="color:var(--muted);">Última evaluación:</span> <span id="audSocioEval" style="font-weight:700;"></span></div>
                         <div><span style="color:var(--muted);">Evaluación cargada:</span> <span id="audSocioEvalCarg" style="font-weight:700;"></span></div>
                         <div><span style="color:var(--muted);">Objetivo APP:</span> <span id="audSocioObj" style="font-weight:700;"></span></div>
-                        <div><span style="color:var(--muted);">Venc. Plan:</span> <span id="audSocioVenc" style="font-weight:700;"></span></div>
+                        <div><span style="color:var(--muted);">Venc. Servicio:</span> <span id="audSocioVencServ" style="font-weight:700;"></span></div>
+                        <div style="grid-column:1/-1;"><span style="color:var(--muted);">Venc. Plan (col I):</span> <span id="audSocioVenc" style="font-weight:700;"></span></div>
                     </div>
                     <div style="font-size:.68rem;color:var(--muted);margin-bottom:4px;font-weight:600;text-transform:uppercase;letter-spacing:.5px;">Adherencia ENE–MAY</div>
                     <div id="audSocioAdh"></div>
@@ -2960,7 +2961,9 @@ function audCargarPlanilla(){
             const meses = r[6]||[];
             const mesesActivo = meses.filter(m=>ACT.has((m||'').toUpperCase())).length;
             return {
-                nombre:r[0], venc:parseDate(r[1]), vencPlan:parseDate(r[2]),
+                nombre:r[0],
+                vencServicio:parseDate(r[1]),  // col E — cuando abona
+                vencPlan:parseDate(r[2]),       // col I — vencimiento del plan
                 ultimaEval:parseDate(r[3]), objetivoApp:r[4], evalCargada:r[5],
                 meses, mesesActivo,
                 mesesBaja:meses.filter(m=>(m||'').toUpperCase()==='BAJA').length,
@@ -3008,7 +3011,10 @@ function audParsearCSV(csv, renovCond){
         const mesesActivo = meses.filter(m=>ACTIVAS_SET.has(m.toUpperCase())).length;
 
         socios.push({
-            nombre, venc, vencPlan, ultimaEval, objetivoApp:objApp, evalCargada:evalCarg,
+            nombre,
+            vencServicio: venc,   // col E — cuando abona
+            vencPlan,             // col I — vencimiento del plan
+            ultimaEval, objetivoApp:objApp, evalCargada:evalCarg,
             meses, mesesActivo, mesesBaja:meses.filter(m=>BAJA_SET.has(m.toUpperCase())).length,
             get pctAdh(){ return Math.round(this.mesesActivo/5*100); }
         });
@@ -3035,13 +3041,15 @@ function audProcesarSocios(socios){
 
     document.getElementById('audVencBadge').textContent=`${vencidos.length} socios`;
     document.getElementById('audVencTable').innerHTML=vencidos.length===0
-        ?'<tr><td colspan="5" style="text-align:center;color:var(--muted);padding:16px;">✅ Sin planes vencidos</td></tr>'
+        ?'<tr><td colspan="6" style="text-align:center;color:var(--muted);padding:16px;">✅ Sin planes vencidos</td></tr>'
         :vencidos.map(s=>{
             const dias=Math.floor((hoy-s.vencPlan)/(864e5));
             const eS=/(si|sí)/i.test(s.evalCargada), oS=/(si|sí)/i.test(s.objetivoApp)&&s.objetivoApp.toLowerCase()!=='no';
+            const vsVenc = s.vencServicio && s.vencServicio < hoy;
             return `<tr>
                 <td style="font-weight:600;">${s.nombre}</td>
-                <td style="font-size:.78rem;">${s.vencPlan.toLocaleDateString('es-AR')}</td>
+                <td style="font-size:.78rem;${vsVenc?'color:#ef4444;font-weight:700;':''}">${s.vencServicio?s.vencServicio.toLocaleDateString('es-AR'):'<span style="color:var(--muted)">S/D</span>'}</td>
+                <td style="font-size:.78rem;color:#ef4444;font-weight:700;">${s.vencPlan.toLocaleDateString('es-AR')}</td>
                 <td><span style="color:#ef4444;font-weight:700;">+${dias}d</span></td>
                 <td><span class="badge ${eS?'bg':'br'}">${eS?'Sí':'No'}</span></td>
                 <td><span class="badge ${oS?'bg':'br'}">${oS?'Sí':'No'}</span></td>
@@ -3113,12 +3121,22 @@ function audAbrirSocio(nombre){
 
     // Info del socio
     const eS=/(si|sí)/i.test(socio.evalCargada), oS=/(si|sí)/i.test(socio.objetivoApp)&&socio.objetivoApp.toLowerCase()!=='no';
+    const hoyModal = new Date(); hoyModal.setHours(0,0,0,0);
     document.getElementById('audSocioEval').innerHTML=audEvalLabel(socio.ultimaEval);
     document.getElementById('audSocioEvalCarg').innerHTML=`<span class="badge ${eS?'bg':'br'}" style="font-size:.72rem;">${eS?'Sí':'No'}</span>`;
     document.getElementById('audSocioObj').innerHTML=`<span class="badge ${oS?'bg':'br'}" style="font-size:.72rem;">${oS?'Sí':'No'}</span>`;
-    document.getElementById('audSocioVenc').innerHTML=socio.vencPlan
-        ?`${socio.vencPlan.toLocaleDateString('es-AR')} ${socio.vencPlan<new Date()?'<span style="color:#ef4444;font-size:.7rem;">VENCIDO</span>':''}`
-        :'S/D';
+    // Vencimiento servicio (col E — cuando abona)
+    const vs = socio.vencServicio;
+    const vsVenc = vs && vs < hoyModal;
+    document.getElementById('audSocioVencServ').innerHTML = vs
+        ? `<span style="color:${vsVenc?'#ef4444':'var(--text)'};font-weight:700;">${vs.toLocaleDateString('es-AR')}${vsVenc?' <span style="font-size:.65rem;background:#fee2e2;color:#ef4444;border-radius:3px;padding:1px 4px;">VENCIDO</span>':''}</span>`
+        : '<span style="color:var(--muted);">S/D</span>';
+    // Vencimiento plan (col I — plan de entrenamiento)
+    const vp = socio.vencPlan;
+    const vpVenc = vp && vp < hoyModal;
+    document.getElementById('audSocioVenc').innerHTML = vp
+        ? `<span style="color:${vpVenc?'#ef4444':'var(--text)'};font-weight:700;">${vp.toLocaleDateString('es-AR')}${vpVenc?' <span style="font-size:.65rem;background:#fee2e2;color:#ef4444;border-radius:3px;padding:1px 4px;">VENCIDO</span>':''}</span>`
+        : '<span style="color:var(--muted);">S/D</span>';
     // Adherencia en el modal - abreviada
     const MESES_FULL=['Ene','Feb','Mar','Abr','May'];
     const adhModalHtml=(socio.meses||[]).map((m,i)=>{
@@ -3187,6 +3205,7 @@ function audFinalizarDia(){
     const t=AUD_TRAINERS.find(x=>x.id===audCurrentProfe);
     const hoy=new Date(); hoy.setHours(0,0,0,0);
     const vencidos=audSociosData.filter(s=>s.vencPlan&&s.vencPlan<hoy);
+    const vencidosServicio=audSociosData.filter(s=>s.vencServicio&&s.vencServicio<hoy);
     const conEval=audSociosData.filter(s=>/(si|sí)/i.test(s.evalCargada)).length;
     const conObj=audSociosData.filter(s=>/(si|sí)/i.test(s.objetivoApp)).length;
 
@@ -3215,11 +3234,12 @@ function audFinalizarDia(){
     }));
 
     audHistorial.unshift({
-        id:'aud'+Date.now(), profe:t.name,
+        id:'aud'+Date.now(), profe:t.name, sede:t.sede,
         date:new Date().toLocaleDateString('es-AR'),
         planesAuditados:detalleSocios.length,
         planesVencidos:vencidos.length,
-        vencidosDetalle:vencidos.map(s=>s.nombre),
+        servicioVencidos:vencidosServicio.length,
+        vencidosDetalle:vencidos.map(s=>({nombre:s.nombre, vencPlan:s.vencPlan?.toLocaleDateString('es-AR'), vencServicio:s.vencServicio?.toLocaleDateString('es-AR')})),
         totalActivos:audSociosData.length,
         conEvaluacion:conEval, conObjetivo:conObj,
         semaforos:semResumen,
@@ -3261,7 +3281,13 @@ function audRenderHistorial(){
             </div>`;
         }).join(''):'';
         const vencList=a.vencidosDetalle&&a.vencidosDetalle.length
-            ?`<div style="margin-top:8px;padding:8px;background:#fee2e2;border-radius:7px;"><div style="font-size:.68rem;font-weight:700;text-transform:uppercase;color:#ef4444;margin-bottom:4px;"><i class="fas fa-calendar-xmark" style="margin-right:4px;"></i>Planes vencidos al ${a.date}</div><div style="font-size:.75rem;color:#7f1d1d;">${a.vencidosDetalle.join(' · ')}</div></div>`:'';
+            ?`<div style="margin-top:8px;padding:8px;background:#fee2e2;border-radius:7px;">
+                <div style="font-size:.68rem;font-weight:700;text-transform:uppercase;color:#ef4444;margin-bottom:5px;"><i class="fas fa-calendar-xmark" style="margin-right:4px;"></i>Planes vencidos al ${a.date}</div>
+                ${a.vencidosDetalle.map(v=>typeof v==='object'
+                    ?`<div style="font-size:.75rem;color:#7f1d1d;margin-bottom:3px;display:grid;grid-template-columns:1fr auto auto;gap:8px;"><span style="font-weight:600;">${v.nombre}</span><span>Plan: <b>${v.vencPlan||'S/D'}</b></span><span>Servicio: <b>${v.vencServicio||'S/D'}</b></span></div>`
+                    :`<div style="font-size:.75rem;color:#7f1d1d;">${v}</div>`
+                ).join('')}
+            </div>`:'';
         const scoreColor=a.semaforos?Object.values(a.semaforos).filter(v=>v==='rojo').length>1?'#ef4444':Object.values(a.semaforos).filter(v=>v==='amarillo').length>0?'#f59e0b':'#10b981':'#10b981';
         return `<div class="aud-audit-item" onclick="audToggle('${a.id}')">
             <div class="aud-audit-top">
@@ -3273,7 +3299,8 @@ function audRenderHistorial(){
                     </div>
                     <div class="aud-audit-date" style="margin-top:3px;">
                         <span style="background:#f0fdf4;border:1px solid #bbf7d0;border-radius:4px;padding:1px 6px;font-size:.7rem;color:#166534;margin-right:4px;">${a.planesAuditados} auditados</span>
-                        ${a.planesVencidos>0?`<span style="background:#fee2e2;border:1px solid #fca5a5;border-radius:4px;padding:1px 6px;font-size:.7rem;color:#991b1b;margin-right:4px;">${a.planesVencidos} vencidos</span>`:''}
+                        ${a.planesVencidos>0?`<span style="background:#fee2e2;border:1px solid #fca5a5;border-radius:4px;padding:1px 6px;font-size:.7rem;color:#991b1b;margin-right:4px;" title="Planes de entrenamiento vencidos">${a.planesVencidos} plan${a.planesVencidos!==1?'es':''} venc.</span>`:''}
+                        ${(a.servicioVencidos||0)>0?`<span style="background:#fef3c7;border:1px solid #fcd34d;border-radius:4px;padding:1px 6px;font-size:.7rem;color:#92400e;margin-right:4px;" title="Servicios sin renovar">${a.servicioVencidos} serv. venc.</span>`:''}
                         <span style="font-size:.7rem;color:var(--muted);">${a.conEvaluacion}/${a.totalActivos} con eval · ${a.conObjetivo}/${a.totalActivos} con objetivo</span>
                     </div>
                 </div>
