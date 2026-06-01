@@ -1124,7 +1124,7 @@ tr:hover td{background:#fafbfc;}
                             <div class="card-title"><i class="fas fa-magnifying-glass" style="color:var(--accent);"></i> Planes a Auditar Hoy</div>
                             <span class="card-badge" id="audHoyBadge"></span>
                         </div>
-                        <div class="tw"><table><thead><tr><th>Socio</th><th>Última Evaluación</th><th>Evaluación Cargada</th><th>Objetivo APP</th><th>Semáforo</th><th>Auditoría</th></tr></thead><tbody id="audHoyTable"></tbody></table></div>
+                        <div class="tw"><table><thead><tr><th>Socio</th><th>Última Evaluación</th><th>Eval. Cargada (AC)</th><th>Objetivo APP (AB)</th><th>Semáforo</th><th>Auditoría</th></tr></thead><tbody id="audHoyTable"></tbody></table></div>
                     </div>
 
                     <!-- Progreso de auditorías del día -->
@@ -2659,6 +2659,16 @@ let audSociosSeleccionados = [];
 
 function audS2C(s){return s==='verde'?'g':s==='amarillo'?'y':'r';}
 
+function audEvalLabel(fecha){
+    if(!fecha) return '<span style="color:var(--muted);">Sin evaluar</span>';
+    const hoy=new Date(); hoy.setHours(0,0,0,0);
+    const dias=Math.round((hoy-fecha)/864e5);
+    if(dias<=0) return '<span style="color:var(--muted);">Sin evaluar</span>';
+    if(fecha.getMonth()===hoy.getMonth()&&fecha.getFullYear()===hoy.getFullYear())
+        return `<span style="color:#10b981;font-weight:700;">✓ Este mes (${fecha.toLocaleDateString('es-AR')})</span>`;
+    return `<span style="color:${dias>60?'#ef4444':dias>30?'#f59e0b':'var(--muted)'};">Hace ${dias}d (${fecha.toLocaleDateString('es-AR')})</span>`;
+}
+
 function audInitSelector(){
     const btns = document.getElementById('audTrainerBtns');
     btns.innerHTML = AUD_TRAINERS.map(t=>`
@@ -2860,7 +2870,7 @@ function audRenderTablaHoy(){
         const btnText = auditado ? '✓ Auditado' : 'Auditar';
         return `<tr>
             <td style="font-weight:600;">${s.nombre}</td>
-            <td style="font-size:.78rem;">${s.ultimaEval?s.ultimaEval.toLocaleDateString('es-AR'):'Sin evaluar'}</td>
+            <td style="font-size:.78rem;">${audEvalLabel(s.ultimaEval)}</td>
             <td><span class="badge ${eS?'bg':'br'}">${eS?'Sí':'No'}</span></td>
             <td><span class="badge ${oS?'bg':'br'}">${oS?'Sí':'No'}</span></td>
             <td>${sem}</td>
@@ -2891,7 +2901,7 @@ function audAbrirSocio(nombre){
 
     // Info del socio
     const eS=/(si|sí)/i.test(socio.evalCargada), oS=/(si|sí)/i.test(socio.objetivoApp);
-    document.getElementById('audSocioEval').textContent=socio.ultimaEval?socio.ultimaEval.toLocaleDateString('es-AR'):'Sin evaluar';
+    document.getElementById('audSocioEval').textContent=audEvalLabel(socio.ultimaEval);
     document.getElementById('audSocioEvalCarg').innerHTML=`<span class="badge ${eS?'bg':'br'}" style="font-size:.72rem;">${eS?'Sí':'No'}</span>`;
     document.getElementById('audSocioObj').innerHTML=`<span class="badge ${oS?'bg':'br'}" style="font-size:.72rem;">${oS?'Sí':'No'}</span>`;
     document.getElementById('audSocioVenc').textContent=socio.venc?socio.venc.toLocaleDateString('es-AR'):'S/D';
