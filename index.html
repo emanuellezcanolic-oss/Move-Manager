@@ -1124,7 +1124,7 @@ tr:hover td{background:#fafbfc;}
                             <div class="card-title"><i class="fas fa-magnifying-glass" style="color:var(--accent);"></i> Planes a Auditar Hoy</div>
                             <span class="card-badge" id="audHoyBadge"></span>
                         </div>
-                        <div class="tw"><table><thead><tr><th>Socio</th><th>Última Evaluación</th><th>Eval. Cargada (AC)</th><th>Objetivo APP (AB)</th><th>Semáforo</th><th>Auditoría</th></tr></thead><tbody id="audHoyTable"></tbody></table></div>
+                        <div class="tw"><table><thead><tr><th>Socio</th><th>Última Evaluación</th><th>Eval. Cargada</th><th>Objetivo APP</th><th>Adherencia ENE-MAY</th><th>Semáforo</th><th>Auditoría</th></tr></thead><tbody id="audHoyTable"></tbody></table></div>
                     </div>
 
                     <!-- Progreso de auditorías del día -->
@@ -1164,11 +1164,15 @@ tr:hover td{background:#fafbfc;}
                 </div>
                 <div style="font-size:.72rem;color:var(--muted);margin-bottom:6px;" id="audFormFecha"></div>
                 <!-- Info del socio -->
-                <div id="audSocioInfo" style="background:var(--bg);border-radius:10px;padding:10px 14px;margin-bottom:14px;display:grid;grid-template-columns:1fr 1fr;gap:6px;font-size:.78rem;">
-                    <div><span style="color:var(--muted);">Última evaluación:</span> <span id="audSocioEval" style="font-weight:700;"></span></div>
-                    <div><span style="color:var(--muted);">Evaluación cargada:</span> <span id="audSocioEvalCarg" style="font-weight:700;"></span></div>
-                    <div><span style="color:var(--muted);">Objetivo APP:</span> <span id="audSocioObj" style="font-weight:700;"></span></div>
-                    <div><span style="color:var(--muted);">Vencimiento:</span> <span id="audSocioVenc" style="font-weight:700;"></span></div>
+                <div id="audSocioInfo" style="background:var(--bg);border-radius:10px;padding:10px 14px;margin-bottom:14px;">
+                    <div style="display:grid;grid-template-columns:1fr 1fr;gap:6px;font-size:.78rem;margin-bottom:8px;">
+                        <div><span style="color:var(--muted);">Última evaluación:</span> <span id="audSocioEval" style="font-weight:700;"></span></div>
+                        <div><span style="color:var(--muted);">Evaluación cargada:</span> <span id="audSocioEvalCarg" style="font-weight:700;"></span></div>
+                        <div><span style="color:var(--muted);">Objetivo APP:</span> <span id="audSocioObj" style="font-weight:700;"></span></div>
+                        <div><span style="color:var(--muted);">Venc. Plan:</span> <span id="audSocioVenc" style="font-weight:700;"></span></div>
+                    </div>
+                    <div style="font-size:.68rem;color:var(--muted);margin-bottom:4px;font-weight:600;text-transform:uppercase;letter-spacing:.5px;">Adherencia ENE–MAY</div>
+                    <div id="audSocioAdh"></div>
                 </div>
                 <div style="font-size:.75rem;font-weight:700;color:var(--muted);text-transform:uppercase;letter-spacing:.8px;margin-bottom:10px;">Evaluación por Sección</div>
                 <div id="audFormSections"></div>
@@ -2701,108 +2705,108 @@ function audSetCant(n){
 // Datos reales extraídos de la planilla de Belén (31/05/2026)
 // nombre, vencimiento, ultimaEval, objetivoApp, evalCargada
 const DATOS_BELU = [
-    ["Diaz Martin Gonzalo", "26/06/2026", "29/06/2026", "", "", ""],
-    ["Mazzini Camilo", "25/06/2026", "14/05/2026", "", "", ""],
-    ["Rivero Claudia", "20/06/2026", "23/05/2026", "29/05/2026", "Si", "Si"],
-    ["Vivanco Cachi", "27/06/2026", "24/05/2026", "23/04/2026", "Si", "Si"],
-    ["Suarez Ariel", "25/06/2026", "24/05/2026", "23/03/2026", "", ""],
-    ["Maldonado Silvestre", "26/06/2026", "26/05/2026", "29/05/2026", "Si", ""],
-    ["Chavez Macarena", "25/05/2026", "26/05/2026", "28/05/2026", "Si", ""],
-    ["Maldonado Marcela", "25/06/2026", "27/05/2026", "26/03/2026", "", ""],
-    ["Oyarzo Anahi", "28/05/2026", "28/05/2026", "9/04/2026", "Si", "Si"],
-    ["Bianco Estefania", "25/06/2026", "28/05/2026", "28/05/2026", "Si", "Si"],
-    ["Cena Estanislao", "13/06/2026", "29/05/2026", "21/04/2026", "Si", "Si"],
-    ["Steinmetz Gabriela", "8/06/2026", "29/05/2026", "27/03/2026", "Si", "Si"],
-    ["Noya Carina", "16/06/2026", "29/05/2026", "13/03/2026", "Si", "Si"],
-    ["Crovetto Carla", "7/06/2026", "30/05/2026", "5/02/2026", "Si", "Si"],
-    ["Zapata Eva", "12/06/2026", "30/05/2026", "28/04/2026", "Si", "Si"],
-    ["Chaves Patricia", "30/05/2026", "30/05/2026", "19/05/2026", "Si", "Si"],
-    ["Lopez Veronica", "4/06/2026", "31/05/2026", "18/05/2026", "Si", "Si"],
-    ["Horiszny Fernanda", "29/05/2026", "31/05/2026", "30/04/2026", "", "Si"],
-    ["Abraham Maria Rosario", "29/05/2026", "31/05/2026", "", "", "Si"],
-    ["Luna Guillermina", "12/06/2026", "1/06/2026", "7/04/2026", "", "Si"],
-    ["Steiner Adriana", "14/06/2026", "1/06/2026", "", "", ""],
-    ["Rodriguez Silvia", "22/06/2026", "2/06/2026", "2/03/2026", "Si", "Si"],
-    ["Gelinger Antonio", "2/06/2026", "2/06/2026", "16/04/2026", "", "Si"],
-    ["Ayala Hector", "8/06/2026", "3/06/2026", "20/02/2026", "Si", "Si"],
-    ["Lopez Virginia", "3/06/2026", "3/06/2026", "18/02/2026", "Si", "Si"],
-    ["Mayorga Graciela", "12/06/2026", "3/06/2026", "22/05/2026", "", "Si"],
-    ["Reyes Claudia", "4/06/2026", "4/06/2026", "14/04/2026", "Si", "Si"],
-    ["Nessler Axel", "2/06/2026", "4/06/2026", "21/05/2026", "Si", "Si"],
-    ["Namor Gerardo", "4/06/2026", "4/06/2026", "7/05/2026", "Si", ""],
-    ["Huisman Francisco", "5/08/2026", "5/06/2026", "28/04/2026", "", "Si"],
-    ["Ailen Pina", "5/06/2026", "5/06/2026", "21/05/2026", "Si", "Si"],
-    ["Ares Guadalupe", "30/05/2026", "6/06/2026", "31/03/2026", "Si", "Si"],
-    ["Stella Nyveiro", "23/06/2026", "7/06/2026", "6/05/2026", "", ""],
-    ["Lorusso Susana", "13/06/2026", "7/06/2026", "6/03/2026", "Si", "Si"],
-    ["Christiense Lucila", "2/06/2026", "7/06/2026", "8/05/2026", "Si", "Si"],
-    ["Larroza Laureano", "2/06/2026", "7/06/2026", "8/05/2026", "Si", "Si"],
-    ["Turco Hayde", "22/06/2026", "7/06/2026", "28/05/2026", "Si", "Si"],
-    ["Gomez Fernando", "7/06/2026", "7/06/2026", "17/03/2026", "Si", "Si"],
-    ["Maggio Oscar", "13/06/2026", "9/06/2026", "9/03/2026", "", "Si"],
-    ["Ayala Pablo", "1/06/2026", "9/06/2026", "10/03/2026", "", "Si"],
-    ["Niacupil Bernardino", "3/06/2026", "9/06/2026", "1/04/2026", "", ""],
-    ["Adamow Pedro", "2/07/2026", "9/06/2026", "18/05/2026", "Si", "Si"],
-    ["Lucero Walter", "5/06/2026", "9/06/2026", "14/05/2026", "Si", "Si"],
-    ["Espinosa Luis", "3/06/2026", "9/06/2026", "17/02/2026", "Si", "Si"],
-    ["Repezza Rocio", "3/06/2026", "9/06/2026", "20/05/2026", "", ""],
-    ["Aguilera Marcia", "17/06/2026", "10/06/2026", "20/04/2026", "Si", "Si"],
-    ["Silva Stella", "30/06/2026", "10/06/2026", "5/05/2026", "", ""],
-    ["Techera Pablo", "5/06/2026", "10/06/2026", "12/02/2026", "", ""],
-    ["Mora Baby", "3/06/2026", "10/06/2026", "11/03/2026", "Si", "Si"],
-    ["Magdalena Julia", "2/06/2026", "10/06/2026", "12/03/2026", "Si", "Si"],
-    ["Gallardo Sebastian", "15/06/2026", "11/06/2026", "", "", ""],
-    ["Zasgame Rodriguez Abril", "18/06/2026", "11/06/2026", "8/05/2026", "Si", "Si"],
-    ["Brosdocimo Jorgelina", "24/06/2026", "11/06/2026", "", "Si", "Si"],
-    ["Perontto Martha", "18/06/2026", "12/06/2026", "22/01/2026", "Si", "Si"],
-    ["Mas damato Gaia", "4/07/2026", "12/06/2026", "16/01/2026", "", ""],
-    ["Bedetti Bruno", "3/07/2026", "12/06/2026", "6/05/2026", "Si", "Si"],
-    ["Criado Mariase", "20/06/2026", "12/06/2026", "21/05/2026", "Si", "Si"],
-    ["Hansen Lucia", "27/06/2026", "12/06/2026", "12/05/2026", "Si", "Si"],
-    ["Cid Eugenia", "10/07/2026", "13/06/2026", "19/05/2026", "Si", "Si"],
-    ["Giulianeli Graciela", "7/06/2026", "13/06/2026", "13/05/2026", "", ""],
-    ["Sanchez Ezequias", "20/06/2026", "14/06/2026", "21/04/2026", "Si", "Si"],
-    ["Falca Alicia", "12/06/2026", "14/06/2026", "4/02/2026", "Si", "Si"],
-    ["Rubin Sabrina", "3/06/2026", "14/06/2026", "12/02/2026", "", ""],
-    ["Solari Marcelo", "12/07/2026", "14/06/2026", "14/04/2026", "", ""],
-    ["Saez Daniel", "13/06/2026", "14/06/2026", "14/04/2026", "Si", "Si"],
-    ["Gonzalez Gesia", "12/06/2026", "14/06/2026", "20/04/2026", "", ""],
-    ["Panomarenko Oscar", "26/05/2026", "14/06/2026", "23/04/2026", "", ""],
-    ["Diego Guajardo", "11/06/2026", "14/06/2026", "13/05/2026", "", ""],
-    ["Majluff Ezequiel", "15/06/2026", "15/06/2026", "", "", ""],
-    ["Mollo Romina", "30/05/2026", "15/06/2026", "10/04/2026", "", ""],
-    ["Livszyc Pablo", "20/06/2026", "16/06/2026", "13/05/2026", "", ""],
-    ["Rago Loreley", "10/06/2026", "16/06/2026", "21/01/2026", "", ""],
-    ["Meghdessian Agustin", "13/06/2026", "17/06/2026", "16/04/2026", "Si", "Si"],
-    ["Criado Emiliano", "25/06/2026", "17/06/2026", "25/03/2026", "Si", "Si"],
-    ["Mora Silvana", "2/06/2026", "18/06/2026", "14/05/2026", "Si", "Si"],
-    ["Menendez Magali", "14/06/2026", "18/06/2026", "15/04/2026", "Si", "Si"],
-    ["Buzzo Claudia", "7/07/2026", "18/06/2026", "26/05/2026", "Si", "Si"],
-    ["Buzzo Francisco", "7/07/2026", "18/06/2026", "31/03/2026", "Si", "Si"],
-    ["Figueroa Rocio", "9/06/2026", "18/06/2026", "26/05/2026", "Si", "Si"],
-    ["Verua Antonella", "19/06/2026", "19/06/2026", "29/04/2026", "Si", "Si"],
-    ["Szdruck Sandra", "11/06/2026", "20/06/2026", "12/03/2026", "Si", "Si"],
-    ["Pugliese Melisa", "8/06/2026", "20/06/2026", "9/03/2026", "Si", "Si"],
-    ["Frusteri Maximo", "3/06/2026", "20/06/2026", "27/03/2026", "Si", "Si"],
-    ["Di Salvo Lautaro", "17/06/2026", "22/06/2026", "22/05/2026", "", ""],
-    ["Rubilar Marcos", "28/06/2026", "22/06/2026", "29/04/2026", "", ""],
-    ["Marrama Mariano", "23/06/2026", "23/06/2026", "30/04/2026", "Si", "Si"],
-    ["Lobos Carolina", "5/06/2026", "23/06/2026", "15/04/2026", "Si", "Si"],
-    ["Zeid Luna", "21/06/2026", "23/06/2026", "22/04/2026", "Si", "Si"],
-    ["Gomez Victor Rodolfo", "3/07/2026", "24/06/2026", "22/04/2026", "Si", "Si"],
-    ["Garavaglia Miriam", "19/08/2026", "25/06/2026", "22/05/2026", "No", "Si"],
-    ["Rojo Sergio", "24/06/2026", "25/06/2026", "11/05/2026", "Si", "Si"],
-    ["Vercelli Mateo", "18/06/2026", "25/06/2026", "23/02/2026", "", ""],
-    ["Jambrina Norma", "3/06/2026", "26/06/2026", "3/03/2026", "Si", "Si"],
-    ["Rey Marcelo", "19/06/2026", "27/06/2026", "24/04/2026", "Si", "Si"],
-    ["Abraham Javier", "23/06/2026", "27/06/2026", "24/04/2026", "Si", "Si"],
-    ["Rodriguez Monica", "28/06/2026", "28/06/2026", "25/03/2026", "", ""],
-    ["Panzer Pancho", "20/06/2026", "", "", "", ""],
-    ["Horiszny Patricia", "27/06/2026", "", "", "", ""],
-    ["Boock Sofia", "30/06/2026", "", "", "", ""],
-    ["Ruiz Leda", "15/06/2026", "15/04/2026", "4/11/2025", "", ""],
-    ["Reynoso Oriana OL", "26/05/2026", "27/06/2026", "27/04/2026", "Si", "Si"],
-    ["Guzman Mariela OL", "27/05/2026", "", "16/03/2026", "", ""],
+    ["Vivanco Cachi", "27/06/2026", "24/05/2026", "23/04/2026", "Si", "Si", ["RENUEVA", "RENUEVA", "RENUEVA", "RENUEVA", "RENUEVA"]],
+    ["Chavez Macarena", "25/05/2026", "26/05/2026", "28/05/2026", "Si", "", ["", "", "", "RENUEVA", ""]],
+    ["Oyarzo Anahi", "28/05/2026", "28/05/2026", "9/04/2026", "Si", "Si", ["RENUEVA", "RENUEVA", "RENUEVA", "RENUEVA", ""]],
+    ["Bianco Estefania", "25/06/2026", "28/05/2026", "28/05/2026", "Si", "Si", ["RENUEVA", "RENUEVA", "RENUEVA", "RENUEVA", "RENUEVA"]],
+    ["Cena Estanislao", "13/06/2026", "29/05/2026", "21/04/2026", "Si", "Si", ["LIBERADO", "LIBERADO", "LIBERADO", "LIBERADO", "LIBERADO"]],
+    ["Steinmetz Gabriela", "8/06/2026", "29/05/2026", "27/03/2026", "Si", "Si", ["RENUEVA", "RENUEVA", "RENUEVA", "RENUEVA", "RENUEVA"]],
+    ["Noya Carina", "16/06/2026", "29/05/2026", "13/03/2026", "Si", "Si", ["RENUEVA", "RENUEVA", "RENUEVA", "RENUEVA", "RENUEVA"]],
+    ["Crovetto Carla", "7/06/2026", "30/05/2026", "5/02/2026", "Si", "Si", ["RENUEVA", "RENUEVA", "RENUEVA", "RENUEVA", "RENUEVA"]],
+    ["Zapata Eva", "12/06/2026", "30/05/2026", "28/04/2026", "Si", "Si", ["RENUEVA", "RENUEVA", "RENUEVA", "RENUEVA", "RENUEVA"]],
+    ["Chaves Patricia", "30/05/2026", "30/05/2026", "19/05/2026", "Si", "Si", ["", "", "LUCIA", "RENUEVA", ""]],
+    ["Lopez Veronica", "4/06/2026", "31/05/2026", "18/05/2026", "Si", "Si", ["VACACIONES", "RENUEVA", "RENUEVA", "RENUEVA", "RENUEVA"]],
+    ["Horiszny Fernanda", "29/05/2026", "31/05/2026", "30/04/2026", "", "Si", ["", "", "", "LUCIA", ""]],
+    ["Abraham Maria Rosario", "29/05/2026", "31/05/2026", "", "", "Si", ["", "", "", "LUCIA", ""]],
+    ["Suarez Ariel", "25/06/2026", "24/05/2026", "23/03/2026", "", "", ["", "", "", "RENUEVA", "RENUEVA"]],
+    ["Luna Guillermina", "12/06/2026", "1/06/2026", "7/04/2026", "", "Si", ["", "", "LUCIA", "RENUEVA", "RENUEVA"]],
+    ["Steiner Adriana", "14/06/2026", "1/06/2026", "", "", "", ["RENUEVA", "RENUEVA", "RENUEVA", "RENUEVA", "RENUEVA"]],
+    ["Rodriguez Silvia", "22/06/2026", "2/06/2026", "2/03/2026", "Si", "Si", ["RENUEVA", "RENUEVA", "RENUEVA", "RENUEVA", "RENUEVA"]],
+    ["Gelinger Antonio", "2/06/2026", "2/06/2026", "16/04/2026", "", "Si", ["", "RAYU", "RENUEVA", "RENUEVA", "RENUEVA"]],
+    ["Maldonado Marcela", "25/06/2026", "27/05/2026", "26/03/2026", "", "", ["", "", "LUCIA", "RENUEVA", "RENUEVA"]],
+    ["Ayala Hector", "8/06/2026", "3/06/2026", "20/02/2026", "Si", "Si", ["RENUEVA", "RENUEVA", "RENUEVA", "RENUEVA", "RENUEVA"]],
+    ["Lopez Virginia", "3/06/2026", "3/06/2026", "18/02/2026", "Si", "Si", ["RENUEVA", "RENUEVA", "RENUEVA", "RENUEVA", "RENUEVA"]],
+    ["Mayorga Graciela", "12/06/2026", "3/06/2026", "22/05/2026", "", "Si", ["", "RENUEVA", "RENUEVA", "RENUEVA", "RENUEVA"]],
+    ["Reyes Claudia", "4/06/2026", "4/06/2026", "14/04/2026", "Si", "Si", ["RENUEVA", "RENUEVA", "RENUEVA", "RENUEVA", "RENUEVA"]],
+    ["Nessler Axel", "2/06/2026", "4/06/2026", "21/05/2026", "Si", "Si", ["", "", "RENUEVA", "RENUEVA", "RENUEVA"]],
+    ["Namor Gerardo", "4/06/2026", "4/06/2026", "7/05/2026", "Si", "", ["", "", "", "", "RENUEVA"]],
+    ["Huisman Francisco", "5/08/2026", "5/06/2026", "28/04/2026", "", "Si", ["RENUEVA", "RENUEVA", "RENUEVA", "RENUEVA", "RENUEVA"]],
+    ["Ailen Pina", "5/06/2026", "5/06/2026", "21/05/2026", "Si", "Si", ["", "", "", "RENUEVA", "RENUEVA"]],
+    ["Ares Guadalupe", "30/05/2026", "6/06/2026", "31/03/2026", "Si", "Si", ["", "", "LUCIA", "RENUEVA", ""]],
+    ["Stella Nyveiro", "23/06/2026", "7/06/2026", "6/05/2026", "", "", ["RENUEVA", "RENUEVA", "RENUEVA", "RENUEVA", "RENUEVA"]],
+    ["Lorusso Susana", "13/06/2026", "7/06/2026", "6/03/2026", "Si", "Si", ["", "", "RENUEVA", "RENUEVA", "RENUEVA"]],
+    ["Christiense Lucila", "2/06/2026", "7/06/2026", "8/05/2026", "Si", "Si", ["", "", "LUCIA", "RENUEVA", "RENUEVA"]],
+    ["Larroza Laureano", "2/06/2026", "7/06/2026", "8/05/2026", "Si", "Si", ["", "", "LUCIA", "RENUEVA", "RENUEVA"]],
+    ["Turco Hayde", "22/06/2026", "7/06/2026", "28/05/2026", "Si", "Si", ["", "", "RENUEVA", "RENUEVA", "RENUEVA"]],
+    ["Gomez Fernando", "7/06/2026", "7/06/2026", "17/03/2026", "Si", "Si", ["RENUEVA", "RENUEVA", "RENUEVA", "RENUEVA", "RENUEVA"]],
+    ["Maggio Oscar", "13/06/2026", "9/06/2026", "9/03/2026", "", "Si", ["RENUEVA", "VACACIONES", "RENUEVA", "RENUEVA", "RENUEVA"]],
+    ["Ayala Pablo", "1/06/2026", "9/06/2026", "10/03/2026", "", "Si", ["RENUEVA", "RENUEVA", "RENUEVA", "RENUEVA", "RENUEVA"]],
+    ["Niacupil Bernardino", "3/06/2026", "9/06/2026", "1/04/2026", "", "", ["", "", "", "RENUEVA", "RENUEVA"]],
+    ["Adamow Pedro", "2/07/2026", "9/06/2026", "18/05/2026", "Si", "Si", ["RENUEVA", "RENUEVA", "RENUEVA", "RENUEVA", "RENUEVA"]],
+    ["Lucero Walter", "5/06/2026", "9/06/2026", "14/05/2026", "Si", "Si", ["RENUEVA", "RENUEVA", "RENUEVA", "RENUEVA", "RENUEVA"]],
+    ["Espinosa Luis", "3/06/2026", "9/06/2026", "17/02/2026", "Si", "Si", ["RENUEVA", "RENUEVA", "RENUEVA", "RENUEVA", "RENUEVA"]],
+    ["Repezza Rocio", "3/06/2026", "9/06/2026", "20/05/2026", "", "", ["", "", "RENUEVA", "RENUEVA", "RENUEVA"]],
+    ["Aguilera Marcia", "17/06/2026", "10/06/2026", "20/04/2026", "Si", "Si", ["RENUEVA", "RENUEVA", "RENUEVA", "VACACIONES", "RENUEVA"]],
+    ["Silva Stella", "30/06/2026", "10/06/2026", "5/05/2026", "", "", ["RENUEVA", "RENUEVA", "RENUEVA", "RENUEVA", "RENUEVA"]],
+    ["Techera Pablo", "5/06/2026", "10/06/2026", "12/02/2026", "", "", ["RENUEVA", "RENUEVA", "RENUEVA", "RENUEVA", "RENUEVA"]],
+    ["Mora Baby", "3/06/2026", "10/06/2026", "11/03/2026", "Si", "Si", ["", "", "RENUEVA", "RENUEVA", "RENUEVA"]],
+    ["Magdalena Julia", "2/06/2026", "10/06/2026", "12/03/2026", "Si", "Si", ["", "", "RENUEVA", "RENUEVA", "RENUEVA"]],
+    ["Gallardo Sebastian", "15/06/2026", "11/06/2026", "", "", "", ["RENUEVA", "RENUEVA", "RENUEVA", "RENUEVA", "RENUEVA"]],
+    ["Zasgame Rodriguez Abril", "18/06/2026", "11/06/2026", "8/05/2026", "Si", "Si", ["RENUEVA", "RENUEVA", "RENUEVA", "RENUEVA", "RENUEVA"]],
+    ["Brosdocimo Jorgelina", "24/06/2026", "11/06/2026", "", "Si", "Si", ["RENUEVA", "RENUEVA", "RENUEVA", "", "RENUEVA"]],
+    ["Perontto Martha", "18/06/2026", "12/06/2026", "22/01/2026", "Si", "Si", ["RENUEVA", "RENUEVA", "RENUEVA", "RENUEVA", "RENUEVA"]],
+    ["Mas damato Gaia", "4/07/2026", "12/06/2026", "16/01/2026", "", "", ["LIBERADO", "LIBERADO", "LIBERADO", "LIBERADO", "LIBERADO"]],
+    ["Bedetti Bruno", "3/07/2026", "12/06/2026", "6/05/2026", "Si", "Si", ["LIBERADO", "LIBERADO", "LIBERADO", "LIBERADO", "LIBERADO"]],
+    ["Criado Mariase", "20/06/2026", "12/06/2026", "21/05/2026", "Si", "Si", ["RENUEVA", "RENUEVA", "RENUEVA", "RENUEVA", "RENUEVA"]],
+    ["Hansen Lucia", "27/06/2026", "12/06/2026", "12/05/2026", "Si", "Si", ["RENUEVA", "RENUEVA", "RENUEVA", "RENUEVA", "RENUEVA"]],
+    ["Cid Eugenia", "10/07/2026", "13/06/2026", "19/05/2026", "Si", "Si", ["RENUEVA", "RENUEVA", "RENUEVA", "RENUEVA", "RENUEVA"]],
+    ["Giulianeli Graciela", "7/06/2026", "13/06/2026", "13/05/2026", "", "", ["", "", "RENUEVA", "RENUEVA", "RENUEVA"]],
+    ["Sanchez Ezequias", "20/06/2026", "14/06/2026", "21/04/2026", "Si", "Si", ["", "", "", "LUCIA", "RENUEVA"]],
+    ["Falca Alicia", "12/06/2026", "14/06/2026", "4/02/2026", "Si", "Si", ["", "RAYU", "DERIV. a RF", "", "RENUEVA"]],
+    ["Rubin Sabrina", "3/06/2026", "14/06/2026", "12/02/2026", "", "", ["RENUEVA", "RENUEVA", "RENUEVA", "RENUEVA", "RENUEVA"]],
+    ["Solari Marcelo", "12/07/2026", "14/06/2026", "14/04/2026", "", "", ["", "", "", "LUCIA", "RENUEVA"]],
+    ["Saez Daniel", "13/06/2026", "14/06/2026", "14/04/2026", "Si", "Si", ["", "", "", "LUCIA", "RENUEVA"]],
+    ["Gonzalez Gesia", "12/06/2026", "14/06/2026", "20/04/2026", "", "", ["BAJA", "", "", "RENUEVA", "RENUEVA"]],
+    ["Panomarenko Oscar", "26/05/2026", "14/06/2026", "23/04/2026", "", "", ["", "RENUEVA", "RENUEVA", "RENUEVA", ""]],
+    ["Diego Guajardo", "11/06/2026", "14/06/2026", "13/05/2026", "", "", ["", "", "", "", "LUCIA"]],
+    ["Majluff Ezequiel", "15/06/2026", "15/06/2026", "", "", "", ["RENUEVA", "RENUEVA", "RENUEVA", "RENUEVA", "RENUEVA"]],
+    ["Mollo Romina", "30/05/2026", "15/06/2026", "10/04/2026", "", "", ["", "RENUEVA", "RENUEVA", "RENUEVA", ""]],
+    ["Livszyc Pablo", "20/06/2026", "16/06/2026", "13/05/2026", "", "", ["RENUEVA", "RENUEVA", "RENUEVA", "RENUEVA", "RENUEVA"]],
+    ["Rago Loreley", "10/06/2026", "16/06/2026", "21/01/2026", "", "", ["RENUEVA", "RENUEVA", "RENUEVA", "RENUEVA", "RENUEVA"]],
+    ["Meghdessian Agustin", "13/06/2026", "17/06/2026", "16/04/2026", "Si", "Si", ["BAJA", "", "", "RENUEVA", "RENUEVA"]],
+    ["Criado Emiliano", "25/06/2026", "17/06/2026", "25/03/2026", "Si", "Si", ["", "RENUEVA", "RENUEVA", "RENUEVA", "RENUEVA"]],
+    ["Mora Silvana", "2/06/2026", "18/06/2026", "14/05/2026", "Si", "Si", ["RENUEVA", "RENUEVA", "RENUEVA", "RENUEVA", "RENUEVA"]],
+    ["Menendez Magali", "14/06/2026", "18/06/2026", "15/04/2026", "Si", "Si", ["", "", "", "RENUEVA", "RENUEVA"]],
+    ["Buzzo Claudia", "7/07/2026", "18/06/2026", "26/05/2026", "Si", "Si", ["RENUEVA", "RENUEVA", "RENUEVA", "RENUEVA", "RENUEVA"]],
+    ["Buzzo Francisco", "7/07/2026", "18/06/2026", "31/03/2026", "Si", "Si", ["RENUEVA", "RENUEVA", "RENUEVA", "RENUEVA", "RENUEVA"]],
+    ["Figueroa Rocio", "9/06/2026", "18/06/2026", "26/05/2026", "Si", "Si", ["", "", "LUCIA", "RENUEVA", "RENUEVA"]],
+    ["Verua Antonella", "19/06/2026", "19/06/2026", "29/04/2026", "Si", "Si", ["RENUEVA", "RENUEVA", "RENUEVA", "RENUEVA", "RENUEVA"]],
+    ["Szdruck Sandra", "11/06/2026", "20/06/2026", "12/03/2026", "Si", "Si", ["", "", "RENUEVA", "RENUEVA", "RENUEVA"]],
+    ["Pugliese Melisa", "8/06/2026", "20/06/2026", "9/03/2026", "Si", "Si", ["RENUEVA", "BAJA", "RENUEVA", "RENUEVA", "RENUEVA"]],
+    ["Frusteri Maximo", "3/06/2026", "20/06/2026", "27/03/2026", "Si", "Si", ["", "", "RENUEVA", "RENUEVA", "RENUEVA"]],
+    ["Di Salvo Lautaro", "17/06/2026", "22/06/2026", "22/05/2026", "", "", ["", "", "", "RENUEVA", "RENUEVA"]],
+    ["Rubilar Marcos", "28/06/2026", "22/06/2026", "29/04/2026", "", "", ["RAYU", "RENUEVA", "BAJA", "RENUEVA", "RENUEVA"]],
+    ["Marrama Mariano", "23/06/2026", "23/06/2026", "30/04/2026", "Si", "Si", ["", "", "RENUEVA", "RENUEVA", "RENUEVA"]],
+    ["Lobos Carolina", "5/06/2026", "23/06/2026", "15/04/2026", "Si", "Si", ["", "", "LUCIA", "RENUEVA", "RENUEVA"]],
+    ["Zeid Luna", "21/06/2026", "23/06/2026", "22/04/2026", "Si", "Si", ["", "", "", "TANI", "RENUEVA"]],
+    ["Gomez Victor Rodolfo", "3/07/2026", "24/06/2026", "22/04/2026", "Si", "Si", ["RENUEVA", "RENUEVA", "RENUEVA", "RENUEVA", "RENUEVA"]],
+    ["Garavaglia Miriam", "19/08/2026", "25/06/2026", "22/05/2026", "No", "Si", ["LIBERADO", "LIBERADO", "LIBERADO", "LIBERADO", "LIBERADO"]],
+    ["Rojo Sergio", "24/06/2026", "25/06/2026", "11/05/2026", "Si", "Si", ["", "RAYU", "RENUEVA", "RENUEVA", "RENUEVA"]],
+    ["Vercelli Mateo", "18/06/2026", "25/06/2026", "23/02/2026", "", "", ["", "RENUEVA", "RENUEVA", "RENUEVA", "RENUEVA"]],
+    ["Maldonado Silvestre", "26/06/2026", "26/05/2026", "29/05/2026", "Si", "", ["", "", "", "RENUEVA", "RENUEVA"]],
+    ["Jambrina Norma", "3/06/2026", "26/06/2026", "3/03/2026", "Si", "Si", ["", "", "RENUEVA", "VACACIONES", "RENUEVA"]],
+    ["Rey Marcelo", "19/06/2026", "27/06/2026", "24/04/2026", "Si", "Si", ["RAYU", "RENUEVA", "RENUEVA", "RENUEVA", "RENUEVA"]],
+    ["Abraham Javier", "23/06/2026", "27/06/2026", "24/04/2026", "Si", "Si", ["", "", "", "LUCIA", "RENUEVA"]],
+    ["Reynoso Oriana OL", "26/05/2026", "27/06/2026", "27/04/2026", "Si", "Si", ["", "", "", "LUCIA", "DERIV. Online"]],
+    ["Rodriguez Monica", "28/06/2026", "28/06/2026", "25/03/2026", "", "", ["BAJA", "", "RENUEVA", "RENUEVA", ""]],
+    ["Panzer Pancho", "20/06/2026", "", "", "", "", ["", "", "", "RENUEVA", ""]],
+    ["Diaz Martin Gonzalo", "26/06/2026", "", "", "", "", ["", "LUCIA", "VACACIONES", "", "RENUEVA"]],
+    ["Rivero Claudia", "20/06/2026", "23/05/2026", "29/05/2026", "Si", "Si", ["RENUEVA", "RENUEVA", "BAJA", "RENUEVA", "RENUEVA"]],
+    ["Mazzini Camilo", "25/06/2026", "14/05/2026", "", "", "", ["RENUEVA", "RENUEVA", "RENUEVA", "RENUEVA", "RENUEVA"]],
+    ["Horiszny Patricia", "27/06/2026", "", "", "", "", ["", "", "", "LIBERADO", ""]],
+    ["Boock Sofia", "30/06/2026", "", "", "", "", ["", "", "", "TANI", ""]],
+    ["Ruiz Leda", "15/06/2026", "15/04/2026", "4/11/2025", "", "", ["RENUEVA", "RENUEVA", "RENUEVA", "DERIV. PROFE.", "RENUEVA"]],
+    ["Guzman Mariela OL", "27/05/2026", "", "16/03/2026", "", "", ["RENUEVA", "RENUEVA", "RENUEVA", "DERIV. Online", ""]],
 ];
 
 function audCargarPlanilla(){
@@ -2822,15 +2826,22 @@ function audCargarPlanilla(){
     // Usar datos reales según el entrenador
     const datos = audCurrentProfe==='belu' ? DATOS_BELU : [];
 
-    // Formato: [nombre, venc_servicio, venc_plan(col I), fecha_eval(col J), obj_app, eval_carg]
-    const socios = datos.map(r=>({
-        nombre:r[0],
-        venc:parseDate(r[1]),        // vencimiento servicio (col E)
-        vencPlan:parseDate(r[2]),    // vencimiento plan (col I)
-        ultimaEval:parseDate(r[3]),  // fecha evaluacion (col J)
-        objetivoApp:r[4],
-        evalCargada:r[5]
-    }));
+    // Formato: [nombre, venc_servicio, venc_plan, fecha_eval, obj_app, eval_carg, meses[]]
+    const ACTIVAS_SET = new Set(['RENUEVA','RENUEVA X2','NUEVO','LUCIA','TANI','RAYU',
+        'LIBERADO','VACACIONES','DERIV. A RF','DERIV. ONLINE','DERIV. PROFE.']);
+    const MESES_LABEL = ['ENE','FEB','MAR','ABR','MAY'];
+
+    const socios = datos.map(r=>{
+        const meses = r[6]||[];
+        const mesesActivo = meses.filter(m=>ACTIVAS_SET.has((m||'').toUpperCase())).length;
+        const mesesBaja = meses.filter(m=>(m||'').toUpperCase()==='BAJA').length;
+        const pctAdh = Math.round(mesesActivo/5*100);
+        return {
+            nombre:r[0], venc:parseDate(r[1]), vencPlan:parseDate(r[2]),
+            ultimaEval:parseDate(r[3]), objetivoApp:r[4], evalCargada:r[5],
+            meses, mesesActivo, mesesBaja, pctAdh
+        };
+    });
 
     audSociosData=socios;
     const hoy = new Date(); hoy.setHours(0,0,0,0);
@@ -2840,11 +2851,14 @@ function audCargarPlanilla(){
     const conEval=activos.filter(s=>/(si|sí)/i.test(s.evalCargada)).length;
     const conObj=activos.filter(s=>/(si|sí)/i.test(s.objetivoApp) && s.objetivoApp.toLowerCase()!=='no').length;
 
+    const adhProm = Math.round(socios.reduce((s,x)=>s+x.pctAdh,0)/socios.length);
+
     document.getElementById('audPlanKpis').innerHTML=`
         <div class="aud-stat"><div class="aud-stat-num" style="color:var(--accent)">${activos.length}</div><div class="aud-stat-lbl">Socios Activos</div></div>
         <div class="aud-stat"><div class="aud-stat-num" style="color:${vencidos.length>0?'#ef4444':'#10b981'}">${vencidos.length}</div><div class="aud-stat-lbl">Planes Vencidos</div></div>
         <div class="aud-stat"><div class="aud-stat-num" style="color:var(--accent)">${conEval}</div><div class="aud-stat-lbl">Con Evaluación</div><div class="aud-stat-sub">${activos.length?Math.round(conEval/activos.length*100):0}% del total</div></div>
-        <div class="aud-stat"><div class="aud-stat-num" style="color:var(--accent)">${conObj}</div><div class="aud-stat-lbl">Objetivo APP</div><div class="aud-stat-sub">${activos.length?Math.round(conObj/activos.length*100):0}% del total</div></div>`;
+        <div class="aud-stat"><div class="aud-stat-num" style="color:var(--accent)">${conObj}</div><div class="aud-stat-lbl">Objetivo APP</div><div class="aud-stat-sub">${activos.length?Math.round(conObj/activos.length*100):0}% del total</div></div>
+        <div class="aud-stat"><div class="aud-stat-num" style="color:${adhProm>=80?'#10b981':adhProm>=50?'#f59e0b':'#ef4444'}">${adhProm}%</div><div class="aud-stat-lbl">Adherencia Prom.</div><div class="aud-stat-sub">ENE–MAY 2026</div></div>`;
 
     document.getElementById('audVencBadge').textContent=`${vencidos.length} socios`;
     document.getElementById('audVencTable').innerHTML=vencidos.length===0
@@ -2878,16 +2892,26 @@ let audSocioActual = null;
 function audRenderTablaHoy(){
     const tabla = document.getElementById('audHoyTable');
     tabla.innerHTML = audSociosSeleccionados.map(s=>{
-        const eS=/(si|sí)/i.test(s.evalCargada), oS=/(si|sí)/i.test(s.objetivoApp);
+        const eS=/(si|sí)/i.test(s.evalCargada), oS=/(si|sí)/i.test(s.objetivoApp)&&s.objetivoApp.toLowerCase()!=='no';
         const sem=eS&&oS?'🟢':eS||oS?'🟡':'🔴';
         const auditado = audSociosAuditados[s.nombre];
         const btnClass = auditado ? 'style="background:#d1fae5;color:#065f46;border:1px solid #6ee7b7;"' : '';
         const btnText = auditado ? '✓ Auditado' : 'Auditar';
+        const MESES_L = ['E','F','M','A','M'];
+        const ACTIVAS_S = new Set(['RENUEVA','RENUEVA X2','NUEVO','LUCIA','TANI','RAYU','LIBERADO','VACACIONES','DERIV. A RF','DERIV. ONLINE','DERIV. PROFE.']);
+        const adhChips = (s.meses||[]).map((m,i)=>{
+            const v=(m||'').toUpperCase();
+            const color=v==='BAJA'?'#ef4444':v?'#10b981':'#d1d5db';
+            const bg=v==='BAJA'?'#fee2e2':v?'#d1fae5':'#f3f4f6';
+            return `<span title="${m||'Sin dato'}" style="display:inline-flex;align-items:center;justify-content:center;width:20px;height:20px;border-radius:4px;font-size:.6rem;font-weight:700;background:${bg};color:${color};margin:1px;">${MESES_L[i]}</span>`;
+        }).join('');
+        const adhColor=s.pctAdh>=80?'#10b981':s.pctAdh>=60?'#f59e0b':'#ef4444';
         return `<tr>
             <td style="font-weight:600;">${s.nombre}</td>
             <td style="font-size:.78rem;">${audEvalLabel(s.ultimaEval)}</td>
             <td><span class="badge ${eS?'bg':'br'}">${eS?'Sí':'No'}</span></td>
             <td><span class="badge ${oS?'bg':'br'}">${oS?'Sí':'No'}</span></td>
+            <td><div style="display:flex;align-items:center;gap:2px;">${adhChips}<span style="font-size:.72rem;font-weight:700;color:${adhColor};margin-left:4px;">${s.pctAdh}%</span></div></td>
             <td>${sem}</td>
             <td><button class="aud-btn-save" ${btnClass} onclick="audAbrirSocio('${s.nombre}')" style="padding:4px 12px;font-size:.75rem;">${btnText}</button></td>
         </tr>`;
@@ -2915,13 +2939,25 @@ function audAbrirSocio(nombre){
     document.getElementById('audFormFecha').textContent=`${new Date().toLocaleDateString('es-AR')} · ${AUD_TRAINERS.find(x=>x.id===audCurrentProfe).name}`;
 
     // Info del socio
-    const eS=/(si|sí)/i.test(socio.evalCargada), oS=/(si|sí)/i.test(socio.objetivoApp);
+    const eS=/(si|sí)/i.test(socio.evalCargada), oS=/(si|sí)/i.test(socio.objetivoApp)&&socio.objetivoApp.toLowerCase()!=='no';
     document.getElementById('audSocioEval').textContent=audEvalLabel(socio.ultimaEval);
     document.getElementById('audSocioEvalCarg').innerHTML=`<span class="badge ${eS?'bg':'br'}" style="font-size:.72rem;">${eS?'Sí':'No'}</span>`;
     document.getElementById('audSocioObj').innerHTML=`<span class="badge ${oS?'bg':'br'}" style="font-size:.72rem;">${oS?'Sí':'No'}</span>`;
     document.getElementById('audSocioVenc').innerHTML=socio.vencPlan
         ?`${socio.vencPlan.toLocaleDateString('es-AR')} ${socio.vencPlan<new Date()?'<span style="color:#ef4444;font-size:.7rem;">VENCIDO</span>':''}`
         :'S/D';
+    // Adherencia en el modal
+    const MESES_FULL = ['Enero','Febrero','Marzo','Abril','Mayo'];
+    const ACTIVAS_S2 = new Set(['RENUEVA','RENUEVA X2','NUEVO','LUCIA','TANI','RAYU','LIBERADO','VACACIONES','DERIV. A RF','DERIV. ONLINE','DERIV. PROFE.']);
+    const adhModalHtml = (socio.meses||[]).map((m,i)=>{
+        const v=(m||'').toUpperCase();
+        const color=v==='BAJA'?'#ef4444':v?'#10b981':'#d1d5db';
+        const bg=v==='BAJA'?'#fee2e2':v?'#d1fae5':'#f3f4f6';
+        return `<div style="text-align:center;"><div style="font-size:.6rem;color:var(--muted);margin-bottom:2px;">${MESES_FULL[i].slice(0,3)}</div><span style="display:inline-flex;align-items:center;justify-content:center;width:28px;height:28px;border-radius:6px;font-size:.65rem;font-weight:700;background:${bg};color:${color};">${m||'—'}</span></div>`;
+    }).join('');
+    // Insertar adherencia en el bloque de info si existe el elemento
+    const adhEl = document.getElementById('audSocioAdh');
+    if(adhEl) adhEl.innerHTML=`<div style="display:flex;gap:6px;align-items:flex-start;">${adhModalHtml}</div>`;
 
     // Restaurar valores si ya fue auditado
     const prev = audSociosAuditados[nombre];
