@@ -3611,14 +3611,17 @@ function recepParsear(csv){
     }
     // Encontrar filas de métricas
     let rows = {ventas:-1, planes3m:-1, indumentaria:-1, mensajes:-1, prueba:-1, puntaje:-1};
+    // Solo buscar la PRIMERA ocurrencia de cada métrica (bloque ENE-ABR)
     for(let i=startRow; i<Math.min(startRow+80, lines.length); i++){
         const c = ((lines[i][1]||lines[i][0])||'').toLowerCase().trim();
-        if(c.includes('ventas de nuevos') || c.includes('ventas nuevos')) rows.ventas = i;
-        else if(c.includes('planes de 3') || c.includes('plan de 3')) rows.planes3m = i;
-        else if(c.includes('indumentaria') || c.includes('venta de indum')) rows.indumentaria = i;
-        else if(c.includes('mensajes enviados') || (c.includes('mensajes') && c.includes('enviad'))) rows.mensajes = i;
-        else if(c.includes('dias de prueba') || c.includes('días de prueba')) rows.prueba = i;
-        else if(c.includes('puntaje')) rows.puntaje = i;
+        if(rows.ventas<0 && (c.includes('ventas de nuevos') || c.includes('ventas nuevos'))) rows.ventas = i;
+        else if(rows.planes3m<0 && (c.includes('planes de 3') || c.includes('plan de 3'))) rows.planes3m = i;
+        else if(rows.indumentaria<0 && (c.includes('indumentaria') || c.includes('venta de indum'))) rows.indumentaria = i;
+        else if(rows.mensajes<0 && (c.includes('mensajes enviados') || (c.includes('mensajes') && c.includes('enviad')))) rows.mensajes = i;
+        else if(rows.prueba<0 && (c.includes('dias de prueba') || c.includes('días de prueba'))) rows.prueba = i;
+        else if(rows.puntaje<0 && c.includes('puntaje')) rows.puntaje = i;
+        // Parar cuando encontramos todas las métricas del primer bloque
+        if(rows.ventas>=0 && rows.planes3m>=0 && rows.indumentaria>=0 && rows.mensajes>=0 && rows.prueba>=0 && rows.puntaje>=0) break;
     }
 
     function getCtrl(rowIdx, mesIdx, sinObj=false){
