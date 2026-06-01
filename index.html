@@ -3621,11 +3621,13 @@ function recepParsear(csv){
         else if(c.includes('puntaje')) rows.puntaje = i;
     }
 
-    function getCtrl(rowIdx, mesIdx){
-        if(rowIdx < 0) return null; // null = sin dato (diferente de 0)
+    function getCtrl(rowIdx, mesIdx, sinObj=false){
+        if(rowIdx < 0) return null;
         const bloque = Math.floor(mesIdx/4);
         const mesEnBloque = mesIdx%4;
-        const col = 3 + mesEnBloque*2 + 1; // ctrl column
+        // Métricas con obj+ctrl: col = 2 + mesEnBloque*2 + 1
+        // Puntaje (solo ctrl, sin obj): col = 2 + mesEnBloque*2
+        const col = 2 + mesEnBloque * 2 + (sinObj ? 0 : 1);
 
         let targetRow = rowIdx;
         if(bloque > 0){
@@ -3639,8 +3641,8 @@ function recepParsear(csv){
                 }
             }
         }
-        const v = (lines[targetRow]?.[col]||'').trim().replace(/#DIV\/0!|#DIV\\\/0\\!/g,'');
-        if(v==='' || v==='0' && lines[targetRow]?.[col-1]==='') return null;
+        const v = (lines[targetRow]?.[col]||'').trim().replace(/#DIV\/0!|#DIV\\\/0\\!/g,'').replace(/0\.00\s*€/,'0').replace(/\\#DIV\/0\\!/g,'');
+        if(v==='' || v==='\\#DIV/0\\!') return null;
         const n = parseFloat(v.replace(/[^\d.-]/g,''));
         return isNaN(n) ? null : n;
     }
@@ -3652,7 +3654,7 @@ function recepParsear(csv){
         indumentaria:getCtrl(rows.indumentaria, i),
         mensajes:    getCtrl(rows.mensajes, i),
         prueba:      getCtrl(rows.prueba, i),
-        puntaje:     getCtrl(rows.puntaje, i),
+        puntaje:     getCtrl(rows.puntaje, i, true),  // puntaje no tiene columna objetivo
     }));
 }
 
