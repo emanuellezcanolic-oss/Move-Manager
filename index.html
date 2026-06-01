@@ -2861,7 +2861,9 @@ function audCargarPlanilla(){
             </tr>`;
         }).join('');
 
-    const paraAud=activos.slice(0,audCantPlanes);
+    // Selección ALEATORIA de socios a auditar
+    const shuffled = [...activos].sort(()=>Math.random()-0.5);
+    const paraAud = shuffled.slice(0, audCantPlanes);
     audSociosSeleccionados=paraAud;
     audSociosAuditados={};
     document.getElementById('audHoyBadge').textContent=`${paraAud.length} planes`;
