@@ -1148,16 +1148,31 @@ tr:hover td{background:#fafbfc;}
 
             <!-- Vista: Historial de auditorías -->
             <div id="audHistorial" style="margin-top:24px;">
-                <div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:14px;flex-wrap:wrap;gap:8px;">
-                    <div>
-                        <div style="font-size:.95rem;font-weight:800;color:var(--text);">Historial de Auditorías <span id="audCount" style="font-size:.82rem;font-weight:400;color:var(--muted);"></span></div>
-                        <div id="audSyncStatus" style="margin-top:2px;min-height:18px;"></div>
-                    </div>
-                    <button onclick="audCargarHistorial()" style="display:flex;align-items:center;gap:5px;background:var(--bg);border:1px solid var(--border);color:var(--muted);font-size:.75rem;padding:5px 12px;border-radius:7px;cursor:pointer;font-family:inherit;">
-                        <i class="fas fa-rotate-right" style="font-size:.7rem;"></i> Actualizar
+                <!-- Pestañas -->
+                <div style="display:flex;gap:0;margin-bottom:16px;border-bottom:2px solid var(--border);">
+                    <button id="audTabHistorial" onclick="audSwitchTab('historial')"
+                        style="padding:8px 18px;font-size:.82rem;font-weight:700;border:none;background:none;cursor:pointer;color:var(--accent);border-bottom:2px solid var(--accent);margin-bottom:-2px;font-family:inherit;">
+                        <i class="fas fa-list" style="margin-right:5px;"></i>Historial <span id="audCount"></span>
                     </button>
+                    <button id="audTabDashboard" onclick="audSwitchTab('dashboard')"
+                        style="padding:8px 18px;font-size:.82rem;font-weight:700;border:none;background:none;cursor:pointer;color:var(--muted);border-bottom:2px solid transparent;margin-bottom:-2px;font-family:inherit;">
+                        <i class="fas fa-chart-bar" style="margin-right:5px;"></i>Dashboard
+                    </button>
+                    <div style="flex:1;display:flex;justify-content:flex-end;align-items:center;padding-bottom:6px;gap:8px;">
+                        <div id="audSyncStatus" style="min-height:18px;"></div>
+                        <button onclick="audCargarHistorial()" style="display:flex;align-items:center;gap:5px;background:var(--bg);border:1px solid var(--border);color:var(--muted);font-size:.72rem;padding:4px 10px;border-radius:6px;cursor:pointer;font-family:inherit;">
+                            <i class="fas fa-rotate-right" style="font-size:.65rem;"></i> Actualizar
+                        </button>
+                    </div>
                 </div>
-                <div class="aud-audit-list" id="audAuditList"></div>
+                <!-- Contenido historial -->
+                <div id="audTabContentHistorial">
+                    <div class="aud-audit-list" id="audAuditList"></div>
+                </div>
+                <!-- Contenido dashboard -->
+                <div id="audTabContentDashboard" style="display:none;">
+                    <div id="audDashboard"></div>
+                </div>
             </div>
         </div><!-- /section-auditoria -->
 
@@ -2696,6 +2711,7 @@ async function audCargarHistorial(){
             audHistorial = parsed.historial || [];
         }
         audRenderHistorial();
+        audRenderDashboard();
         audSetSyncUI('ok');
         setTimeout(()=>audSetSyncUI('idle'), 2000);
     } catch(e){
@@ -3194,6 +3210,10 @@ function audRenderHistorial(){
                 </div>
                 <div style="display:flex;align-items:center;gap:6px;flex-shrink:0;">
                     <div class="aud-chips">${chips}</div>
+                    <button onclick="event.stopPropagation();audBorrar('${a.id}')" title="Borrar auditoría"
+                        style="width:26px;height:26px;border-radius:6px;border:1px solid #fca5a5;background:#fee2e2;color:#ef4444;cursor:pointer;display:flex;align-items:center;justify-content:center;flex-shrink:0;">
+                        <i class="fas fa-trash" style="font-size:.65rem;pointer-events:none;"></i>
+                    </button>
                     <i class="fas fa-chevron-down" id="audChev_${a.id}" style="color:var(--muted);font-size:.75rem;transition:transform .2s;"></i>
                 </div>
             </div>
@@ -3219,12 +3239,146 @@ function audRenderHistorial(){
     }).join('');
 }
 
+function audSwitchTab(tab){
+    const isHist = tab==='historial';
+    document.getElementById('audTabContentHistorial').style.display=isHist?'block':'none';
+    document.getElementById('audTabContentDashboard').style.display=isHist?'none':'block';
+    document.getElementById('audTabHistorial').style.cssText+=isHist
+        ?';color:var(--accent);border-bottom:2px solid var(--accent);'
+        :';color:var(--muted);border-bottom:2px solid transparent;';
+    document.getElementById('audTabDashboard').style.cssText+=isHist
+        ?';color:var(--muted);border-bottom:2px solid transparent;'
+        :';color:var(--accent);border-bottom:2px solid var(--accent);';
+    if(!isHist) audRenderDashboard();
+}
+
+function audBorrar(id){
+    if(!confirm('¿Borrar esta auditoría? No se puede deshacer.')) return;
+    audHistorial = audHistorial.filter(a=>a.id!==id);
+    audRenderHistorial();
+    audRenderDashboard();
+    audGuardarHistorial();
+}
+
 function audToggle(id){
     const exp=document.getElementById('audExp_'+id);
     const chev=document.getElementById('audChev_'+id);
     if(!exp)return;
     exp.classList.toggle('open');
     if(chev)chev.style.transform=exp.classList.contains('open')?'rotate(180deg)':'';}
+
+// ══════════════════════════════════════════════════
+// DASHBOARD POR PROFESIONAL
+// ══════════════════════════════════════════════════
+function audRenderDashboard(){
+    const el = document.getElementById('audDashboard');
+    if(!el) return;
+
+    if(!audHistorial.length){
+        el.innerHTML='<div class="aud-empty"><i class="fas fa-chart-bar"></i>Sin datos aún. Completá auditorías para ver el dashboard.</div>';
+        return;
+    }
+
+    // Agrupar por profesional
+    const porProfe = {};
+    audHistorial.forEach(a=>{
+        if(!porProfe[a.profe]) porProfe[a.profe]={
+            nombre:a.profe, auditorias:[], totalSocios:0, vencidosProm:0,
+            evalProm:0, objProm:0, semaforos:{gestion:[],diagnostico:[],metodologia:[],custom:[]}
+        };
+        porProfe[a.profe].auditorias.push(a);
+    });
+
+    // Calcular métricas por profesional
+    const profes = Object.values(porProfe).map(p=>{
+        const auds = p.auditorias;
+        const n = auds.length;
+        const totalSocios = auds[0]?.totalActivos || 0;
+        const vencProm = Math.round(auds.reduce((s,a)=>s+(a.planesVencidos||0),0)/n);
+        const evalProm = Math.round(auds.reduce((s,a)=>s+(a.conEvaluacion||0),0)/n);
+        const objProm = Math.round(auds.reduce((s,a)=>s+(a.conObjetivo||0),0)/n);
+        // Score promedio de semáforos
+        const semScores = {gestion:[], diagnostico:[], metodologia:[], custom:[]};
+        auds.forEach(a=>{
+            AUD_SECTIONS.forEach(sec=>{
+                const v=a.semaforos?.[sec.key];
+                if(v) semScores[sec.key].push(v==='verde'?100:v==='amarillo'?60:20);
+            });
+        });
+        const semAvg = {};
+        AUD_SECTIONS.forEach(sec=>{
+            const arr=semScores[sec.key];
+            semAvg[sec.key]=arr.length?Math.round(arr.reduce((s,v)=>s+v,0)/arr.length):0;
+        });
+        const scoreGlobal=Math.round(Object.values(semAvg).reduce((s,v)=>s+v,0)/4);
+        const ultimaAud=auds[0]?.date||'—';
+        return {nombre:p.nombre, n, totalSocios, vencProm, evalProm, objProm, semAvg, scoreGlobal, ultimaAud};
+    });
+
+    // Semáforo del score
+    const semColor=s=>s>=80?'#10b981':s>=60?'#f59e0b':'#ef4444';
+    const semLabel=s=>s>=80?'Óptimo':s>=60?'A mejorar':'Crítico';
+    const semBg=s=>s>=80?'#d1fae5':s>=60?'#fef3c7':'#fee2e2';
+    const semTxt=s=>s>=80?'#065f46':s>=60?'#92400e':'#991b1b';
+
+    el.innerHTML = `
+        <div style="display:grid;grid-template-columns:repeat(auto-fill,minmax(300px,1fr));gap:16px;">
+            ${profes.map(p=>`
+            <div class="card" style="padding:0;overflow:hidden;">
+                <div style="height:4px;background:${semColor(p.scoreGlobal)};"></div>
+                <div style="padding:18px;">
+                    <div style="display:flex;justify-content:space-between;align-items:flex-start;margin-bottom:14px;">
+                        <div>
+                            <div style="font-size:1rem;font-weight:800;color:var(--text);">${p.nombre}</div>
+                            <div style="font-size:.72rem;color:var(--muted);margin-top:2px;">${p.n} auditoría${p.n!==1?'s':''} · última: ${p.ultimaAud}</div>
+                        </div>
+                        <span style="background:${semBg(p.scoreGlobal)};color:${semTxt(p.scoreGlobal)};border-radius:20px;padding:3px 10px;font-size:.72rem;font-weight:700;">${semLabel(p.scoreGlobal)}</span>
+                    </div>
+
+                    <!-- Score global -->
+                    <div style="display:flex;align-items:center;gap:10px;margin-bottom:14px;">
+                        <div style="font-size:2rem;font-weight:900;color:${semColor(p.scoreGlobal)};line-height:1;">${p.scoreGlobal}%</div>
+                        <div style="flex:1;">
+                            <div style="height:6px;background:var(--border);border-radius:4px;overflow:hidden;">
+                                <div style="height:100%;width:${p.scoreGlobal}%;background:${semColor(p.scoreGlobal)};border-radius:4px;transition:width .6s;"></div>
+                            </div>
+                            <div style="font-size:.65rem;color:var(--muted);margin-top:3px;">Score metodológico promedio</div>
+                        </div>
+                    </div>
+
+                    <!-- Semáforos por sección -->
+                    <div style="display:grid;grid-template-columns:1fr 1fr;gap:6px;margin-bottom:14px;">
+                        ${AUD_SECTIONS.map(sec=>`
+                        <div style="background:var(--bg);border-radius:8px;padding:8px 10px;">
+                            <div style="font-size:.62rem;color:var(--muted);text-transform:uppercase;letter-spacing:.5px;margin-bottom:3px;">${sec.label.split(' ')[0]}</div>
+                            <div style="display:flex;align-items:center;gap:5px;">
+                                <div style="height:4px;flex:1;background:var(--border);border-radius:2px;overflow:hidden;">
+                                    <div style="height:100%;width:${p.semAvg[sec.key]}%;background:${semColor(p.semAvg[sec.key])};border-radius:2px;"></div>
+                                </div>
+                                <span style="font-size:.7rem;font-weight:700;color:${semColor(p.semAvg[sec.key])};">${p.semAvg[sec.key]}%</span>
+                            </div>
+                        </div>`).join('')}
+                    </div>
+
+                    <!-- KPIs de planilla -->
+                    <div style="display:grid;grid-template-columns:1fr 1fr 1fr;gap:5px;padding-top:12px;border-top:1px solid var(--border);">
+                        <div style="text-align:center;">
+                            <div style="font-size:1.1rem;font-weight:800;color:var(--text);">${p.totalSocios}</div>
+                            <div style="font-size:.6rem;color:var(--muted);text-transform:uppercase;">Socios</div>
+                        </div>
+                        <div style="text-align:center;">
+                            <div style="font-size:1.1rem;font-weight:800;color:${p.vencProm>0?'#ef4444':'#10b981'};">${p.vencProm}</div>
+                            <div style="font-size:.6rem;color:var(--muted);text-transform:uppercase;">Venc. prom.</div>
+                        </div>
+                        <div style="text-align:center;">
+                            <div style="font-size:1.1rem;font-weight:800;color:var(--accent);">${p.totalSocios?Math.round(p.evalProm/p.totalSocios*100):0}%</div>
+                            <div style="font-size:.6rem;color:var(--muted);text-transform:uppercase;">Con eval.</div>
+                        </div>
+                    </div>
+                </div>
+            </div>`).join('')}
+        </div>`;
+}
 
 cargarTodo();
 </script>
