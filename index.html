@@ -510,9 +510,8 @@ tr:hover td{background:#fafbfc;}
             <div class="nav-item" onclick="go('auditoria')">
                 <i class="fas fa-clipboard-check"></i> Auditor&iacute;a
             </div>
-            <div class="nav-item" onclick="window.open('https://emanuellezcanolic-oss.github.io/Move-Ventas/','_blank')" style="display:flex;align-items:center;justify-content:space-between;">
-                <span><i class="fas fa-chart-line"></i> Auditor&iacute;a Recepci&oacute;n</span>
-                <i class="fas fa-arrow-up-right-from-square" style="font-size:.55rem;opacity:.5;"></i>
+            <div class="nav-item" onclick="go('recepcion')">
+                <i class="fas fa-chart-line"></i> Auditor&iacute;a Recepci&oacute;n
             </div>
         </div>
     </div>
@@ -1219,6 +1218,56 @@ tr:hover td{background:#fafbfc;}
         </div>
 
     </div><!-- /content -->
+        <!-- ════════════════════════════════════════════ -->
+        <!-- SECCIÓN: AUDITORÍA RECEPCIÓN               -->
+        <!-- ════════════════════════════════════════════ -->
+        <div class="section" id="section-recepcion">
+            <div style="margin-bottom:20px;">
+                <!-- Selector recepcionista -->
+                <div class="card" style="margin-bottom:16px;">
+                    <div class="card-title"><i class="fas fa-users" style="color:var(--accent);margin-right:6px;"></i>1. Elegir Recepcionista</div>
+                    <div id="recepTrainerBtns"></div>
+                </div>
+
+                <!-- KPIs + selector mes -->
+                <div id="recepPlanillaKpis" style="display:none;">
+                    <div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:12px;flex-wrap:wrap;gap:8px;">
+                        <div style="font-size:.88rem;font-weight:700;color:var(--text);">
+                            <span id="recepNombre">—</span>
+                            <span id="recepCargando" style="display:none;font-size:.72rem;font-weight:400;color:var(--muted);margin-left:8px;">⏳ Cargando...</span>
+                        </div>
+                        <div id="recepMesTabs" style="display:flex;gap:4px;flex-wrap:wrap;"></div>
+                    </div>
+
+                    <!-- KPIs del mes -->
+                    <div class="kpi-row" id="recepKpis" style="display:grid;grid-template-columns:repeat(auto-fill,minmax(130px,1fr));gap:10px;margin-bottom:16px;"></div>
+
+                    <!-- Barras de objetivos -->
+                    <div style="display:grid;grid-template-columns:1fr 1fr;gap:14px;margin-bottom:16px;">
+                        <div class="card">
+                            <div class="card-title"><i class="fas fa-bullseye"></i>Objetivos del mes</div>
+                            <div id="recepObjs"></div>
+                        </div>
+                        <div class="card">
+                            <div class="card-title"><i class="fas fa-calendar-days"></i>Historial anual</div>
+                            <div class="tw">
+                                <table>
+                                    <thead><tr><th>Mes</th><th>Ventas</th><th>Planes 3m</th><th>Indumentaria</th><th>Mensajes</th><th>Puntaje</th></tr></thead>
+                                    <tbody id="recepTabla"></tbody>
+                                </table>
+                            </div>
+                        </div>
+                    </div>
+                </div>
+
+                <!-- Error -->
+                <div id="recepError" style="display:none;background:#fee2e2;border:1px solid #fca5a5;border-radius:10px;padding:14px;color:#991b1b;font-size:.82rem;margin-bottom:12px;">
+                    <i class="fas fa-exclamation-triangle" style="margin-right:6px;"></i>
+                    <span id="recepErrorMsg"></span>
+                </div>
+            </div>
+        </div><!-- /section-recepcion -->
+
 </div><!-- /main -->
 
 <script>
@@ -1547,6 +1596,7 @@ const META = {
     'bari-enc':  {title:'Bariloche \u2014 Encuestas', sub:'Bienvenida & An\u00e1lisis de Bajas sede Bariloche'},
     'bolson-enc':{title:'Bols\u00f3n & Lago Puelo \u2014 Encuestas', sub:'Bienvenida & An\u00e1lisis de Bajas'},
     'auditoria': {title:'Auditor\u00eda', sub:'Supervisi\u00f3n de entrenadores \u00b7 Metodolog\u00eda MOVE'},
+    'recepcion': {title:'Auditor\u00eda Recepci\u00f3n', sub:'Control de ventas \u00b7 Recepcionistas MOVE'},
 };
 function go(sec){
     document.querySelectorAll('.section').forEach(s=>s.classList.remove('active'));
@@ -1561,6 +1611,7 @@ function go(sec){
     if(sec==='encuestas'||sec==='bajas'||sec==='bolson-enc') loadEncuestas();
     if(sec==='bari-enc') loadEncuestasBari();
     if(sec==='auditoria'){ audInitSelector(); }
+    if(sec==='recepcion'){ recepInit(); }
     closeSb();
 }
 function toggleSb(){
@@ -3478,6 +3529,232 @@ function audRenderDashboard(){
                 </div>
             </div>`).join('')}
         </div>`;
+}
+
+// ══════════════════════════════════════════════════════════
+// AUDITORÍA RECEPCIÓN — Control de Ventas
+// ══════════════════════════════════════════════════════════
+const RECEP_CONFIG = [
+    {id:'ara',   name:'Ara',   sede:'Lago Puelo', sheetId:'1fxCZ01-4qmKUt27GvLUBk_vIRR4Jym3W', gid:'1934895'},
+    {id:'azul',  name:'Azul',  sede:'Lago Puelo', sheetId:'1XpEKL2YvVTfI0YzrWrTii8ZeuTbCTQcW', gid:'1934895'},
+    {id:'keila', name:'Keila', sede:'Bariloche',  sheetId:'1fxFcaVDcwyeJP01zuF9ngD7e_Il9b8KZ', gid:'1934895'},
+    {id:'ruben', name:'Rubén', sede:'Bariloche',  sheetId:'1vjxGOb549gQV12gD3_oPZytimSsPTJEl', gid:'1934895'},
+    {id:'tani',  name:'Tani',  sede:'El Bolsón',  sheetId:'1olzZWq8VgdUo63M6P6_U8Br8l-SPw_PO', gid:'1934895'},
+    {id:'lucia', name:'Lucía', sede:'El Bolsón',  sheetId:'1LTKqNKK9emHZ6GjH6Db80H_T96NUqFxc', gid:'1934895'},
+];
+const RECEP_MESES = ['ENE','FEB','MAR','ABR','MAY','JUN','JUL','AGO','SEP','OCT','NOV','DIC'];
+const RECEP_MESES_FULL = ['Enero','Febrero','Marzo','Abril','Mayo','Junio','Julio','Agosto','Septiembre','Octubre','Noviembre','Diciembre'];
+const RECEP_OBJ = {ventas:20, planes3m:10, indumentaria:5, mensajes:100, prueba:2};
+let recepCurrentId = null;
+let recepMesActual = new Date().getMonth(); // mes actual 0-based
+
+function recepInit(){
+    const btns = document.getElementById('recepTrainerBtns');
+    const sedes = [...new Set(RECEP_CONFIG.map(r=>r.sede))];
+    btns.innerHTML = sedes.map(sede=>`
+        <div style="margin-bottom:10px;">
+            <div style="font-size:.6rem;font-weight:700;text-transform:uppercase;letter-spacing:.8px;color:var(--muted);margin-bottom:6px;padding-left:2px;">
+                <i class="fas fa-map-marker-alt" style="margin-right:4px;color:var(--accent);font-size:.6rem;"></i>${sede}
+            </div>
+            <div style="display:flex;flex-wrap:wrap;gap:6px;">
+                ${RECEP_CONFIG.filter(r=>r.sede===sede).map(r=>`
+                    <button class="tab ${recepCurrentId===r.id?'active':''}" onclick="recepSeleccionar('${r.id}')">
+                        ${r.name}
+                    </button>`).join('')}
+            </div>
+        </div>`).join('');
+    document.getElementById('recepPlanillaKpis').style.display='none';
+    document.getElementById('recepError').style.display='none';
+}
+
+function recepSeleccionar(id){
+    recepCurrentId = id;
+    document.querySelectorAll('#recepTrainerBtns .tab').forEach(b=>b.classList.remove('active'));
+    event.target.closest('.tab').classList.add('active');
+    recepCargarDatos(id);
+}
+
+async function recepCargarDatos(id){
+    const r = RECEP_CONFIG.find(x=>x.id===id);
+    document.getElementById('recepNombre').textContent = `${r.name} — ${r.sede}`;
+    document.getElementById('recepCargando').style.display='inline';
+    document.getElementById('recepPlanillaKpis').style.display='block';
+    document.getElementById('recepError').style.display='none';
+
+    try {
+        const url = `https://docs.google.com/spreadsheets/d/${r.sheetId}/export?format=csv&gid=${r.gid}`;
+        const resp = await fetch(url);
+        if(!resp.ok) throw new Error(`HTTP ${resp.status}`);
+        const csv = await resp.text();
+        const datos = recepParsear(csv);
+        document.getElementById('recepCargando').style.display='none';
+        recepRenderizar(datos);
+    } catch(e){
+        document.getElementById('recepCargando').style.display='none';
+        document.getElementById('recepPlanillaKpis').style.display='none';
+        document.getElementById('recepError').style.display='block';
+        document.getElementById('recepErrorMsg').textContent=
+            `No se pudo cargar la planilla de ${r.name}. Verificá que esté compartida como "cualquier persona con el link puede ver".`;
+    }
+}
+
+function recepParsear(csv){
+    const lines = csv.split('\n').map(l=>l.split(','));
+    // Buscar la sección CONTROL DE VENTAS
+    let startRow = 0;
+    for(let i=0; i<lines.length; i++){
+        const txt = lines[i].join(' ').toLowerCase();
+        if(txt.includes('control de ventas')){
+            startRow = i;
+            break;
+        }
+    }
+    // Encontrar filas de métricas
+    let rows = {ventas:-1, planes3m:-1, indumentaria:-1, mensajes:-1, prueba:-1, puntaje:-1};
+    for(let i=startRow; i<Math.min(startRow+80, lines.length); i++){
+        const c = ((lines[i][1]||lines[i][0])||'').toLowerCase().trim();
+        if(c.includes('ventas de nuevos') || c.includes('ventas nuevos')) rows.ventas = i;
+        else if(c.includes('planes de 3') || c.includes('plan de 3')) rows.planes3m = i;
+        else if(c.includes('indumentaria') || c.includes('venta de indum')) rows.indumentaria = i;
+        else if(c.includes('mensajes enviados') || (c.includes('mensajes') && c.includes('enviad'))) rows.mensajes = i;
+        else if(c.includes('dias de prueba') || c.includes('días de prueba')) rows.prueba = i;
+        else if(c.includes('puntaje')) rows.puntaje = i;
+    }
+
+    function getCtrl(rowIdx, mesIdx){
+        if(rowIdx < 0) return null; // null = sin dato (diferente de 0)
+        const bloque = Math.floor(mesIdx/4);
+        const mesEnBloque = mesIdx%4;
+        const col = 3 + mesEnBloque*2 + 1; // ctrl column
+
+        let targetRow = rowIdx;
+        if(bloque > 0){
+            const baseLabel = ((lines[rowIdx][1]||lines[rowIdx][0])||'').toLowerCase().trim().replace(/\s+/g,' ');
+            let count = 0;
+            for(let i=rowIdx+1; i<lines.length; i++){
+                const c2 = ((lines[i][1]||lines[i][0])||'').toLowerCase().trim().replace(/\s+/g,' ');
+                if(c2.length>4 && (c2===baseLabel || baseLabel.startsWith(c2.substring(0,Math.min(8,c2.length))))){
+                    count++;
+                    if(count===bloque){ targetRow=i; break; }
+                }
+            }
+        }
+        const v = (lines[targetRow]?.[col]||'').trim().replace(/#DIV\/0!|#DIV\\\/0\\!/g,'');
+        if(v==='' || v==='0' && lines[targetRow]?.[col-1]==='') return null;
+        const n = parseFloat(v.replace(/[^\d.-]/g,''));
+        return isNaN(n) ? null : n;
+    }
+
+    return RECEP_MESES.map((m,i)=>({
+        mes: i, label: m, labelFull: RECEP_MESES_FULL[i],
+        ventas:      getCtrl(rows.ventas, i),
+        planes3m:    getCtrl(rows.planes3m, i),
+        indumentaria:getCtrl(rows.indumentaria, i),
+        mensajes:    getCtrl(rows.mensajes, i),
+        prueba:      getCtrl(rows.prueba, i),
+        puntaje:     getCtrl(rows.puntaje, i),
+    }));
+}
+
+function recepRenderizar(datos){
+    // Tabs de mes — solo mostrar meses con al menos un dato
+    const mesesConDato = datos.filter(d=>d.ventas!==null||d.mensajes!==null||d.puntaje!==null);
+    const mesMostrar = mesesConDato.length ? Math.max(...mesesConDato.map(d=>d.mes)) : recepMesActual;
+    if(mesesConDato.length) recepMesActual = mesMostrar;
+
+    document.getElementById('recepMesTabs').innerHTML = RECEP_MESES.map((m,i)=>{
+        const tieneDato = datos[i].ventas!==null||datos[i].mensajes!==null;
+        return `<button class="tab ${i===recepMesActual?'active':''} ${!tieneDato?'':''})"
+            onclick="recepCambiarMes(${i})"
+            style="font-size:.68rem;padding:4px 10px;${!tieneDato?'opacity:.4;':''}">
+            ${m}
+        </button>`;
+    }).join('');
+
+    recepRenderMes(datos, recepMesActual);
+}
+
+function recepCambiarMes(i){
+    recepMesActual = i;
+    document.querySelectorAll('#recepMesTabs .tab').forEach((b,idx)=>b.classList.toggle('active',idx===i));
+    // Re-renderizar con los datos ya cargados — necesitamos guardar los datos
+    // Por eso los guardamos en el DOM
+    const raw = document.getElementById('recepDatosRaw');
+    if(raw) recepRenderMes(JSON.parse(raw.textContent), i);
+}
+
+function recepRenderMes(datos, mesIdx){
+    // Guardar datos para navegación por mes
+    let raw = document.getElementById('recepDatosRaw');
+    if(!raw){ raw=document.createElement('script'); raw.id='recepDatosRaw'; raw.type='application/json'; document.body.appendChild(raw); }
+    raw.textContent = JSON.stringify(datos);
+
+    const d = datos[mesIdx];
+    const fmt = v => v===null ? '<span style="color:var(--muted)">—</span>' : v;
+    const pct = (v,obj) => v===null ? null : Math.min(Math.round(v/obj*100),100);
+    const color = p => p===null?'var(--muted)':p>=80?'#10b981':p>=50?'#f59e0b':'#ef4444';
+
+    // KPIs
+    const kpis = [
+        {label:'Ventas Nuevas', val:d.ventas, obj:RECEP_OBJ.ventas, icon:'fa-user-plus'},
+        {label:'Mensajes',      val:d.mensajes, obj:RECEP_OBJ.mensajes, icon:'fa-message'},
+        {label:'Planes 3m',     val:d.planes3m, obj:RECEP_OBJ.planes3m, icon:'fa-calendar-check'},
+        {label:'Indumentaria',  val:d.indumentaria, obj:RECEP_OBJ.indumentaria, icon:'fa-shirt'},
+        {label:'Días Prueba',   val:d.prueba, obj:RECEP_OBJ.prueba, icon:'fa-clock'},
+        {label:'Puntaje',       val:d.puntaje, obj:100, icon:'fa-star'},
+    ];
+    document.getElementById('recepKpis').innerHTML = kpis.map(k=>{
+        const p = pct(k.val, k.obj);
+        const c = color(p);
+        return `<div class="stat-card" style="background:var(--card);border:1px solid var(--border);border-radius:10px;padding:14px;position:relative;overflow:hidden;">
+            <div style="position:absolute;top:0;left:0;width:3px;height:100%;background:${c};"></div>
+            <div style="font-size:1.4rem;font-weight:800;color:${c};font-family:monospace;">${k.val!==null?k.val:'—'}</div>
+            <div style="font-size:.62rem;font-weight:600;text-transform:uppercase;letter-spacing:.5px;color:var(--muted);margin-top:4px;">${k.label}</div>
+            ${p!==null?`<div style="font-size:.68rem;color:${c};margin-top:3px;font-weight:600;">${p}% del obj. (${k.obj})</div>`:`<div style="font-size:.68rem;color:var(--muted);margin-top:3px;">Sin datos</div>`}
+        </div>`;
+    }).join('');
+
+    // Barras de objetivos
+    const objs = [
+        {label:'Ventas de Nuevos', val:d.ventas, obj:RECEP_OBJ.ventas},
+        {label:'Planes de 3 Meses', val:d.planes3m, obj:RECEP_OBJ.planes3m},
+        {label:'Indumentaria/Suplementos', val:d.indumentaria, obj:RECEP_OBJ.indumentaria},
+        {label:'Mensajes Enviados', val:d.mensajes, obj:RECEP_OBJ.mensajes},
+        {label:'Días de Prueba', val:d.prueba, obj:RECEP_OBJ.prueba},
+    ];
+    document.getElementById('recepObjs').innerHTML = objs.map(o=>{
+        if(o.val===null) return `<div style="display:flex;align-items:center;gap:8px;padding:8px 0;border-bottom:1px solid var(--border);font-size:.78rem;">
+            <span style="flex:1;">${o.label}</span>
+            <span style="color:var(--muted);">Sin datos</span>
+        </div>`;
+        const p = Math.min(Math.round(o.val/o.obj*100),100);
+        const c = color(p);
+        return `<div style="padding:8px 0;border-bottom:1px solid var(--border);">
+            <div style="display:flex;justify-content:space-between;font-size:.78rem;margin-bottom:5px;">
+                <span>${o.label}</span>
+                <span style="font-family:monospace;font-weight:700;color:${c};">${o.val} / ${o.obj} (${p}%)</span>
+            </div>
+            <div style="height:4px;background:var(--border);border-radius:2px;overflow:hidden;">
+                <div style="height:100%;width:${p}%;background:${c};border-radius:2px;transition:width .5s;"></div>
+            </div>
+        </div>`;
+    }).join('');
+
+    // Tabla historial — solo meses con datos
+    document.getElementById('recepTabla').innerHTML = datos.map((d,i)=>{
+        const tieneDato = d.ventas!==null||d.mensajes!==null||d.puntaje!==null;
+        if(!tieneDato) return '';
+        const p = pct(d.ventas, RECEP_OBJ.ventas);
+        const c = color(p);
+        return `<tr style="${i===mesIdx?'background:#f0fdf4;font-weight:600;':''}">
+            <td>${d.labelFull}${i===mesIdx?' <span style="font-size:.6rem;color:var(--accent);">← actual</span>':''}</td>
+            <td style="font-family:monospace;color:${c}">${d.ventas!==null?d.ventas:'—'}</td>
+            <td style="font-family:monospace">${d.planes3m!==null?d.planes3m:'—'}</td>
+            <td style="font-family:monospace">${d.indumentaria!==null?d.indumentaria:'—'}</td>
+            <td style="font-family:monospace">${d.mensajes!==null?d.mensajes:'—'}</td>
+            <td style="font-family:monospace;font-weight:700">${d.puntaje!==null?d.puntaje:'—'}</td>
+        </tr>`;
+    }).join('');
 }
 
 cargarTodo();
