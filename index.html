@@ -2954,35 +2954,19 @@ function audCargarPlanilla(){
     const datos = audCurrentProfe==='belu' ? DATOS_BELU : null;
 
     if(datos){
-        // Belu: datos precargados
-        const ACTIVAS_SET = new Set(['RENUEVA','RENUEVA X2','NUEVO','LUCIA','TANI','RAYU',
+        const ACT = new Set(['RENUEVA','RENUEVA X2','NUEVO','LUCIA','TANI','RAYU',
             'LIBERADO','VACACIONES','DERIV. A RF','DERIV. ONLINE','DERIV. PROFE.']);
-        const MESES_LABEL = ['ENE','FEB','MAR','ABR','MAY'];
-        const socios = datos.map(r=>({
-            nombre:r[0], venc:parseDate(r[1]), vencPlan:parseDate(r[2]),
-            ultimaEval:parseDate(r[3]), objetivoApp:r[4], evalCargada:r[5],
-            meses:r[6]||[], mesesActivo:(r[6]||[]).filter(m=>ACTIVAS_SET.has((m||'').toUpperCase())).length,
-            mesesBaja:(r[6]||[]).filter(m=>(m||'').toUpperCase()==='BAJA').length,
-            get pctAdh(){ return Math.round(this.mesesActivo/5*100); }
-        }));
-
-    // Formato: [nombre, venc_servicio, venc_plan, fecha_eval, obj_app, eval_carg, meses[]]
-    const ACTIVAS_SET = new Set(['RENUEVA','RENUEVA X2','NUEVO','LUCIA','TANI','RAYU',
-        'LIBERADO','VACACIONES','DERIV. A RF','DERIV. ONLINE','DERIV. PROFE.']);
-    const MESES_LABEL = ['ENE','FEB','MAR','ABR','MAY'];
-
-    const socios = datos.map(r=>{
-        const meses = r[6]||[];
-        const mesesActivo = meses.filter(m=>ACTIVAS_SET.has((m||'').toUpperCase())).length;
-        const mesesBaja = meses.filter(m=>(m||'').toUpperCase()==='BAJA').length;
-        const pctAdh = Math.round(mesesActivo/5*100);
-        return {
-            nombre:r[0], venc:parseDate(r[1]), vencPlan:parseDate(r[2]),
-            ultimaEval:parseDate(r[3]), objetivoApp:r[4], evalCargada:r[5],
-            meses, mesesActivo, mesesBaja, pctAdh
-        };
-    });
-
+        const socios = datos.map(r=>{
+            const meses = r[6]||[];
+            const mesesActivo = meses.filter(m=>ACT.has((m||'').toUpperCase())).length;
+            return {
+                nombre:r[0], venc:parseDate(r[1]), vencPlan:parseDate(r[2]),
+                ultimaEval:parseDate(r[3]), objetivoApp:r[4], evalCargada:r[5],
+                meses, mesesActivo,
+                mesesBaja:meses.filter(m=>(m||'').toUpperCase()==='BAJA').length,
+                get pctAdh(){ return Math.round(this.mesesActivo/5*100); }
+            };
+        });
         audProcesarSocios(socios);
     } else {
         // Otros entrenadores: leer CSV de Google Sheets en tiempo real
