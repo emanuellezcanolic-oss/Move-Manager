@@ -495,6 +495,9 @@ tr:hover td{background:#fafbfc;}
             <div class="nav-item" onclick="go('versus')">
                 <i class="fas fa-exchange-alt"></i> 2025 vs 2026
             </div>
+            <div class="nav-item" onclick="go('analisis-entrenadores')">
+                <i class="fas fa-chart-bar"></i> An&aacute;lisis Entrenadores
+            </div>
         </div>
         <div class="sb-group">
             <div class="sb-group-label">Encuestas</div>
@@ -1218,9 +1221,61 @@ tr:hover td{background:#fafbfc;}
         </div>
 
     </div><!-- /content -->
-        <!-- ════════════════════════════════════════════ -->
-        <!-- SECCIÓN: AUDITORÍA RECEPCIÓN               -->
-        <!-- ════════════════════════════════════════════ -->
+        <!-- ═══════════════════════════════════════════════════ -->
+        <!-- SECCIÓN: ANÁLISIS ENTRENADORES                    -->
+        <!-- ═══════════════════════════════════════════════════ -->
+        <div class="section" id="section-analisis-entrenadores">
+
+            <!-- Selector de entrenador -->
+            <div class="card" style="margin-bottom:16px;">
+                <div class="card-title"><i class="fas fa-user-tie"></i>Entrenador</div>
+                <div style="display:flex;flex-wrap:wrap;gap:6px;">
+                    <button class="tab active" onclick="aeSelProfe('belen',this)">Belén <span style="font-size:.62rem;color:inherit;opacity:.7;">El Bolsón</span></button>
+                    ${['Fer','Enzo','Javi','Agus','Camila','Carla','Giuliano'].map(n=>`<button class="tab" style="opacity:.4;cursor:not-allowed;" disabled>${n} <span style="font-size:.58rem;">(pronto)</span></button>`).join('')}
+                </div>
+            </div>
+
+            <!-- Selector de mes -->
+            <div style="display:flex;align-items:center;gap:8px;flex-wrap:wrap;margin-bottom:16px;">
+                <span style="font-size:.68rem;font-weight:700;text-transform:uppercase;letter-spacing:.6px;color:var(--muted);">Mes:</span>
+                <div id="aeMesTabs" style="display:flex;gap:4px;flex-wrap:wrap;"></div>
+            </div>
+
+            <!-- KPIs -->
+            <div id="aeKpis" style="display:grid;grid-template-columns:repeat(auto-fill,minmax(130px,1fr));gap:10px;margin-bottom:16px;"></div>
+
+            <!-- Objetivos + Tareas -->
+            <div style="display:grid;grid-template-columns:1fr 1fr;gap:14px;margin-bottom:16px;">
+                <div class="card">
+                    <div class="card-title"><i class="fas fa-bullseye"></i>Objetivos del mes</div>
+                    <div id="aeObjs"></div>
+                </div>
+                <div class="card">
+                    <div class="card-title"><i class="fas fa-list-check"></i>Tareas mensuales</div>
+                    <div id="aeTareas"></div>
+                </div>
+            </div>
+
+            <!-- Tabla anual + Movimiento -->
+            <div style="display:grid;grid-template-columns:1fr 1fr;gap:14px;margin-bottom:16px;">
+                <div class="card">
+                    <div class="card-title"><i class="fas fa-table"></i>Resumen anual</div>
+                    <div class="tw"><table>
+                        <thead><tr><th>Mes</th><th>Activos</th><th>Deserción</th><th>Retención</th><th>Puntaje</th></tr></thead>
+                        <tbody id="aeTabla"></tbody>
+                    </table></div>
+                </div>
+                <div class="card">
+                    <div class="card-title"><i class="fas fa-arrow-trend-up"></i>Movimiento mensual</div>
+                    <div class="tw"><table>
+                        <thead><tr><th>Mes</th><th>Renueva</th><th>Lucía/Tani</th><th>Liberado</th><th>Vacac.</th><th>Deriv.</th><th>Baja</th></tr></thead>
+                        <tbody id="aeMovimiento"></tbody>
+                    </table></div>
+                </div>
+            </div>
+        </div><!-- /section-analisis-entrenadores -->
+
+</div><!-- /main -->
         <div class="section" id="section-recepcion">
             <div style="margin-bottom:20px;">
                 <!-- Selector recepcionista -->
@@ -1597,6 +1652,7 @@ const META = {
     'bolson-enc':{title:'Bols\u00f3n & Lago Puelo \u2014 Encuestas', sub:'Bienvenida & An\u00e1lisis de Bajas'},
     'auditoria': {title:'Auditor\u00eda', sub:'Supervisi\u00f3n de entrenadores \u00b7 Metodolog\u00eda MOVE'},
     'recepcion': {title:'Auditor\u00eda Recepci\u00f3n', sub:'Control de ventas \u00b7 Recepcionistas MOVE'},
+    'analisis-entrenadores': {title:'An\u00e1lisis Entrenadores', sub:'Objetivos, tareas y retenci\u00f3n \u00b7 Datos reales 2026'},
 };
 function go(sec){
     document.querySelectorAll('.section').forEach(s=>s.classList.remove('active'));
@@ -1612,6 +1668,7 @@ function go(sec){
     if(sec==='bari-enc') loadEncuestasBari();
     if(sec==='auditoria'){ audInitSelector(); }
     if(sec==='recepcion'){ recepInit(); }
+    if(sec==='analisis-entrenadores'){ aeRender(aeMesActual); }
     closeSb();
 }
 function toggleSb(){
@@ -3760,6 +3817,164 @@ function recepRenderMes(datos, mesIdx){
             <td style="font-family:monospace;font-weight:700">${d.puntaje!==null?d.puntaje:'—'}</td>
         </tr>`;
     }).join('');
+}
+
+// ══════════════════════════════════════════════════════════
+// ANÁLISIS ENTRENADORES — Datos reales planilla
+// ══════════════════════════════════════════════════════════
+const AE_BELEN = {
+    meses:['ENE','FEB','MAR','ABR','MAY','JUN'],
+    mesesFull:['Enero','Febrero','Marzo','Abril','Mayo','Junio'],
+    objetivos:[
+        {activos:84,  desercion:25.0, tarea:0,   reeval:23.81, puntaje:70,  retencion:75.0},
+        {activos:89,  desercion:22.5, tarea:100,  reeval:20.22, puntaje:90,  retencion:77.5},
+        {activos:105, desercion:7.6,  tarea:83,   reeval:25.71, puntaje:105, retencion:92.4},
+        {activos:104, desercion:6.7,  tarea:67,   reeval:33.65, puntaje:153, retencion:93.3},
+        {activos:95,  desercion:4.2,  tarea:100,  reeval:35.79, puntaje:161, retencion:95.8},
+        {activos:6,   desercion:0.0,  tarea:0,    reeval:16.67, puntaje:50,  retencion:100},
+    ],
+    movimiento:[
+        {renueva:79, luciaTani:19, liberado:5, vacaciones:2, deriv:8,  baja:21},
+        {renueva:84, luciaTani:9,  liberado:5, vacaciones:4, deriv:14, baja:20},
+        {renueva:100,luciaTani:13, liberado:5, vacaciones:2, deriv:5,  baja:8},
+        {renueva:100,luciaTani:9,  liberado:4, vacaciones:5, deriv:3,  baja:7},
+        {renueva:90, luciaTani:2,  liberado:5, vacaciones:3, deriv:2,  baja:4},
+        {renueva:4,  luciaTani:2,  liberado:2, vacaciones:1, deriv:0,  baja:0},
+    ],
+    tareas:[
+        [], // ENE — sin datos
+        [
+            {desc:'Completar el perfil de los Socios en la APP en un 50%', obs:'—', ok:true},
+            {desc:'Agregar un objetivo concreto en la APP y medible con 10 socios', obs:'Espinosa Ana, Espinosa Luis, Falca Alicia, Ayala Héctor, Bronzi Valentín, Silvina Rodríguez, López Verónica, Axel Meier, Luján Wagner, Perontto Martha', ok:true},
+            {desc:'Agendar 10 evaluaciones con 10 socios en el futuro', obs:'Sabrina Rubín, Miriam Garavaglia, Virginia López, Cristina Rimoldi, Emiliano Rearte, Héctor Ayala, Abril Zasgame, Oscar Panomarenko, Gustavo Guffanti', ok:true},
+            {desc:'Tener el 70% de los socios con alguna evaluación cargada en la APP', obs:'listo', ok:true},
+            {desc:'Que asistan al menos 5 socios de tu turno a "Iluminemos al piltri"', obs:'Verua Antonella, Sofía Doffman, Borghi Facundo', ok:true},
+            {desc:'Subir una Foto entrenando y etiquetar a MOVE', obs:'listo', ok:true},
+        ],
+        [
+            {desc:'Completar el perfil de los Socios en la APP en un 100%', obs:'—', ok:false},
+            {desc:'Agregar un objetivo concreto en la APP y medible con 10 socios', obs:'Salamida Lia, Lewin Mariana, Reyes Claudia, Crovetto Carla, Juárez Rosario, Baschfischer Ernesto, Santiago Niño, Flavio Tuvo, Verónica Mendieta, Guzmán Mari', ok:true},
+            {desc:'Agendar 10 evaluaciones con 10 socios en el futuro', obs:'Bruno Bedetti, Cachi Vera, Buzzo Claudia, Buzzo Francisco, Nicolás Morelli, Mónica Rodríguez, Salinas César, Máximo Frusteri, Verua Anto, Maggio Oscar', ok:true},
+            {desc:'Tener el 100% de los socios con alguna evaluación cargada en la APP', obs:'Oscar Maggio, Susana Lorusso, Julia Magdalena, Ernesto Baschfischer, Gelinger Antonio, Jambrina Norma, Graciela Giulianeli', ok:true},
+            {desc:'Asistir a la capacitación interna', obs:'29/04/2026', ok:true},
+            {desc:'Subir una Foto entrenando y etiquetar a MOVE', obs:'—', ok:true},
+        ],
+        [
+            {desc:'Completar el perfil de los Socios en la APP en un 100%', obs:'—', ok:false},
+            {desc:'Agregar un objetivo concreto en la APP y medible con 10 socios', obs:'Bernardo, Luis Espinosa, Anto Verua, Chávez Patricia, Tuvo Flavio, Virginia López, Sergio Rojo', ok:true},
+            {desc:'Evaluar con el encoder a 5 socios como mínimo', obs:'Luis Espinosa, Antonela Verua, Emiliano Criado, Romina Mollo, Oscar Panomarenko', ok:true},
+            {desc:'Tener el 100% de los socios con alguna evaluación cargada en la APP', obs:'—', ok:false},
+            {desc:'Asistir a una capacitación interna', obs:'26/04/2026', ok:true},
+            {desc:'Que 10 socios como mínimo tengan cargadas rutinas fuera del gimnasio', obs:'Ayala Héctor, Claudia Aguilar, Luna Zeid, Fernanda Horiszny, Abraham Javier, Eva Zapata, Patricia Chaves', ok:true},
+        ],
+        [
+            {desc:'Completar el perfil de los Socios en la APP en un 100%', obs:'completado', ok:true},
+            {desc:'Agregar un objetivo concreto en la APP y medible con 10 socios', obs:'completado', ok:true},
+            {desc:'Asistir a una capacitación interna', obs:'10/05/2026', ok:true},
+            {desc:'Tener el 100% de los socios con alguna evaluación cargada en la APP', obs:'completado', ok:true},
+            {desc:'Que 10 socios como mínimo tengan cargadas rutinas fuera del gimnasio', obs:'Mora Baby, Claudia Reyes, Magdalena Julia, Falca Alicia, Guilaneli Graciela, Zasgame Abril, Silva Stella, Turco Haydee, Lorusso Susana, Repezza Rocío', ok:true},
+            {desc:'¿Qué aspecto del trabajo en equipo te gustaría mejorar en Move?', obs:'—', ok:true},
+        ],
+        [], // JUN — sin datos cargados
+    ],
+};
+
+let aeMesActual = 4; // Mayo por defecto
+
+function aeSelProfe(id, btn){
+    document.querySelectorAll('#section-analisis-entrenadores .tab').forEach(b=>b.classList.remove('active'));
+    if(btn) btn.classList.add('active');
+    aeRender(aeMesActual);
+}
+
+function aeRender(mesIdx){
+    aeMesActual = mesIdx;
+    const d = AE_BELEN.objetivos[mesIdx];
+    const mov = AE_BELEN.movimiento[mesIdx];
+    const tareas = AE_BELEN.tareas[mesIdx]||[];
+    const sc = p => p>=80?'#10b981':p>=50?'#f59e0b':'#ef4444';
+
+    // Tabs mes
+    document.getElementById('aeMesTabs').innerHTML = AE_BELEN.meses.map((m,i)=>
+        `<button class="tab ${i===mesIdx?'active':''}" onclick="aeRender(${i})" style="font-size:.7rem;padding:4px 10px;">${m}</button>`).join('');
+
+    // KPIs
+    document.getElementById('aeKpis').innerHTML = [
+        {l:'Socios Activos',  v:d.activos,        c:d.activos>=95?'#10b981':d.activos>=70?'#f59e0b':'#ef4444', sub:'cupo 110'},
+        {l:'% Deserción',     v:d.desercion+'%',   c:d.desercion<=10?'#10b981':d.desercion<=20?'#f59e0b':'#ef4444', sub:'obj: <10%'},
+        {l:'Tarea mensual',   v:d.tarea+'%',       c:sc(d.tarea), sub:'cumplimiento'},
+        {l:'Re-evaluaciones', v:d.reeval,           c:'var(--accent)', sub:'prom. por socio'},
+        {l:'Retención real',  v:d.retencion+'%',   c:d.retencion>=90?'#10b981':d.retencion>=75?'#f59e0b':'#ef4444', sub:'obj: >90%'},
+        {l:'Puntaje total',   v:d.puntaje,          c:sc(d.puntaje/160*100), sub:'de 160 máx'},
+    ].map(k=>`<div class="stat-card" style="background:var(--card2,var(--card));border:1px solid var(--border);border-radius:10px;padding:14px;border-left:3px solid ${k.c};">
+        <div style="font-size:1.5rem;font-weight:800;color:${k.c};font-family:monospace;letter-spacing:-1px;">${k.v}</div>
+        <div style="font-size:.6rem;font-weight:700;text-transform:uppercase;letter-spacing:.5px;color:var(--muted);margin-top:4px;">${k.l}</div>
+        <div style="font-size:.68rem;color:var(--muted);margin-top:2px;">${k.sub}</div>
+    </div>`).join('');
+
+    // Objetivos con barras
+    document.getElementById('aeObjs').innerHTML = [
+        {l:'Socios Activos',    v:d.activos,        mx:110},
+        {l:'Tareas completadas',v:d.tarea,          mx:100},
+        {l:'Re-evaluaciones',   v:Math.min(d.reeval,40), mx:40},
+        {l:'Retención real',    v:d.retencion,      mx:100},
+        {l:'Puntaje total',     v:d.puntaje,        mx:160},
+    ].map(o=>{
+        const pct=Math.min(Math.round(o.v/o.mx*100),100);
+        const c=sc(pct);
+        return `<div style="padding:7px 0;border-bottom:1px solid var(--border);">
+            <div style="display:flex;justify-content:space-between;font-size:.77rem;margin-bottom:4px;">
+                <span>${o.l}</span><span style="font-weight:700;color:${c};">${o.v} (${pct}%)</span>
+            </div>
+            <div style="height:4px;background:var(--border);border-radius:2px;overflow:hidden;">
+                <div style="height:100%;width:${pct}%;background:${c};border-radius:2px;transition:width .5s;"></div>
+            </div>
+        </div>`;
+    }).join('');
+
+    // Tareas
+    const tEl = document.getElementById('aeTareas');
+    if(!tareas.length){
+        tEl.innerHTML=`<div style="text-align:center;padding:20px;color:var(--muted);font-size:.78rem;"><i class="fas fa-clock" style="display:block;font-size:1.3rem;opacity:.25;margin-bottom:8px;"></i>Sin tareas registradas</div>`;
+    } else {
+        const ok=tareas.filter(t=>t.ok).length;
+        tEl.innerHTML=`
+            <div style="display:flex;justify-content:space-between;margin-bottom:10px;font-size:.75rem;">
+                <span style="color:var(--muted);">${ok}/${tareas.length} completadas</span>
+                <span style="font-weight:700;color:${sc(ok/tareas.length*100)}">${Math.round(ok/tareas.length*100)}%</span>
+            </div>
+            ${tareas.map(t=>`<div style="display:flex;align-items:flex-start;gap:8px;padding:7px 0;border-bottom:1px solid var(--border);">
+                <div style="width:20px;height:20px;border-radius:5px;display:flex;align-items:center;justify-content:center;flex-shrink:0;font-size:.7rem;font-weight:700;background:${t.ok?'rgba(16,185,129,.15)':'rgba(239,68,68,.1)'};color:${t.ok?'#10b981':'#ef4444'};">${t.ok?'✓':'✗'}</div>
+                <div>
+                    <div style="font-size:.78rem;font-weight:500;line-height:1.4;">${t.desc}</div>
+                    ${t.obs&&t.obs!=='—'?`<div style="font-size:.68rem;color:var(--muted);margin-top:2px;">${t.obs}</div>`:''}
+                </div>
+            </div>`).join('')}`;
+    }
+
+    // Tabla resumen anual
+    document.getElementById('aeTabla').innerHTML = AE_BELEN.objetivos.map((o,i)=>{
+        const act=i===mesIdx;
+        return `<tr style="${act?'background:rgba(16,185,129,.06);':''}">
+            <td style="font-weight:${act?700:400}">${AE_BELEN.meses[i]}</td>
+            <td style="font-family:monospace;">${o.activos}</td>
+            <td style="font-family:monospace;color:${o.desercion<=10?'var(--accent)':o.desercion<=20?'#f59e0b':'#ef4444'};">${o.desercion}%</td>
+            <td style="font-family:monospace;color:${o.retencion>=90?'var(--accent)':'#f59e0b'};">${o.retencion}%</td>
+            <td style="font-family:monospace;font-weight:700;color:${sc(o.puntaje/160*100)};">${o.puntaje}</td>
+        </tr>`;
+    }).join('');
+
+    // Tabla movimiento
+    document.getElementById('aeMovimiento').innerHTML = AE_BELEN.movimiento.map((m,i)=>
+        `<tr style="${i===mesIdx?'background:rgba(16,185,129,.06);':''}">
+            <td style="font-weight:${i===mesIdx?700:400}">${AE_BELEN.meses[i]}</td>
+            <td style="font-family:monospace;color:var(--accent);">${m.renueva}</td>
+            <td style="font-family:monospace;">${m.luciaTani}</td>
+            <td style="font-family:monospace;">${m.liberado}</td>
+            <td style="font-family:monospace;">${m.vacaciones}</td>
+            <td style="font-family:monospace;">${m.deriv}</td>
+            <td style="font-family:monospace;color:${m.baja>10?'#ef4444':m.baja>5?'#f59e0b':'var(--accent)'};">${m.baja}</td>
+        </tr>`).join('');
 }
 
 cargarTodo();
