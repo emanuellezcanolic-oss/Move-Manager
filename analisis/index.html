@@ -1,0 +1,512 @@
+<!DOCTYPE html>
+<html lang="es">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>MOVE · Análisis Entrenadores</title>
+<link href="https://fonts.googleapis.com/css2?family=Syne:wght@400;600;700;800&family=DM+Sans:wght@300;400;500;600&family=DM+Mono:wght@400;500&display=swap" rel="stylesheet">
+<link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css">
+<script src="https://cdn.jsdelivr.net/npm/chart.js@4.4.0/dist/chart.umd.min.js"></script>
+<style>
+:root{
+  --bg:#0f1117; --card:#1a1d27; --border:#2a2d3a;
+  --accent:#10b981; --accent2:#059669;
+  --warn:#f59e0b; --danger:#ef4444;
+  --text:#f1f5f9; --muted:#64748b; --muted2:#475569;
+  --font:'DM Sans',sans-serif; --display:'Syne',sans-serif; --mono:'DM Mono',monospace;
+  --shadow:0 4px 24px rgba(0,0,0,.4);
+}
+*,*::before,*::after{box-sizing:border-box;margin:0;padding:0}
+body{font-family:var(--font);background:var(--bg);color:var(--text);min-height:100vh;}
+
+nav{
+  background:var(--card);border-bottom:1px solid var(--border);
+  padding:0 24px;height:56px;display:flex;align-items:center;justify-content:space-between;
+  position:sticky;top:0;z-index:100;
+}
+.nav-brand{display:flex;align-items:center;gap:10px;}
+.nav-logo{width:32px;height:32px;border-radius:8px;background:var(--accent);display:flex;align-items:center;justify-content:center;color:#fff;font-size:13px;font-weight:700;font-family:var(--display);}
+.nav-title{font-family:var(--display);font-weight:800;font-size:15px;letter-spacing:-.3px;color:var(--text);}
+.nav-title span{color:var(--accent);}
+.nav-back{font-size:.75rem;color:var(--muted);display:flex;align-items:center;gap:5px;text-decoration:none;padding:5px 10px;border:1px solid var(--border);border-radius:6px;transition:all .15s;}
+.nav-back:hover{color:var(--text);border-color:var(--accent);}
+
+.main{display:flex;min-height:calc(100vh - 56px);}
+aside{width:200px;flex-shrink:0;background:var(--card);border-right:1px solid var(--border);padding:16px 0;position:sticky;top:56px;height:calc(100vh - 56px);overflow-y:auto;}
+.sb-label{font-size:.58rem;font-weight:700;text-transform:uppercase;letter-spacing:1px;color:var(--muted2);padding:10px 16px 5px;}
+.sb-item{display:flex;align-items:center;gap:7px;padding:7px 16px;font-size:.8rem;font-weight:500;color:var(--muted);cursor:pointer;transition:all .15s;border-left:2px solid transparent;}
+.sb-item:hover{background:rgba(16,185,129,.07);color:var(--text);}
+.sb-item.active{background:rgba(16,185,129,.12);color:var(--accent);border-left-color:var(--accent);font-weight:600;}
+.sb-item i{font-size:.7rem;width:14px;text-align:center;}
+
+.content{flex:1;padding:28px;max-width:1100px;}
+.section{display:none;} .section.active{display:block;}
+
+.page-hd{margin-bottom:24px;}
+.page-hd h1{font-family:var(--display);font-size:1.5rem;font-weight:800;letter-spacing:-.5px;}
+.page-hd p{font-size:.82rem;color:var(--muted);margin-top:3px;}
+
+.card{background:var(--card);border:1px solid var(--border);border-radius:14px;padding:20px;box-shadow:var(--shadow);}
+.card-title{font-size:.62rem;font-weight:700;text-transform:uppercase;letter-spacing:.8px;color:var(--muted);margin-bottom:14px;display:flex;align-items:center;gap:6px;}
+.card-title i{color:var(--accent);}
+
+/* KPIs */
+.kpi-grid{display:grid;grid-template-columns:repeat(auto-fill,minmax(145px,1fr));gap:12px;margin-bottom:20px;}
+.kpi{background:var(--card);border:1px solid var(--border);border-radius:12px;padding:16px;position:relative;overflow:hidden;}
+.kpi::before{content:'';position:absolute;top:0;left:0;width:3px;height:100%;background:var(--accent);}
+.kpi.warn::before{background:var(--warn);}
+.kpi.danger::before{background:var(--danger);}
+.kpi-val{font-size:1.8rem;font-weight:800;font-family:var(--mono);letter-spacing:-1px;line-height:1;}
+.kpi-lbl{font-size:.6rem;font-weight:700;text-transform:uppercase;letter-spacing:.6px;color:var(--muted);margin-top:5px;}
+.kpi-sub{font-size:.7rem;color:var(--muted);margin-top:3px;}
+.kpi-trend{font-size:.68rem;font-weight:700;margin-top:6px;display:flex;align-items:center;gap:3px;}
+
+/* Tabla */
+.tw{overflow-x:auto;margin-top:6px;}
+table{width:100%;border-collapse:collapse;font-size:.8rem;}
+th{font-size:.6rem;font-weight:700;text-transform:uppercase;letter-spacing:.6px;color:var(--muted);padding:8px 12px;text-align:left;border-bottom:1px solid var(--border);background:rgba(255,255,255,.02);}
+td{padding:9px 12px;border-bottom:1px solid var(--border);vertical-align:middle;}
+tr:last-child td{border-bottom:none;}
+tr:hover td{background:rgba(255,255,255,.02);}
+
+/* Badge */
+.badge{display:inline-flex;align-items:center;gap:3px;font-size:.67rem;font-weight:700;padding:2px 8px;border-radius:20px;}
+.badge-g{background:rgba(16,185,129,.15);color:#34d399;border:1px solid rgba(16,185,129,.3);}
+.badge-y{background:rgba(245,158,11,.15);color:#fbbf24;border:1px solid rgba(245,158,11,.3);}
+.badge-r{background:rgba(239,68,68,.15);color:#f87171;border:1px solid rgba(239,68,68,.3);}
+
+/* Mes tabs */
+.mes-tabs{display:flex;gap:4px;flex-wrap:wrap;margin-bottom:18px;}
+.mes-tab{padding:4px 11px;border-radius:6px;font-size:.72rem;font-weight:600;cursor:pointer;border:1px solid var(--border);background:var(--card);color:var(--muted);transition:all .15s;}
+.mes-tab.active{background:var(--accent);color:#fff;border-color:var(--accent);}
+.mes-tab:hover:not(.active){border-color:var(--accent);color:var(--text);}
+
+/* Progress */
+.prog-bar{height:5px;background:rgba(255,255,255,.07);border-radius:3px;overflow:hidden;margin-top:5px;}
+.prog-fill{height:100%;border-radius:3px;transition:width .6s cubic-bezier(.4,0,.2,1);}
+
+/* Tarea row */
+.tarea-row{display:flex;align-items:flex-start;gap:10px;padding:10px 0;border-bottom:1px solid var(--border);}
+.tarea-row:last-child{border-bottom:none;}
+.tarea-check{width:22px;height:22px;border-radius:6px;display:flex;align-items:center;justify-content:center;flex-shrink:0;font-size:.75rem;font-weight:700;}
+.check-ok{background:rgba(16,185,129,.15);color:#34d399;}
+.check-no{background:rgba(239,68,68,.1);color:#f87171;}
+.tarea-info{flex:1;}
+.tarea-desc{font-size:.8rem;font-weight:500;line-height:1.4;}
+.tarea-obs{font-size:.7rem;color:var(--muted);margin-top:3px;line-height:1.4;}
+
+/* Entrenador card */
+.profe-card{background:var(--card);border:1px solid var(--border);border-radius:14px;padding:18px;cursor:pointer;transition:all .2s;position:relative;overflow:hidden;}
+.profe-card::after{content:'';position:absolute;bottom:0;left:0;right:0;height:3px;background:linear-gradient(90deg,var(--accent),#34d399);transform:scaleX(0);transform-origin:left;transition:transform .25s;}
+.profe-card:hover{border-color:var(--accent);transform:translateY(-2px);}
+.profe-card:hover::after{transform:scaleX(1);}
+.profe-avatar{width:42px;height:42px;border-radius:10px;background:var(--accent);color:#fff;display:flex;align-items:center;justify-content:center;font-family:var(--display);font-weight:800;font-size:1.1rem;}
+
+/* Loading */
+#loadOv{position:fixed;inset:0;background:var(--bg);display:flex;flex-direction:column;justify-content:center;align-items:center;gap:12px;z-index:500;transition:opacity .3s;}
+.spinner{width:32px;height:32px;border-radius:50%;border:3px solid var(--border);border-top-color:var(--accent);animation:spin .7s linear infinite;}
+@keyframes spin{to{transform:rotate(360deg)}}
+
+@media(max-width:768px){aside{display:none;}.content{padding:16px;}}
+</style>
+</head>
+<body>
+
+<div id="loadOv">
+  <div class="spinner"></div>
+  <p style="font-size:.8rem;color:var(--muted);">Cargando datos...</p>
+</div>
+
+<nav>
+  <div class="nav-brand">
+    <div class="nav-logo">M</div>
+    <div class="nav-title">MOVE <span>Análisis</span></div>
+  </div>
+  <a href="https://emanuellezcanolic-oss.github.io/Move-Manager/" class="nav-back">
+    <i class="fas fa-arrow-left" style="font-size:.65rem;"></i> Volver al Manager
+  </a>
+</nav>
+
+<div class="main">
+<aside>
+  <div class="sb-label">Overview</div>
+  <div class="sb-item active" onclick="nav('overview')"><i class="fas fa-th-large"></i> Dashboard</div>
+
+  <div class="sb-label">El Bolsón</div>
+  <div class="sb-item" onclick="nav('belen')"><i class="fas fa-user"></i> Belén</div>
+  <div class="sb-item disabled" style="opacity:.4;cursor:not-allowed;"><i class="fas fa-user"></i> Fer <span style="font-size:.6rem;margin-left:3px;">(pronto)</span></div>
+  <div class="sb-item disabled" style="opacity:.4;cursor:not-allowed;"><i class="fas fa-user"></i> Enzo <span style="font-size:.6rem;margin-left:3px;">(pronto)</span></div>
+
+  <div class="sb-label">Lago Puelo</div>
+  <div class="sb-item disabled" style="opacity:.4;cursor:not-allowed;"><i class="fas fa-user"></i> Javi <span style="font-size:.6rem;margin-left:3px;">(pronto)</span></div>
+  <div class="sb-item disabled" style="opacity:.4;cursor:not-allowed;"><i class="fas fa-user"></i> Agus <span style="font-size:.6rem;margin-left:3px;">(pronto)</span></div>
+
+  <div class="sb-label">Bariloche</div>
+  <div class="sb-item disabled" style="opacity:.4;cursor:not-allowed;"><i class="fas fa-user"></i> Camila <span style="font-size:.6rem;margin-left:3px;">(pronto)</span></div>
+  <div class="sb-item disabled" style="opacity:.4;cursor:not-allowed;"><i class="fas fa-user"></i> Carla <span style="font-size:.6rem;margin-left:3px;">(pronto)</span></div>
+  <div class="sb-item disabled" style="opacity:.4;cursor:not-allowed;"><i class="fas fa-user"></i> Giuliano <span style="font-size:.6rem;margin-left:3px;">(pronto)</span></div>
+</aside>
+
+<div class="content">
+
+<!-- OVERVIEW -->
+<div class="section active" id="section-overview">
+  <div class="page-hd">
+    <h1>Dashboard General</h1>
+    <p>Resumen de entrenadores · Datos reales 2026</p>
+  </div>
+  <div class="kpi-grid">
+    <div class="kpi"><div class="kpi-val" style="color:var(--accent)">1/8</div><div class="kpi-lbl">Entrenadores activos</div><div class="kpi-sub">7 próximamente</div></div>
+    <div class="kpi"><div class="kpi-val" style="color:var(--accent)">95</div><div class="kpi-lbl">Socios Belén (MAY)</div><div class="kpi-sub">de 110 cupo</div></div>
+    <div class="kpi"><div class="kpi-val" style="color:var(--accent)">4.2%</div><div class="kpi-lbl">Deserción MAY</div><div class="kpi-sub">↓ desde 25% en ENE</div></div>
+    <div class="kpi"><div class="kpi-val" style="color:var(--accent)">161</div><div class="kpi-lbl">Puntaje MAY (Belén)</div><div class="kpi-sub">de 160 máx</div></div>
+    <div class="kpi"><div class="kpi-val" style="color:var(--accent)">95.8%</div><div class="kpi-lbl">Retención MAY</div><div class="kpi-sub">↑ desde 75% en ENE</div></div>
+  </div>
+  <div class="card" style="margin-bottom:16px;">
+    <div class="card-title"><i class="fas fa-users"></i>Entrenadores</div>
+    <div style="display:grid;grid-template-columns:repeat(auto-fill,minmax(240px,1fr));gap:12px;">
+      <div class="profe-card" onclick="nav('belen')">
+        <div style="display:flex;justify-content:space-between;align-items:flex-start;margin-bottom:12px;">
+          <div class="profe-avatar">B</div>
+          <span class="badge badge-g">Activo</span>
+        </div>
+        <div style="font-family:var(--display);font-weight:800;font-size:.95rem;margin-bottom:2px;">Belén</div>
+        <div style="font-size:.72rem;color:var(--muted);margin-bottom:12px;"><i class="fas fa-map-marker-alt" style="color:var(--accent);margin-right:3px;font-size:.6rem;"></i>El Bolsón</div>
+        <div style="display:grid;grid-template-columns:1fr 1fr;gap:6px;">
+          <div style="background:rgba(255,255,255,.04);border-radius:7px;padding:7px 9px;">
+            <div style="font-size:1rem;font-weight:800;font-family:var(--mono);color:var(--accent);">95</div>
+            <div style="font-size:.58rem;color:var(--muted);text-transform:uppercase;letter-spacing:.4px;">socios activos</div>
+          </div>
+          <div style="background:rgba(255,255,255,.04);border-radius:7px;padding:7px 9px;">
+            <div style="font-size:1rem;font-weight:800;font-family:var(--mono);color:var(--accent);">161</div>
+            <div style="font-size:.58rem;color:var(--muted);text-transform:uppercase;letter-spacing:.4px;">puntaje MAY</div>
+          </div>
+        </div>
+        <div style="margin-top:10px;padding-top:10px;border-top:1px solid var(--border);font-size:.7rem;color:var(--muted);">
+          Retención MAY: <strong style="color:var(--accent);">95.8%</strong>
+        </div>
+      </div>
+      ${[
+        {n:'Fer',s:'El Bolsón'},{n:'Enzo',s:'El Bolsón'},
+        {n:'Javi',s:'Lago Puelo'},{n:'Agus',s:'Lago Puelo'},
+        {n:'Camila',s:'Bariloche'},{n:'Carla',s:'Bariloche'},{n:'Giuliano',s:'Bariloche'}
+      ].map(p=>`
+      <div class="profe-card" style="opacity:.45;cursor:default;">
+        <div style="display:flex;justify-content:space-between;align-items:flex-start;margin-bottom:12px;">
+          <div class="profe-avatar" style="background:var(--muted2);">${p.n[0]}</div>
+          <span class="badge" style="background:rgba(100,116,139,.15);color:var(--muted);border-color:var(--border);">Próximamente</span>
+        </div>
+        <div style="font-family:var(--display);font-weight:800;font-size:.95rem;margin-bottom:2px;">${p.n}</div>
+        <div style="font-size:.72rem;color:var(--muted);"><i class="fas fa-map-marker-alt" style="color:var(--muted2);margin-right:3px;font-size:.6rem;"></i>${p.s}</div>
+      </div>`).join('')}
+    </div>
+  </div>
+  <div class="card">
+    <div class="card-title"><i class="fas fa-chart-line"></i>Evolución Retención — Belén 2026</div>
+    <div style="height:180px;position:relative;"><canvas id="chartOverview"></canvas></div>
+  </div>
+</div>
+
+<!-- DETALLE BELÉN -->
+<div class="section" id="section-belen">
+  <div style="display:flex;justify-content:space-between;align-items:flex-end;flex-wrap:wrap;gap:12px;margin-bottom:24px;">
+    <div class="page-hd" style="margin-bottom:0">
+      <h1>Belén — El Bolsón</h1>
+      <p>Análisis completo · Datos reales de planilla 2026</p>
+    </div>
+    <div id="mesTabs" class="mes-tabs" style="margin-bottom:0;"></div>
+  </div>
+
+  <!-- KPIs del mes -->
+  <div class="kpi-grid" id="belenKpis"></div>
+
+  <!-- Fila: Objetivos + Tareas -->
+  <div style="display:grid;grid-template-columns:1fr 1fr;gap:14px;margin-bottom:16px;">
+    <div class="card">
+      <div class="card-title"><i class="fas fa-bullseye"></i>Objetivos del mes</div>
+      <div id="belenObjs"></div>
+    </div>
+    <div class="card">
+      <div class="card-title"><i class="fas fa-list-check"></i>Tareas mensuales</div>
+      <div id="belenTareas"></div>
+    </div>
+  </div>
+
+  <!-- Gráfico evolución + Tabla anual -->
+  <div style="display:grid;grid-template-columns:1fr 1fr;gap:14px;margin-bottom:16px;">
+    <div class="card">
+      <div class="card-title"><i class="fas fa-chart-bar"></i>Evolución anual</div>
+      <div style="height:160px;position:relative;"><canvas id="chartBelen"></canvas></div>
+    </div>
+    <div class="card">
+      <div class="card-title"><i class="fas fa-table"></i>Resumen anual</div>
+      <div class="tw">
+        <table>
+          <thead><tr><th>Mes</th><th>Activos</th><th>Deserción</th><th>Retención</th><th>Puntaje</th></tr></thead>
+          <tbody id="belenTabla"></tbody>
+        </table>
+      </div>
+    </div>
+  </div>
+
+  <!-- Estadísticas de movimiento -->
+  <div class="card">
+    <div class="card-title"><i class="fas fa-arrow-trend-up"></i>Movimiento de socios por mes</div>
+    <div class="tw">
+      <table>
+        <thead><tr><th>Mes</th><th>RENUEVA</th><th>LUCIA/TANI</th><th>LIBERADO</th><th>VACACIONES</th><th>DERIV.</th><th>BAJA</th><th>% Deserción</th></tr></thead>
+        <tbody id="belenMovimiento"></tbody>
+      </table>
+    </div>
+  </div>
+</div>
+
+</div><!-- /content -->
+</div><!-- /main -->
+
+<script>
+// ═══════════════════════════════════════════
+// DATOS REALES DE BELÉN (extraídos de planilla)
+// ═══════════════════════════════════════════
+const BELEN = {
+    meses: ['ENE','FEB','MAR','ABR','MAY','JUN'],
+    mesesFull: ['Enero','Febrero','Marzo','Abril','Mayo','Junio'],
+    objetivos: [
+        {activos:84,  desercion:25.0, tarea:0,   reeval:23.81, perfil:189.3, puntaje:70,  retencion:75.0},
+        {activos:89,  desercion:22.5, tarea:100,  reeval:20.22, perfil:178.7, puntaje:90,  retencion:77.5},
+        {activos:105, desercion:7.6,  tarea:83,   reeval:25.71, perfil:151.4, puntaje:105, retencion:92.4},
+        {activos:104, desercion:6.7,  tarea:67,   reeval:33.65, perfil:152.9, puntaje:153, retencion:93.3},
+        {activos:95,  desercion:4.2,  tarea:100,  reeval:35.79, perfil:167.4, puntaje:161, retencion:95.8},
+        {activos:6,   desercion:0.0,  tarea:0,    reeval:16.67, perfil:2650,  puntaje:50,  retencion:100},
+    ],
+    movimiento: [
+        {renueva:79, luciaTani:19, liberado:5, vacaciones:2, deriv:8,  baja:21},
+        {renueva:84, luciaTani:9,  liberado:5, vacaciones:4, deriv:14, baja:20},
+        {renueva:100,luciaTani:13, liberado:5, vacaciones:2, deriv:5,  baja:8},
+        {renueva:100,luciaTani:9,  liberado:4, vacaciones:5, deriv:3,  baja:7},
+        {renueva:90, luciaTani:2,  liberado:5, vacaciones:3, deriv:2,  baja:4},
+        {renueva:4,  luciaTani:2,  liberado:2, vacaciones:1, deriv:0,  baja:0},
+    ],
+    tareas: [
+        // ENE
+        [],
+        // FEB
+        [
+            {desc:'Completar el perfil (social, deportivo) de los Socios en la APP en un 50%', obs:'—', ok:true},
+            {desc:'Agregar un objetivo concreto en la APP y medible con 10 socios', obs:'Espinosa Ana, Espinosa Luis, Falca Alicia, Ayala Héctor, Bronzi Valentín, Silvina Rodríguez, López Verónica, Axel Meier, Luján Wagner, Perontto Martha', ok:true},
+            {desc:'Agendar 10 evaluaciones con 10 socios en el futuro', obs:'Sabrina Rubín, Miriam Garavaglia, Virginia López, Cristina Rimoldi, Emiliano Rearte, Héctor Ayala, Abril Zasgame, Oscar Panomarenko, Gustavo Guffanti', ok:true},
+            {desc:'Tener el 70% de los socios con alguna evaluación cargada en la APP', obs:'listo', ok:true},
+            {desc:'Que asistan al menos 5 socios de tu turno a "Iluminemos al piltri"', obs:'Verua Antonella, Sofía Doffman, Borghi Facundo', ok:true},
+            {desc:'Subir una Foto entrenando y etiquetar a MOVE', obs:'listo', ok:true},
+        ],
+        // MAR
+        [
+            {desc:'Completar el perfil (social, deportivo) de los Socios en la APP en un 100%', obs:'—', ok:false},
+            {desc:'Agregar un objetivo concreto en la APP y medible con 10 socios', obs:'Salamida Lia, Lewin Mariana, Reyes Claudia, Crovetto Carla, Juárez Rosario, Baschfischer Ernesto, Santiago Niño, Flavio Tuvo, Verónica Mendieta, Guzmán Mari', ok:true},
+            {desc:'Agendar 10 evaluaciones con 10 socios en el futuro', obs:'Bruno Bedetti, Cachi Vera, Buzzo Claudia, Buzzo Francisco, Nicolás Morelli, Mónica Rodríguez, Salinas César, Máximo Frusteri, Verua Anto, Maggio Oscar', ok:true},
+            {desc:'Tener el 100% de los socios con alguna evaluación cargada en la APP', obs:'Oscar Maggio, Susana Lorusso, Julia Magdalena, Ernesto Baschfischer, Gelinger Antonio, Jambrina Norma, Graciela Giulianeli', ok:true},
+            {desc:'Asistir a la capacitación interna', obs:'29/04/2026', ok:true},
+            {desc:'Subir una Foto entrenando y etiquetar a MOVE', obs:'—', ok:true},
+        ],
+        // ABR
+        [
+            {desc:'Completar el perfil (social, deportivo) de los Socios en la APP en un 100%', obs:'—', ok:false},
+            {desc:'Agregar un objetivo concreto en la APP y medible con 10 socios', obs:'Bernardo, Luis Espinosa, Anto Verua, Chávez Patricia, Tuvo Flavio, Virginia López, Sergio Rojo', ok:true},
+            {desc:'Evaluar con el encoder a 5 socios como mínimo', obs:'Luis Espinosa, Antonela Verua, Emiliano Criado, Romina Mollo, Oscar Panomarenko', ok:true},
+            {desc:'Tener el 100% de los socios con alguna evaluación cargada en la APP', obs:'—', ok:false},
+            {desc:'Asistir a una capacitación interna', obs:'26/04/2026', ok:true},
+            {desc:'Que 10 socios como mínimo tengan cargadas rutinas fuera del gimnasio', obs:'Ayala Héctor, Claudia Aguilar, Luna Zeid, Fernanda Horiszny, Abraham Javier, Eva Zapata, Patricia Chaves', ok:true},
+        ],
+        // MAY
+        [
+            {desc:'Completar el perfil (social, deportivo) de los Socios en la APP en un 100%', obs:'completado', ok:true},
+            {desc:'Agregar un objetivo concreto en la APP y medible con 10 socios', obs:'completado', ok:true},
+            {desc:'Asistir a una capacitación interna', obs:'10/05/2026', ok:true},
+            {desc:'Tener el 100% de los socios con alguna evaluación cargada en la APP', obs:'completado', ok:true},
+            {desc:'Que 10 socios como mínimo tengan cargadas rutinas fuera del gimnasio', obs:'Mora Baby, Claudia Reyes, Magdalena Julia, Falca Alicia, Guilaneli Graciela, Zasgame Abril, Silva Stella, Turco Haydee, Lorusso Susana, Repezza Rocío', ok:true},
+            {desc:'¿Qué aspecto del trabajo en equipo te gustaría mejorar en Move?', obs:'—', ok:true},
+        ],
+        // JUN
+        [],
+    ],
+};
+
+// ═══════════════════════════════════════════
+// NAVEGACIÓN
+// ═══════════════════════════════════════════
+let mesActual = 4; // Mayo (0-based)
+let chartOverview = null, chartBelen = null;
+
+function nav(id){
+    document.querySelectorAll('.section').forEach(s=>s.classList.remove('active'));
+    document.querySelectorAll('.sb-item').forEach(s=>s.classList.remove('active'));
+    document.getElementById('section-'+id).classList.add('active');
+    document.querySelector(`.sb-item[onclick="nav('${id}')"]`)?.classList.add('active');
+    if(id==='belen') renderBelen(mesActual);
+    if(id==='overview') renderOverviewChart();
+    window.scrollTo(0,0);
+}
+
+// ═══════════════════════════════════════════
+// OVERVIEW CHART
+// ═══════════════════════════════════════════
+function renderOverviewChart(){
+    const ctx = document.getElementById('chartOverview');
+    if(chartOverview){ chartOverview.destroy(); chartOverview=null; }
+    chartOverview = new Chart(ctx, {
+        type:'line',
+        data:{
+            labels: BELEN.meses,
+            datasets:[
+                {label:'Retención %', data: BELEN.objetivos.map(o=>o.retencion),
+                 borderColor:'#10b981', backgroundColor:'rgba(16,185,129,.1)', fill:true, tension:.4, borderWidth:2.5, pointRadius:4, pointBackgroundColor:'#10b981'},
+                {label:'% Deserción', data: BELEN.objetivos.map(o=>o.desercion),
+                 borderColor:'#ef4444', backgroundColor:'rgba(239,68,68,.05)', fill:true, tension:.4, borderWidth:2, pointRadius:3, pointBackgroundColor:'#ef4444'},
+            ]
+        },
+        options:{responsive:true,maintainAspectRatio:false,
+            scales:{
+                y:{beginAtZero:true,max:100,grid:{color:'rgba(255,255,255,.05)'},ticks:{color:'#64748b',font:{size:10},callback:v=>v+'%'}},
+                x:{grid:{display:false},ticks:{color:'#64748b',font:{size:10}}}
+            },
+            plugins:{legend:{position:'bottom',labels:{color:'#64748b',font:{size:11},padding:16}}}
+        }
+    });
+}
+
+// ═══════════════════════════════════════════
+// RENDER BELÉN
+// ═══════════════════════════════════════════
+function renderBelen(mesIdx){
+    mesActual = mesIdx;
+    const d = BELEN.objetivos[mesIdx];
+    const mov = BELEN.movimiento[mesIdx];
+    const tareas = BELEN.tareas[mesIdx];
+
+    // Tabs de mes
+    document.getElementById('mesTabs').innerHTML = BELEN.meses.map((m,i)=>`
+        <button class="mes-tab ${i===mesIdx?'active':''}" onclick="renderBelen(${i})">${m}</button>`).join('');
+
+    // KPIs
+    const semC = p => p>=80?'#10b981':p>=50?'#f59e0b':'#ef4444';
+    document.getElementById('belenKpis').innerHTML = [
+        {label:'Socios Activos',  val:d.activos,           sub:'cupo 110', color:d.activos>=95?'#10b981':d.activos>=70?'#f59e0b':'#ef4444'},
+        {label:'% Deserción',     val:d.desercion+'%',     sub:'obj: <10%', color:d.desercion<=10?'#10b981':d.desercion<=20?'#f59e0b':'#ef4444'},
+        {label:'Tarea mensual',   val:d.tarea+'%',         sub:'cumplimiento', color:semC(d.tarea)},
+        {label:'Re-evaluaciones', val:d.reeval,            sub:'promedio', color:'var(--accent)'},
+        {label:'Retención real',  val:d.retencion+'%',     sub:'obj: >90%', color:d.retencion>=90?'#10b981':d.retencion>=75?'#f59e0b':'#ef4444'},
+        {label:'Puntaje total',   val:d.puntaje,           sub:'de 160 máx', color:semC(d.puntaje/160*100)},
+    ].map(k=>`
+        <div class="kpi" style="border-left:3px solid ${k.color};">
+            <div class="kpi-val" style="color:${k.color};">${k.val}</div>
+            <div class="kpi-lbl">${k.label}</div>
+            <div class="kpi-sub">${k.sub}</div>
+        </div>`).join('');
+
+    // Objetivos (barras)
+    const objs = [
+        {label:'Socios Activos',    val:d.activos,      max:110,  unidad:'socios'},
+        {label:'% Deserción',       val:100-d.desercion,max:100,  unidad:'% retención'},
+        {label:'Tareas completadas',val:d.tarea,        max:100,  unidad:'%'},
+        {label:'Re-evaluaciones',   val:Math.min(d.reeval,40), max:40, unidad:'/40 obj'},
+        {label:'Puntaje total',     val:d.puntaje,      max:160,  unidad:'pts'},
+    ];
+    document.getElementById('belenObjs').innerHTML = objs.map(o=>{
+        const pct = Math.min(Math.round(o.val/o.max*100),100);
+        const c = semC(pct);
+        return `<div style="padding:8px 0;border-bottom:1px solid var(--border);">
+            <div style="display:flex;justify-content:space-between;font-size:.78rem;margin-bottom:5px;">
+                <span>${o.label}</span>
+                <span style="font-family:var(--mono);font-weight:700;color:${c};">${o.val}${o.unidad.startsWith('/')?' '+o.unidad:''} (${pct}%)</span>
+            </div>
+            <div class="prog-bar"><div class="prog-fill" style="width:${pct}%;background:${c};"></div></div>
+        </div>`;
+    }).join('');
+
+    // Tareas
+    const tareasEl = document.getElementById('belenTareas');
+    if(!tareas || tareas.length===0){
+        tareasEl.innerHTML=`<div style="text-align:center;padding:24px;color:var(--muted);font-size:.8rem;"><i class="fas fa-clock" style="display:block;font-size:1.5rem;opacity:.3;margin-bottom:8px;"></i>Sin tareas registradas este mes</div>`;
+    } else {
+        const completadas = tareas.filter(t=>t.ok).length;
+        tareasEl.innerHTML = `
+            <div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:12px;">
+                <span style="font-size:.75rem;color:var(--muted);">${completadas} de ${tareas.length} completadas</span>
+                <span style="font-size:.75rem;font-weight:700;color:${semC(completadas/tareas.length*100)};">${Math.round(completadas/tareas.length*100)}%</span>
+            </div>
+            ${tareas.map(t=>`
+            <div class="tarea-row">
+                <div class="tarea-check ${t.ok?'check-ok':'check-no'}">${t.ok?'✓':'✗'}</div>
+                <div class="tarea-info">
+                    <div class="tarea-desc">${t.desc}</div>
+                    ${t.obs&&t.obs!=='—'?`<div class="tarea-obs"><i class="fas fa-users" style="margin-right:4px;font-size:.6rem;"></i>${t.obs}</div>`:''}
+                </div>
+            </div>`).join('')}`;
+    }
+
+    // Chart evolución
+    if(chartBelen){ chartBelen.destroy(); chartBelen=null; }
+    chartBelen = new Chart(document.getElementById('chartBelen'), {
+        type:'bar',
+        data:{
+            labels: BELEN.meses,
+            datasets:[
+                {label:'Puntaje', data: BELEN.objetivos.map(o=>o.puntaje),
+                 backgroundColor: BELEN.meses.map((_,i)=>i===mesIdx?'rgba(16,185,129,.8)':'rgba(16,185,129,.25)'),
+                 borderColor: BELEN.meses.map((_,i)=>i===mesIdx?'#10b981':'rgba(16,185,129,.4)'),
+                 borderWidth:2, borderRadius:6},
+                {label:'Activos', data: BELEN.objetivos.map(o=>o.activos),
+                 type:'line', borderColor:'#f59e0b', borderWidth:2, pointRadius:3,
+                 pointBackgroundColor:'#f59e0b', fill:false, tension:.3, yAxisID:'y2'}
+            ]
+        },
+        options:{responsive:true,maintainAspectRatio:false,
+            scales:{
+                y:{beginAtZero:true,max:200,grid:{color:'rgba(255,255,255,.04)'},ticks:{color:'#64748b',font:{size:10}}},
+                y2:{position:'right',beginAtZero:false,min:0,max:120,grid:{display:false},ticks:{color:'#f59e0b',font:{size:10}}},
+                x:{grid:{display:false},ticks:{color:'#64748b',font:{size:10}}}
+            },
+            plugins:{legend:{position:'bottom',labels:{color:'#64748b',font:{size:11},padding:12}}}
+        }
+    });
+
+    // Tabla resumen anual
+    document.getElementById('belenTabla').innerHTML = BELEN.objetivos.map((o,i)=>{
+        const activo = i===mesIdx;
+        const puntColor = semC(o.puntaje/160*100);
+        return `<tr style="${activo?'background:rgba(16,185,129,.07);':''}">
+            <td style="font-weight:${activo?700:400}">${BELEN.mesesFull[i]}${activo?' ←':''}</td>
+            <td style="font-family:var(--mono);">${o.activos}</td>
+            <td style="font-family:var(--mono);color:${o.desercion<=10?'#34d399':o.desercion<=20?'#fbbf24':'#f87171'};">${o.desercion}%</td>
+            <td style="font-family:var(--mono);color:${o.retencion>=90?'#34d399':'#fbbf24'};">${o.retencion}%</td>
+            <td style="font-family:var(--mono);font-weight:700;color:${puntColor};">${o.puntaje}</td>
+        </tr>`;
+    }).join('');
+
+    // Tabla movimiento
+    document.getElementById('belenMovimiento').innerHTML = BELEN.movimiento.map((m,i)=>`
+        <tr style="${i===mesIdx?'background:rgba(16,185,129,.07);':''}">
+            <td style="font-weight:${i===mesIdx?700:400}">${BELEN.meses[i]}</td>
+            <td style="font-family:var(--mono);color:#34d399;">${m.renueva}</td>
+            <td style="font-family:var(--mono);">${m.luciaTani}</td>
+            <td style="font-family:var(--mono);">${m.liberado}</td>
+            <td style="font-family:var(--mono);">${m.vacaciones}</td>
+            <td style="font-family:var(--mono);">${m.deriv}</td>
+            <td style="font-family:var(--mono);color:${m.baja>10?'#f87171':m.baja>5?'#fbbf24':'#34d399'};">${m.baja}</td>
+            <td><span class="badge ${BELEN.objetivos[i].desercion<=10?'badge-g':BELEN.objetivos[i].desercion<=20?'badge-y':'badge-r'}">${BELEN.objetivos[i].desercion}%</span></td>
+        </tr>`).join('');
+}
+
+// ═══════════════════════════════════════════
+// INIT
+// ═══════════════════════════════════════════
+window.addEventListener('load', ()=>{
+    setTimeout(()=>{
+        document.getElementById('loadOv').style.opacity='0';
+        setTimeout(()=>document.getElementById('loadOv').style.display='none',300);
+        renderOverviewChart();
+    }, 500);
+});
+</script>
+</body>
+</html>
