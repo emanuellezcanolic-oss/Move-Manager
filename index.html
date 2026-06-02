@@ -1230,9 +1230,9 @@ tr:hover td{background:#fafbfc;}
             <div class="card" style="margin-bottom:16px;">
                 <div class="card-title"><i class="fas fa-user-tie"></i>Entrenador</div>
                 <div style="display:flex;flex-wrap:wrap;gap:6px;">
-                    <button class="tab active" onclick="aeSelProfe('belen',this)">Belén <span style="font-size:.62rem;opacity:.7;">El Bolsón</span></button>
-                    <button class="tab" style="opacity:.4;cursor:not-allowed;" disabled>Fer <span style="font-size:.58rem;">(pronto)</span></button>
-                    <button class="tab" style="opacity:.4;cursor:not-allowed;" disabled>Enzo <span style="font-size:.58rem;">(pronto)</span></button>
+                    <button class="tab active" onclick="aeSelProfe('belen',this)">Belén <span style="font-size:.62rem;opacity:.7;">102 socios</span></button>
+                    <button class="tab" onclick="aeSelProfe('fer',this)">Fer <span style="font-size:.62rem;opacity:.7;">91 socios</span></button>
+                    <button class="tab" onclick="aeSelProfe('enzo',this)">Enzo <span style="font-size:.62rem;opacity:.7;">111 socios</span></button>
                     <button class="tab" style="opacity:.4;cursor:not-allowed;" disabled>Javi <span style="font-size:.58rem;">(pronto)</span></button>
                     <button class="tab" style="opacity:.4;cursor:not-allowed;" disabled>Agus <span style="font-size:.58rem;">(pronto)</span></button>
                     <button class="tab" style="opacity:.4;cursor:not-allowed;" disabled>Camila <span style="font-size:.58rem;">(pronto)</span></button>
@@ -3885,23 +3885,146 @@ const AE_BELEN = {
     ],
 };
 
-let aeMesActual = 4; // Mayo por defecto
+const AE_FER = {
+    nombre:'Fer', sede:'El Bolsón',
+    meses:['ENE','FEB','MAR','ABR','MAY','JUN'],
+    mesesFull:['Enero','Febrero','Marzo','Abril','Mayo','Junio'],
+    objetivos:[
+        {activos:54, desercion:24.1, tarea:0,   reeval:3.70,  puntaje:60,  retencion:75.9},
+        {activos:61, desercion:41.0, tarea:33,  reeval:8.20,  puntaje:65,  retencion:59.0},
+        {activos:75, desercion:16.0, tarea:33,  reeval:22.67, puntaje:80,  retencion:84.0},
+        {activos:76, desercion:26.3, tarea:33,  reeval:25.00, puntaje:60,  retencion:73.7},
+        {activos:70, desercion:20.0, tarea:50,  reeval:38.57, puntaje:121, retencion:80.0},
+        {activos:4,  desercion:0.0,  tarea:0,   reeval:50.00, puntaje:53,  retencion:100},
+    ],
+    movimiento:[
+        {renueva:53, luciaTani:29, liberado:1, vacaciones:3, deriv:13, baja:13},
+        {renueva:59, luciaTani:16, liberado:2, vacaciones:2, deriv: 9, baja:25},
+        {renueva:72, luciaTani:26, liberado:3, vacaciones:0, deriv: 6, baja:12},
+        {renueva:73, luciaTani:17, liberado:3, vacaciones:1, deriv:11, baja:20},
+        {renueva:68, luciaTani:19, liberado:2, vacaciones:3, deriv: 2, baja:14},
+        {renueva: 4, luciaTani: 0, liberado:0, vacaciones:0, deriv: 0, baja: 0},
+    ],
+    tareas:[
+        [], // ENE — sin datos
+        [ // FEB — 33%
+            {desc:'Completar el perfil de los Socios en la APP en un 50%', obs:'—', ok:false},
+            {desc:'Agregar un objetivo concreto en la APP y medible con 10 socios', obs:'—', ok:false},
+            {desc:'Agendar 10 evaluaciones con 10 socios en el futuro', obs:'Martin Lopez, Maca Dominguez, Inti Fernandez, David (holandés), Vivas Juan Manuel', ok:true},
+            {desc:'Tener el 70% de los socios con alguna evaluación cargada en la APP', obs:'—', ok:false},
+            {desc:'Que asistan al menos 5 socios a "Iluminemos al piltri"', obs:'—', ok:false},
+            {desc:'Subir una Foto entrenando y etiquetar a MOVE', obs:'—', ok:true},
+        ],
+        [ // MAR — 33%
+            {desc:'Completar el perfil de los Socios en la APP en un 100%', obs:'—', ok:false},
+            {desc:'Agregar un objetivo concreto en la APP y medible con 10 socios', obs:'—', ok:false},
+            {desc:'Agendar 10 evaluaciones con 10 socios en el futuro', obs:'Mateo López, Enzo Braccamonte, Carolina Hernández, Mora Della Torre, Constanza Dangelo, Marcelo Perdomo, Gaia Bruno, Patricia Pérez, Paula Gagliardo, Irma Cuiza, Tony Britez', ok:true},
+            {desc:'Tener el 100% de los socios con alguna evaluación cargada en la APP', obs:'—', ok:false},
+            {desc:'Asistir a la capacitación interna', obs:'—', ok:false},
+            {desc:'Subir una Foto entrenando y etiquetar a MOVE', obs:'—', ok:true},
+        ],
+        [ // ABR — 33%
+            {desc:'Completar el perfil de los Socios en la APP en un 100%', obs:'—', ok:false},
+            {desc:'Agregar un objetivo concreto en la APP y medible con 10 socios', obs:'—', ok:false},
+            {desc:'Evaluar con el encoder a 5 socios como mínimo', obs:'Fede Peña, Britez Tony, Lucas Porro, Marina Vidiella, Maria Jose Ponce', ok:true},
+            {desc:'Tener el 100% de los socios con alguna evaluación cargada en la APP', obs:'—', ok:false},
+            {desc:'Asistir a una capacitación interna', obs:'—', ok:false},
+            {desc:'Que 10 socios tengan rutinas cargadas fuera del gym', obs:'Nelli Trujillos, Luis Depiñeau, Nohiem Campanari, Eluen Campanari, Bianca Tarantini, Patricia Perez, Rusterholz Ayelen, Enzo Bracamonte, Rosales Norberto, Silvina Fernandez', ok:true},
+        ],
+        [ // MAY — 50%
+            {desc:'Completar el perfil de los Socios en la APP en un 100%', obs:'—', ok:false},
+            {desc:'Agregar un objetivo concreto en la APP y medible con 10 socios', obs:'—', ok:false},
+            {desc:'Asistir a una capacitación interna', obs:'—', ok:true},
+            {desc:'Tener el 100% de los socios con alguna evaluación cargada en la APP', obs:'—', ok:false},
+            {desc:'Que 10 socios tengan rutinas cargadas fuera del gym', obs:'Constanza Dangelo, Marina Vidiella, Lucas Porro, Andrea Guerrero, Candela Sosa, Alvaro Leibrecht, Marina Bastiani, Lorena Bastiani, Castañeda Carla, Luis Depiñeau, Nelli Trujillo, Kiara Bastiani, Paula Gagliardo, Santiago Hernandez, Lilia Morinigo, Patricia Perez', ok:true},
+            {desc:'¿Qué aspecto del trabajo en equipo te gustaría mejorar en Move?', obs:'Ninguno, están por buen camino', ok:true},
+        ],
+        [], // JUN
+    ],
+};
+
+const AE_ENZO = {
+    nombre:'Enzo', sede:'El Bolsón',
+    meses:['ENE','FEB','MAR','ABR','MAY','JUN'],
+    mesesFull:['Enero','Febrero','Marzo','Abril','Mayo','Junio'],
+    objetivos:[
+        {activos:67, desercion:23.9, tarea:0,   reeval:26.87, puntaje:70,  retencion:76.1},
+        {activos:79, desercion:25.3, tarea:100, reeval:15.19, puntaje:80,  retencion:74.7},
+        {activos:87, desercion:6.9,  tarea:100, reeval:34.48, puntaje:155, retencion:93.1},
+        {activos:94, desercion:23.4, tarea:100, reeval:31.91, puntaje:135, retencion:76.6},
+        {activos:93, desercion:16.1, tarea:100, reeval:32.26, puntaje:145, retencion:83.9},
+        {activos:0,  desercion:0.0,  tarea:0,   reeval:0.00,  puntaje:0,   retencion:0},
+    ],
+    movimiento:[
+        {renueva:62, luciaTani:18, liberado:5, vacaciones:4, deriv:2,  baja:16},
+        {renueva:74, luciaTani: 7, liberado:5, vacaciones:0, deriv:2,  baja:20},
+        {renueva:82, luciaTani:22, liberado:5, vacaciones:0, deriv:4,  baja: 6},
+        {renueva:88, luciaTani:12, liberado:4, vacaciones:0, deriv:2,  baja:22},
+        {renueva:89, luciaTani:15, liberado:4, vacaciones:1, deriv:1,  baja:15},
+        {renueva: 0, luciaTani: 1, liberado:0, vacaciones:0, deriv:0,  baja: 0},
+    ],
+    tareas:[
+        [], // ENE — sin datos
+        [ // FEB — 100%
+            {desc:'Completar el perfil de los Socios en la APP en un 50%', obs:'Agregados', ok:true},
+            {desc:'Agregar un objetivo concreto en la APP y medible con 10 socios', obs:'Carballo Nicolas, Claudia Aguilar, Flor Maggio, Ron Bianco, Thiago Passegi, Andrade Giuliano, Silvana Gerez, Juan Figueroa, Tomas Ramos, Lautaro Fernandez', ok:true},
+            {desc:'Agendar 10 evaluaciones con 10 socios en el futuro', obs:'Silvana Gerez, Debora Barrionuevo, Alicia Hernandez, Juan Figueroa, Flor Maggio, Abril Barrionuevo, Carballo Nicolas, Octavio Leiva, Nahim Zarate', ok:true},
+            {desc:'Tener el 70% de los socios con alguna evaluación cargada en la APP', obs:'Agregados', ok:true},
+            {desc:'Que asistan al menos 5 socios a "Iluminemos al piltri"', obs:'Debora Barrionuevo, Abril Barrionuevo, Rocio Parezza, Gloria Gomez, Marcelo Cerieldin', ok:true},
+            {desc:'Subir una Foto entrenando y etiquetar a MOVE', obs:'—', ok:true},
+        ],
+        [ // MAR — 100%
+            {desc:'Completar el perfil de los Socios en la APP en un 100%', obs:'Completado', ok:true},
+            {desc:'Agregar un objetivo concreto en la APP y medible con 10 socios', obs:'Nicolas Carballo, Ulises Fernandez, Mariano Macazaga, Dion Sotto, Debora Barrionuevo, Martin Garrido, Matias Thorman, Theo Tissato, Amaranto Tognetti, Cristina Serrantes', ok:true},
+            {desc:'Agendar 10 evaluaciones con 10 socios en el futuro', obs:'Kathie, Joaquín Condori, Alejo Mendez, Cristina Serrantes, Nicolas Vivani, Gloria Gomez, Juan Paiva, Elena Morera, Mariano Bombera, Cristian Leiva', ok:true},
+            {desc:'Tener el 100% de los socios con alguna evaluación cargada en la APP', obs:'Completado', ok:true},
+            {desc:'Asistir a la capacitación interna', obs:'29 marzo - RRR', ok:true},
+            {desc:'Subir una Foto entrenando y etiquetar a MOVE', obs:'—', ok:true},
+        ],
+        [ // ABR — 100%
+            {desc:'Completar el perfil de los Socios en la APP en un 100%', obs:'Completado', ok:true},
+            {desc:'Agregar un objetivo concreto en la APP y medible con 10 socios', obs:'Completado', ok:true},
+            {desc:'Evaluar con el encoder a 5 socios como mínimo', obs:'Carballo Nicolas, Juliano Andrade, Ornella Bellone, Cristian Vera, Guadalupe Salinas', ok:true},
+            {desc:'Tener el 100% de los socios con alguna evaluación cargada en la APP', obs:'Completado', ok:true},
+            {desc:'Asistir a una capacitación interna', obs:'Ejercicios Bariloche', ok:true},
+            {desc:'Que 10 socios tengan rutinas cargadas fuera del gym', obs:'Erazo Francisco, Pablo Vazquez, Caro Shiro, Santiago Carregado, Santi Arza, Vivani Nicolas, Marmissole Nahuel, Joaquin Bustigorry, Lucas Aguilera, Nahim Zarate', ok:true},
+        ],
+        [ // MAY — 100%
+            {desc:'Completar el perfil de los Socios en la APP en un 100%', obs:'Completado', ok:true},
+            {desc:'Agregar un objetivo concreto en la APP y medible con 10 socios', obs:'Completado', ok:true},
+            {desc:'Asistir a una capacitación interna', obs:'RRR - Lago Puelo', ok:true},
+            {desc:'Tener el 100% de los socios con alguna evaluación cargada en la APP', obs:'Completado', ok:true},
+            {desc:'Que 10 socios tengan rutinas cargadas fuera del gym', obs:'Aisha Aldea, Luca Aguilera, Pablo Vazquez, Flor Rodriguez, Carballo Nicolas, Nahuel Marmissole, Debo Barrionuevo, Gallego Nicolas, Eiros Monica, Arza Santiago', ok:true},
+            {desc:'¿Qué aspecto del trabajo en equipo te gustaría mejorar en Move?', obs:'Comunicación (saber cuál es mi cantidad de alumnos) y ser más protagonistas en las capacitaciones', ok:true},
+        ],
+        [], // JUN
+    ],
+};
+
+const AE_DATA = {belen: AE_BELEN, fer: AE_FER, enzo: AE_ENZO};
+let aeProfeActual = 'belen';
 
 function aeSelProfe(id, btn){
+    aeProfeActual = id;
     document.querySelectorAll('#section-analisis-entrenadores .tab').forEach(b=>b.classList.remove('active'));
     if(btn) btn.classList.add('active');
+    // Ir al mes más reciente con datos
+    const datos = AE_DATA[id];
+    const mesConDatos = datos.objetivos.map((o,i)=>o.activos>0?i:-1).filter(i=>i>=0);
+    aeMesActual = mesConDatos.length ? mesConDatos[mesConDatos.length-1] : 4;
     aeRender(aeMesActual);
 }
 
 function aeRender(mesIdx){
     aeMesActual = mesIdx;
-    const d = AE_BELEN.objetivos[mesIdx];
-    const mov = AE_BELEN.movimiento[mesIdx];
-    const tareas = AE_BELEN.tareas[mesIdx]||[];
+    const datos = AE_DATA[aeProfeActual] || AE_BELEN;
+    const d = datos.objetivos[mesIdx];
+    const mov = datos.movimiento[mesIdx];
+    const tareas = datos.tareas[mesIdx]||[];
     const sc = p => p>=80?'#10b981':p>=50?'#f59e0b':'#ef4444';
 
     // Tabs mes
-    document.getElementById('aeMesTabs').innerHTML = AE_BELEN.meses.map((m,i)=>
+    document.getElementById('aeMesTabs').innerHTML = datos.meses.map((m,i)=>
         `<button class="tab ${i===mesIdx?'active':''}" onclick="aeRender(${i})" style="font-size:.7rem;padding:4px 10px;">${m}</button>`).join('');
 
     // KPIs
@@ -3959,10 +4082,10 @@ function aeRender(mesIdx){
     }
 
     // Tabla resumen anual
-    document.getElementById('aeTabla').innerHTML = AE_BELEN.objetivos.map((o,i)=>{
+    document.getElementById('aeTabla').innerHTML = datos.objetivos.map((o,i)=>{
         const act=i===mesIdx;
         return `<tr style="${act?'background:rgba(16,185,129,.06);':''}">
-            <td style="font-weight:${act?700:400}">${AE_BELEN.meses[i]}</td>
+            <td style="font-weight:${act?700:400}">${datos.meses[i]}</td>
             <td style="font-family:monospace;">${o.activos}</td>
             <td style="font-family:monospace;color:${o.desercion<=10?'var(--accent)':o.desercion<=20?'#f59e0b':'#ef4444'};">${o.desercion}%</td>
             <td style="font-family:monospace;color:${o.retencion>=90?'var(--accent)':'#f59e0b'};">${o.retencion}%</td>
@@ -3971,9 +4094,9 @@ function aeRender(mesIdx){
     }).join('');
 
     // Tabla movimiento
-    document.getElementById('aeMovimiento').innerHTML = AE_BELEN.movimiento.map((m,i)=>
+    document.getElementById('aeMovimiento').innerHTML = datos.movimiento.map((m,i)=>
         `<tr style="${i===mesIdx?'background:rgba(16,185,129,.06);':''}">
-            <td style="font-weight:${i===mesIdx?700:400}">${AE_BELEN.meses[i]}</td>
+            <td style="font-weight:${i===mesIdx?700:400}">${datos.meses[i]}</td>
             <td style="font-family:monospace;color:var(--accent);">${m.renueva}</td>
             <td style="font-family:monospace;">${m.luciaTani}</td>
             <td style="font-family:monospace;">${m.liberado}</td>
