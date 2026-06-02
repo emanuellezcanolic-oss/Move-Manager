@@ -1233,11 +1233,11 @@ tr:hover td{background:#fafbfc;}
                     <button class="tab active" onclick="aeSelProfe('belen',this)">Belén <span style="font-size:.62rem;opacity:.7;">102 socios</span></button>
                     <button class="tab" onclick="aeSelProfe('fer',this)">Fer <span style="font-size:.62rem;opacity:.7;">91 socios</span></button>
                     <button class="tab" onclick="aeSelProfe('enzo',this)">Enzo <span style="font-size:.62rem;opacity:.7;">111 socios</span></button>
-                    <button class="tab" style="opacity:.4;cursor:not-allowed;" disabled>Javi <span style="font-size:.58rem;">(pronto)</span></button>
-                    <button class="tab" style="opacity:.4;cursor:not-allowed;" disabled>Agus <span style="font-size:.58rem;">(pronto)</span></button>
-                    <button class="tab" style="opacity:.4;cursor:not-allowed;" disabled>Camila <span style="font-size:.58rem;">(pronto)</span></button>
-                    <button class="tab" style="opacity:.4;cursor:not-allowed;" disabled>Carla <span style="font-size:.58rem;">(pronto)</span></button>
-                    <button class="tab" style="opacity:.4;cursor:not-allowed;" disabled>Giuliano <span style="font-size:.58rem;">(pronto)</span></button>
+                    <button class="tab" onclick="aeSelProfe('javi',this)">Javi <span style="font-size:.62rem;opacity:.7;">95 socios</span></button>
+                    <button class="tab" onclick="aeSelProfe('agus',this)">Agus <span style="font-size:.62rem;opacity:.7;">102 socios</span></button>
+                    <button class="tab" onclick="aeSelProfe('camila',this)">Camila <span style="font-size:.62rem;opacity:.7;">75 socios</span></button>
+                    <button class="tab" onclick="aeSelProfe('carla',this)">Carla <span style="font-size:.62rem;opacity:.7;">74 socios</span></button>
+                    <button class="tab" onclick="aeSelProfe('giuliano',this)">Giuliano <span style="font-size:.62rem;opacity:.7;">83 socios</span></button>
                 </div>
             </div>
 
@@ -4001,7 +4001,197 @@ const AE_ENZO = {
     ],
 };
 
-const AE_DATA = {belen: AE_BELEN, fer: AE_FER, enzo: AE_ENZO};
+const AE_JAVI = {
+    nombre:'Javi', sede:'Lago Puelo',
+    meses:['ENE','FEB','MAR','ABR','MAY','JUN'],
+    mesesFull:['Enero','Febrero','Marzo','Abril','Mayo','Junio'],
+    objetivos:[
+        {activos:75, desercion:22.7, tarea:0,   reeval:6.67,  puntaje:70,  retencion:77.3},
+        {activos:64, desercion:29.7, tarea:100, reeval:7.81,  puntaje:80,  retencion:70.3},
+        {activos:78, desercion:9.2,  tarea:83,  reeval:26.92, puntaje:105, retencion:90.8},
+        {activos:85, desercion:19.3, tarea:100, reeval:37.65, puntaje:148, retencion:80.7},
+        {activos:79, desercion:5.1,  tarea:100, reeval:26.58, puntaje:142, retencion:94.9},
+        {activos:5,  desercion:0.0,  tarea:0,   reeval:20.00, puntaje:50,  retencion:100},
+    ],
+    movimiento:[
+        {renueva:75, luciaTani:6,  liberado:0, vacaciones:3, deriv:1, baja:17},
+        {renueva:62, luciaTani:10, liberado:2, vacaciones:8, deriv:4, baja:19},
+        {renueva:76, luciaTani:11, liberado:0, vacaciones:11,deriv:5, baja:7},
+        {renueva:81, luciaTani:13, liberado:2, vacaciones:4, deriv:5, baja:16},
+        {renueva:77, luciaTani:5,  liberado:2, vacaciones:7, deriv:3, baja:4},
+        {renueva:3,  luciaTani:0,  liberado:2, vacaciones:0, deriv:0, baja:0},
+    ],
+    tareas:[
+        [],
+        [{desc:'Completar el perfil de los Socios en la APP en un 50%', obs:'Listo', ok:true},
+         {desc:'Agregar un objetivo concreto en la APP y medible con 10 socios', obs:'Listo', ok:true},
+         {desc:'Agendar 10 evaluaciones con 10 socios en el futuro', obs:'10 de 10', ok:true},
+         {desc:'Tener el 70% de los socios con alguna evaluación cargada en la APP', obs:'—', ok:true},
+         {desc:'Que asistan al menos 5 socios a "Iluminemos al piltri"', obs:'5 de 5', ok:true},
+         {desc:'Subir una Foto entrenando y etiquetar a MOVE', obs:'Listo', ok:true}],
+        [{desc:'Completar el perfil de los Socios en la APP en un 100%', obs:'—', ok:true},
+         {desc:'Agregar un objetivo concreto en la APP y medible con 10 socios', obs:'Listo', ok:true},
+         {desc:'Agendar 10 evaluaciones con 10 socios en el futuro', obs:'Listo', ok:true},
+         {desc:'Tener el 100% de los socios con alguna evaluación cargada en la APP', obs:'—', ok:false},
+         {desc:'Que asistan al menos 5 socios a "Iluminemos al piltri"', obs:'Listo', ok:true},
+         {desc:'Subir una Foto entrenando y etiquetar a MOVE', obs:'Listo', ok:true}],
+        [{desc:'Completar el perfil de los Socios en la APP en un 100%', obs:'—', ok:true},
+         {desc:'Agregar un objetivo concreto en la APP y medible con 10 socios', obs:'—', ok:true},
+         {desc:'Evaluar con el encoder a 5 socios como mínimo', obs:'Nahuel Gomez, Actis Daniel, Cristian Vazquez, Deipenau Pipo, Joaquin Faillace, Ciro Castellano, Nestor, Butler Francisco', ok:true},
+         {desc:'Tener el 100% de los socios con alguna evaluación cargada en la APP', obs:'—', ok:true},
+         {desc:'Asistir a una capacitación interna', obs:'—', ok:true},
+         {desc:'Que 10 socios tengan rutinas cargadas fuera del gym', obs:'Juan Locuratolo, Daniel Riquelme, Gabriela Ribaditi, Mussi Alejandro, Lucas Lobera, Delgadin Jorge, Trucco Lucas, De Luca Gisela, Ayelen Mendoza, Julia Gomez', ok:true}],
+        [{desc:'Completar el perfil de los Socios en la APP en un 100%', obs:'—', ok:true},
+         {desc:'Agregar un objetivo concreto en la APP y medible con 10 socios', obs:'—', ok:true},
+         {desc:'Asistir a una capacitación interna', obs:'—', ok:true},
+         {desc:'Tener el 100% de los socios con alguna evaluación cargada en la APP', obs:'—', ok:true},
+         {desc:'Que 10 socios tengan rutinas cargadas fuera del gym', obs:'Rossana Parra, Landesa Graciela, Ribaditi Gabriela, Lucas Trucco, Daniel Riquelme, Palazuelos Patri, Paredes Patri, Alejandra Cecchini, Ariel Puyelli, Nestor Jaureguiberry', ok:true},
+         {desc:'¿Qué aspecto del trabajo en equipo te gustaría mejorar en Move?', obs:'Siempre se puede pulir más la comunicación', ok:true}],
+        [],
+    ],
+};
+
+const AE_AGUS = {
+    nombre:'Agus', sede:'Lago Puelo',
+    meses:['ENE','FEB','MAR','ABR','MAY','JUN'],
+    mesesFull:['Enero','Febrero','Marzo','Abril','Mayo','Junio'],
+    objetivos:[
+        {activos:51, desercion:43.1, tarea:0,  reeval:0.00,  puntaje:55,  retencion:56.9},
+        {activos:62, desercion:16.1, tarea:17, reeval:0.00,  puntaje:80,  retencion:83.9},
+        {activos:66, desercion:31.2, tarea:67, reeval:33.33, puntaje:108, retencion:68.9},
+        {activos:86, desercion:24.4, tarea:67, reeval:46.51, puntaje:140, retencion:75.6},
+        {activos:79, desercion:24.4, tarea:80, reeval:37.97, puntaje:130, retencion:75.6},
+        {activos:1,  desercion:0.0,  tarea:0,  reeval:0.00,  puntaje:0,   retencion:0},
+    ],
+    movimiento:[
+        {renueva:51, luciaTani:17, liberado:0, vacaciones:4, deriv:3, baja:22},
+        {renueva:62, luciaTani:4,  liberado:0, vacaciones:0, deriv:6, baja:10},
+        {renueva:58, luciaTani:24, liberado:3, vacaciones:1, deriv:4, baja:19},
+        {renueva:76, luciaTani:14, liberado:4, vacaciones:0, deriv:1, baja:20},
+        {renueva:72, luciaTani:9,  liberado:3, vacaciones:4, deriv:3, baja:16},
+        {renueva:1,  luciaTani:0,  liberado:0, vacaciones:2, deriv:0, baja:1},
+    ],
+    tareas:[
+        [],
+        [{desc:'Completar el perfil de los Socios en la APP en un 50%', obs:'—', ok:false},
+         {desc:'Agregar un objetivo concreto en la APP y medible con 10 socios', obs:'—', ok:false},
+         {desc:'Agendar 10 evaluaciones con 10 socios en el futuro', obs:'—', ok:false},
+         {desc:'Tener el 70% de los socios con alguna evaluación cargada en la APP', obs:'—', ok:false},
+         {desc:'Que asistan al menos 5 socios a "Iluminemos al piltri"', obs:'—', ok:false},
+         {desc:'Subir una Foto entrenando y etiquetar a MOVE', obs:'—', ok:true}],
+        [{desc:'Completar el perfil de los Socios en la APP en un 100%', obs:'—', ok:false},
+         {desc:'Agregar un objetivo concreto en la APP y medible con 10 socios', obs:'—', ok:true},
+         {desc:'Agendar 10 evaluaciones con 10 socios en el futuro', obs:'—', ok:true},
+         {desc:'Tener el 100% de los socios con alguna evaluación cargada en la APP', obs:'—', ok:false},
+         {desc:'Asistir a la capacitación interna', obs:'—', ok:true},
+         {desc:'Que 10 socios tengan rutinas cargadas fuera del gym', obs:'Victoria Masi, Paula Mendez, Eduardo Arroyo, Lidia Rios, Angela Quinteros, Soledad Grinspan, Guillermo Martinez, Ximena Pulpeiro, Alejandra Fiorotto, Federico Iturmenti', ok:true}],
+        [{desc:'Completar el perfil de los Socios en la APP en un 100%', obs:'completado', ok:true},
+         {desc:'Agregar un objetivo concreto en la APP y medible con 10 socios', obs:'Rojas Silvana, Martinez Lazaro, Cleri Ana Paula, Burton Clarita, Roccella Ana Laura, Araneda Kiara, Marquez Agustin, Saez Leonardo, Amigo Leia, Lema Noelia', ok:true},
+         {desc:'Asistir a una capacitación interna', obs:'completado', ok:true},
+         {desc:'Tener el 100% de los socios con alguna evaluación cargada en la APP', obs:'—', ok:false},
+         {desc:'Que 10 socios tengan rutinas cargadas fuera del gym', obs:'Martinez Lazaro, Locuratolo Juan, Compagnucci German, Cristiani Liliana, Grinspan Soledad, Vila Daniela, Mendez Paula, Ariet Celeste, Pulpeiro Ximena, Masi Victoria', ok:false},
+         {desc:'¿Qué aspecto del trabajo en equipo te gustaría mejorar en Move?', obs:'La comunicación', ok:true}],
+        [{desc:'Completar el perfil de los Socios en la APP en un 100%', obs:'completado', ok:true},
+         {desc:'Agregar un objetivo concreto en la APP y medible con 10 socios', obs:'completado', ok:true},
+         {desc:'Asistir a una capacitación interna', obs:'—', ok:true},
+         {desc:'Tener el 100% de los socios con alguna evaluación cargada en la APP', obs:'—', ok:false},
+         {desc:'Que 10 socios tengan rutinas cargadas fuera del gym', obs:'—', ok:false},
+         {desc:'¿Qué aspecto del trabajo en equipo te gustaría mejorar en Move?', obs:'—', ok:true}],
+        [],
+    ],
+};
+
+const AE_CAMILA = {
+    nombre:'Camila', sede:'Bariloche',
+    meses:['ENE','FEB','MAR','ABR','MAY','JUN'],
+    mesesFull:['Enero','Febrero','Marzo','Abril','Mayo','Junio'],
+    objetivos:[
+        {activos:0,  desercion:0.0, tarea:0,  reeval:0.00,  puntaje:0,   retencion:0},
+        {activos:0,  desercion:0.0, tarea:50, reeval:0.00,  puntaje:0,   retencion:0},
+        {activos:0,  desercion:0.0, tarea:0,  reeval:0.00,  puntaje:30,  retencion:100},
+        {activos:54, desercion:6.7, tarea:0,  reeval:46.30, puntaje:118, retencion:93.3},
+        {activos:56, desercion:9.9, tarea:0,  reeval:23.21, puntaje:110, retencion:90.1},
+        {activos:3,  desercion:100, tarea:0,  reeval:66.67, puntaje:28,  retencion:0},
+    ],
+    movimiento:[
+        {renueva:0, luciaTani:0, liberado:0, vacaciones:0, deriv:0, baja:0},
+        {renueva:0, luciaTani:0, liberado:0, vacaciones:0, deriv:0, baja:0},
+        {renueva:0, luciaTani:64,liberado:0, vacaciones:0, deriv:0, baja:0},
+        {renueva:54,luciaTani:18,liberado:0, vacaciones:0, deriv:0, baja:5},
+        {renueva:56,luciaTani:22,liberado:0, vacaciones:0, deriv:0, baja:8},
+        {renueva:3, luciaTani:0, liberado:0, vacaciones:0, deriv:0, baja:3},
+    ],
+    tareas:[
+        [],
+        [{desc:'Tareas del período de apertura de sede', obs:'50% cumplimiento', ok:true},{desc:'Pendiente: completar tareas restantes', obs:'—', ok:false}],
+        [],
+        [],
+        [],
+        [],
+    ],
+};
+
+const AE_CARLA = {
+    nombre:'Carla', sede:'Bariloche',
+    meses:['ENE','FEB','MAR','ABR','MAY','JUN'],
+    mesesFull:['Enero','Febrero','Marzo','Abril','Mayo','Junio'],
+    objetivos:[
+        {activos:0,  desercion:0.0,  tarea:0,  reeval:0.00, puntaje:0,  retencion:0},
+        {activos:0,  desercion:0.0,  tarea:50, reeval:0.00, puntaje:0,  retencion:0},
+        {activos:0,  desercion:0.0,  tarea:0,  reeval:0.00, puntaje:30, retencion:100},
+        {activos:35, desercion:17.5, tarea:0,  reeval:0.00, puntaje:40, retencion:82.5},
+        {activos:50, desercion:9.9,  tarea:0,  reeval:0.00, puntaje:80, retencion:90.1},
+        {activos:2,  desercion:0.0,  tarea:0,  reeval:0.00, puntaje:50, retencion:100},
+    ],
+    movimiento:[
+        {renueva:0, luciaTani:0, liberado:0, vacaciones:0, deriv:0, baja:0},
+        {renueva:0, luciaTani:0, liberado:0, vacaciones:0, deriv:0, baja:0},
+        {renueva:0, luciaTani:48,liberado:0, vacaciones:0, deriv:0, baja:0},
+        {renueva:35,luciaTani:28,liberado:0, vacaciones:0, deriv:0, baja:11},
+        {renueva:50,luciaTani:21,liberado:0, vacaciones:0, deriv:0, baja:7},
+        {renueva:2, luciaTani:0, liberado:0, vacaciones:0, deriv:0, baja:0},
+    ],
+    tareas:[
+        [],
+        [{desc:'Tareas del período de apertura de sede', obs:'50% cumplimiento', ok:true},{desc:'Pendiente: completar tareas restantes', obs:'—', ok:false}],
+        [],
+        [],
+        [],
+        [],
+    ],
+};
+
+const AE_GIULIANO = {
+    nombre:'Giuliano', sede:'Bariloche',
+    meses:['ENE','FEB','MAR','ABR','MAY','JUN'],
+    mesesFull:['Enero','Febrero','Marzo','Abril','Mayo','Junio'],
+    objetivos:[
+        {activos:0,  desercion:0.0, tarea:0,  reeval:0.00,  puntaje:0,   retencion:0},
+        {activos:0,  desercion:0.0, tarea:50, reeval:0.00,  puntaje:0,   retencion:0},
+        {activos:0,  desercion:0.0, tarea:0,  reeval:0.00,  puntaje:30,  retencion:100},
+        {activos:50, desercion:6.0, tarea:0,  reeval:66.00, puntaje:130, retencion:94.0},
+        {activos:72, desercion:16.7,tarea:0,  reeval:19.44, puntaje:101, retencion:83.3},
+        {activos:5,  desercion:0.0, tarea:0,  reeval:0.00,  puntaje:50,  retencion:100},
+    ],
+    movimiento:[
+        {renueva:0,  luciaTani:0,  liberado:0, vacaciones:0, deriv:0, baja:0},
+        {renueva:0,  luciaTani:0,  liberado:0, vacaciones:0, deriv:0, baja:0},
+        {renueva:0,  luciaTani:60, liberado:0, vacaciones:0, deriv:0, baja:0},
+        {renueva:50, luciaTani:42, liberado:0, vacaciones:4, deriv:0, baja:3},
+        {renueva:72, luciaTani:7,  liberado:0, vacaciones:5, deriv:0, baja:12},
+        {renueva:5,  luciaTani:0,  liberado:0, vacaciones:0, deriv:0, baja:0},
+    ],
+    tareas:[
+        [],
+        [{desc:'Tareas del período de apertura de sede', obs:'50% cumplimiento', ok:true},{desc:'Pendiente: completar tareas restantes', obs:'—', ok:false}],
+        [],
+        [],
+        [],
+        [],
+    ],
+};
+
+const AE_DATA = {belen: AE_BELEN, fer: AE_FER, enzo: AE_ENZO, javi: AE_JAVI, agus: AE_AGUS, camila: AE_CAMILA, carla: AE_CARLA, giuliano: AE_GIULIANO};
 let aeProfeActual = 'belen';
 
 function aeSelProfe(id, btn){
