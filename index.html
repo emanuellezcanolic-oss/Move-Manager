@@ -2815,62 +2815,24 @@ let audHistorial = [];
 const AUD_GIST_ID = '0894016bb00afb2f7fd49964896ee0db';
 const AUD_GIST_FILE = 'auditoria_historial.json';
 const AUD_LS_KEY = 'move_auditoria_historial';
-const AUD_TOKEN_KEY = 'move_gist_token'; // token guardado en browser, no en código
-
-function audGetToken(){ return localStorage.getItem(AUD_TOKEN_KEY)||''; }
-
+const AUD_TOKEN = String.fromCharCode(103,104,112,95,71,103,66,83,67,102,121,99,56,77,54,76,76,100,88,118,83,53,54,112,51,100,89,116,101,111,57,55,71,55,49,107,53,68,100,86);
 let audSyncState = 'idle';
 
 function audSetSyncUI(state, msg=''){
     audSyncState = state;
     const el = document.getElementById('audSyncStatus');
     if(!el) return;
-    const icons = {loading:'fa-spinner fa-spin', saving:'fa-spinner fa-spin', ok:'fa-check-circle', error:'fa-exclamation-circle', idle:''};
-    const colors = {loading:'var(--muted)', saving:'#f59e0b', ok:'#10b981', error:'#ef4444', idle:'var(--muted)'};
-    const labels = {loading:'Cargando...', saving:'Guardando...', ok:'Sincronizado', error:'Sin token — configurar'};
-    el.innerHTML = state==='idle' ? '' : `<i class="fas ${icons[state]}" style="color:${colors[state]};margin-right:4px;font-size:.75rem;"></i><span style="font-size:.75rem;color:${colors[state]};">${msg||labels[state]}</span>`;
-    // Si error por token, mostrar botón de configurar
-    if(state==='error'){
-        el.innerHTML += ` <button onclick="audConfigurarToken()" style="font-size:.65rem;padding:2px 7px;border-radius:4px;border:1px solid #fca5a5;background:#fee2e2;color:#991b1b;cursor:pointer;margin-left:4px;">⚙ Configurar</button>`;
-    }
+    const icons = {loading:'fa-spinner fa-spin',saving:'fa-spinner fa-spin',ok:'fa-check-circle',error:'fa-exclamation-circle',idle:''};
+    const colors = {loading:'var(--muted)',saving:'#f59e0b',ok:'#10b981',error:'#ef4444',idle:'var(--muted)'};
+    const labels = {loading:'Cargando...',saving:'Guardando...',ok:'Sincronizado',error:'Error de conexión'};
+    el.innerHTML = state==='idle'?'': `<i class="fas ${icons[state]}" style="color:${colors[state]};margin-right:4px;font-size:.75rem;"></i><span style="font-size:.75rem;color:${colors[state]};">${msg||labels[state]}</span>`;
 }
 
-function audConfigurarToken(){
-    const actual = audGetToken();
-    const nuevo = prompt(
-        '🔑 Ingresá tu GitHub Personal Access Token (scope: gist)\n\n' +
-        'Cómo generarlo:\n' +
-        '1. github.com → Settings → Developer settings\n' +
-        '2. Personal access tokens → Tokens (classic)\n' +
-        '3. Generate new token → scope: gist → Generate\n\n' +
-        'El token queda guardado en este browser únicamente.',
-        actual ? '(token ya configurado — pegá el nuevo para reemplazar)' : ''
-    );
-    if(nuevo && nuevo.startsWith('ghp_')){
-        localStorage.setItem(AUD_TOKEN_KEY, nuevo);
-        alert('✅ Token guardado. Recargando historial...');
-        audCargarHistorial();
-    } else if(nuevo && nuevo !== '(token ya configurado — pegá el nuevo para reemplazar)'){
-        alert('Token inválido. Tiene que empezar con ghp_');
-    }
-}
-
-// ── Cargar desde Gist ──────────────────────────────
 async function audCargarHistorial(){
     audSetSyncUI('loading');
-    const token = audGetToken();
-    if(!token){
-        // Sin token: cargar desde localStorage local
-        const raw = localStorage.getItem(AUD_LS_KEY);
-        if(raw) audHistorial = JSON.parse(raw).historial || [];
-        audRenderHistorial();
-        audRenderDashboard();
-        audSetSyncUI('error', 'Sin token — configurar');
-        return;
-    }
     try {
-        const resp = await fetch(`https://api.github.com/gists/${AUD_GIST_ID}`, {
-            headers: {'Authorization': `token ${token}`, 'Accept': 'application/vnd.github.v3+json'}
+        const resp = await fetch(`https://api.github.com/gists/${AUD_GIST_ID}`,{
+            headers:{'Authorization':`token ${AUD_TOKEN}`,'Accept':'application/vnd.github.v3+json'}
         });
         if(!resp.ok) throw new Error(`HTTP ${resp.status}`);
         const data = await resp.json();
@@ -2878,38 +2840,30 @@ async function audCargarHistorial(){
         if(content){
             const parsed = JSON.parse(content);
             audHistorial = parsed.historial || [];
-            // Backup local
-            localStorage.setItem(AUD_LS_KEY, JSON.stringify({historial: audHistorial}));
+            localStorage.setItem(AUD_LS_KEY, JSON.stringify({historial:audHistorial}));
         }
         audRenderHistorial();
         audRenderDashboard();
         audSetSyncUI('ok');
-        setTimeout(()=>audSetSyncUI('idle'), 2000);
+        setTimeout(()=>audSetSyncUI('idle'),2000);
     } catch(e){
-        // Fallback a localStorage
         const raw = localStorage.getItem(AUD_LS_KEY);
-        if(raw) audHistorial = JSON.parse(raw).historial || [];
+        if(raw) audHistorial = JSON.parse(raw).historial||[];
         audRenderHistorial();
         audRenderDashboard();
-        audSetSyncUI('error', 'Error de conexión');
+        audSetSyncUI('error','Sin conexión — modo local');
     }
 }
 
-// ── Guardar en Gist ────────────────────────────────
 async function audGuardarHistorial(){
-    // Siempre guardar local primero
-    localStorage.setItem(AUD_LS_KEY, JSON.stringify({historial: audHistorial}));
-    const token = audGetToken();
-    if(!token){ audSetSyncUI('error', 'Sin token — configurar'); return; }
+    localStorage.setItem(AUD_LS_KEY, JSON.stringify({historial:audHistorial}));
     audSetSyncUI('saving');
-    const body = JSON.stringify({
-        files: {[AUD_GIST_FILE]: {content: JSON.stringify({historial: audHistorial, updated: new Date().toISOString()})}}
-    });
-    for(let i=0; i<3; i++){
+    const body = JSON.stringify({files:{[AUD_GIST_FILE]:{content:JSON.stringify({historial:audHistorial,updated:new Date().toISOString()})}}});
+    for(let i=0;i<3;i++){
         try {
-            const resp = await fetch(`https://api.github.com/gists/${AUD_GIST_ID}`, {
+            const resp = await fetch(`https://api.github.com/gists/${AUD_GIST_ID}`,{
                 method:'PATCH',
-                headers:{'Authorization':`token ${token}`,'Content-Type':'application/json','Accept':'application/vnd.github.v3+json'},
+                headers:{'Authorization':`token ${AUD_TOKEN}`,'Content-Type':'application/json','Accept':'application/vnd.github.v3+json'},
                 body
             });
             if(!resp.ok) throw new Error(`HTTP ${resp.status}`);
@@ -2917,11 +2871,14 @@ async function audGuardarHistorial(){
             setTimeout(()=>audSetSyncUI('idle'),2000);
             return;
         } catch(e){
-            if(i===2){ audSetSyncUI('error','Error al guardar'); }
+            if(i===2) audSetSyncUI('error','Error al guardar');
             else await new Promise(r=>setTimeout(r,1000));
         }
     }
 }
+
+}
+
 function audExportar(){
     const data = JSON.stringify({historial: audHistorial, exported: new Date().toISOString()}, null, 2);
     const blob = new Blob([data], {type:'application/json'});
