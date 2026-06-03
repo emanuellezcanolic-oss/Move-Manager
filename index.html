@@ -3366,8 +3366,8 @@ function audFinalizarDia(){
     const conObj=audSociosData.filter(s=>/(si|sí)/i.test(s.objetivoApp)).length;
 
     // Calcular semáforo promedio del día
-    const semResumen={gestion:'verde',diagnostico:'verde',metodologia:'verde',custom:'verde'};
-    const counts={gestion:{v:0,a:0,r:0},diagnostico:{v:0,a:0,r:0},metodologia:{v:0,a:0,r:0},custom:{v:0,a:0,r:0}};
+    const semResumen=Object.fromEntries(AUD_SECTIONS.map(s=>[s.key,'verde']));
+    const counts=Object.fromEntries(AUD_SECTIONS.map(s=>[s.key,{v:0,a:0,r:0}]));
     Object.values(audSociosAuditados).forEach(a=>{
         AUD_SECTIONS.forEach(sec=>{
             if(a.semaforos[sec.key]==='verde') counts[sec.key].v++;
@@ -3636,7 +3636,7 @@ function audRenderDashboard(){
     audHistorial.forEach(a=>{
         if(!porProfe[a.profe]) porProfe[a.profe]={
             nombre:a.profe, auditorias:[], totalSocios:0, vencidosProm:0,
-            evalProm:0, objProm:0, semaforos:{gestion:[],diagnostico:[],metodologia:[],custom:[]}
+            evalProm:0, objProm:0, semaforos:Object.fromEntries(AUD_SECTIONS.map(s=>[s.key,[]]))
         };
         porProfe[a.profe].auditorias.push(a);
     });
