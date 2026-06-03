@@ -2842,7 +2842,7 @@ async function audCargarHistorial(){
         setTimeout(()=>audSetSyncUI('idle'), 2000);
     } catch(e){
         console.warn('No se pudo cargar historial:', e);
-        audSetSyncUI('error', 'Sin conexión — modo local');
+        audSetSyncUI('error', 'Sin conexión al servidor — guardado solo local');
         audRenderHistorial();
     }
 }
@@ -3559,13 +3559,15 @@ function audGuardarEdicion(id){
         if(hallEl) d.hallazgos = hallEl.value.trim();
     });
 
-    // Recalcular semáforo resumen
-    const counts={gestion:{v:0,a:0,r:0},diagnostico:{v:0,a:0,r:0},metodologia:{v:0,a:0,r:0},custom:{v:0,a:0,r:0}};
+    // Recalcular semáforo resumen dinámicamente según AUD_SECTIONS
+    const counts = {};
+    AUD_SECTIONS.forEach(sec=>counts[sec.key]={v:0,a:0,r:0});
     a.detalleSocios.forEach(d=>{
         AUD_SECTIONS.forEach(sec=>{
-            if(d.semaforos[sec.key]==='verde') counts[sec.key].v++;
-            else if(d.semaforos[sec.key]==='amarillo') counts[sec.key].a++;
-            else counts[sec.key].r++;
+            const v = (d.semaforos||{})[sec.key];
+            if(v==='verde') counts[sec.key].v++;
+            else if(v==='amarillo') counts[sec.key].a++;
+            else if(v==='rojo') counts[sec.key].r++;
         });
     });
     AUD_SECTIONS.forEach(sec=>{
