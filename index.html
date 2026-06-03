@@ -3650,7 +3650,7 @@ function audRenderDashboard(){
         const evalProm = Math.round(auds.reduce((s,a)=>s+(a.conEvaluacion||0),0)/n);
         const objProm = Math.round(auds.reduce((s,a)=>s+(a.conObjetivo||0),0)/n);
         // Score promedio de semáforos
-        const semScores = {gestion:[], diagnostico:[], metodologia:[], custom:[]};
+        const semScores = Object.fromEntries(AUD_SECTIONS.map(s=>[s.key,[]]));
         auds.forEach(a=>{
             AUD_SECTIONS.forEach(sec=>{
                 const v=a.semaforos?.[sec.key];
@@ -3662,7 +3662,7 @@ function audRenderDashboard(){
             const arr=semScores[sec.key];
             semAvg[sec.key]=arr.length?Math.round(arr.reduce((s,v)=>s+v,0)/arr.length):0;
         });
-        const scoreGlobal=Math.round(Object.values(semAvg).reduce((s,v)=>s+v,0)/4);
+        const scoreGlobal=Math.round(Object.values(semAvg).reduce((s,v)=>s+v,0)/AUD_SECTIONS.length);
         const ultimaAud=auds[0]?.date||'—';
         return {nombre:p.nombre, n, totalSocios, vencProm, evalProm, objProm, semAvg, scoreGlobal, ultimaAud};
     });
