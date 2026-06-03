@@ -1208,10 +1208,6 @@ tr:hover td{background:#fafbfc;}
                     <label class="aud-form-label">Hallazgos Técnicos</label>
                     <textarea class="aud-form-textarea" id="audFHallazgos" rows="2" placeholder="Describir hallazgos observados..."></textarea>
                 </div>
-                <div class="aud-form-group">
-                    <label class="aud-form-label"><i class="fas fa-gauge-high" style="color:var(--accent);margin-right:5px;"></i>RPE / Escala Subjetiva de Esfuerzo</label>
-                    <textarea class="aud-form-textarea" id="audFRPE" rows="2" placeholder="Ej: RPE 7/10, escala Borg 14, percepción del esfuerzo, tolerancia al trabajo..."></textarea>
-                </div>
                 <div class="aud-modal-actions">
                     <button class="aud-btn-cancel" onclick="audCloseFormModal()">Cancelar</button>
                     <button class="aud-btn-save" id="audBtnGuardar" onclick="audSaveAudit()"><i class="fas fa-floppy-disk"></i> Guardar y Continuar</button>
@@ -2785,10 +2781,11 @@ function renderEnc(){
 // AUDITORÍA — lee planilla real de Google Sheets
 // ══════════════════════════════════════════════════
 const AUD_SECTIONS = [
-    {key:'gestion',     label:'Gestión y Vigencia',      icon:'fa-calendar-check'},
-    {key:'diagnostico', label:'Diagnóstico y Evolución',  icon:'fa-chart-line'},
-    {key:'metodologia', label:'Rigor Metodológico',       icon:'fa-dumbbell'},
-    {key:'custom',      label:'Customización',            icon:'fa-user-check'}
+    {key:'gestion',     label:'Gestión y Vigencia',          icon:'fa-calendar-check'},
+    {key:'diagnostico', label:'Diagnóstico y Evolución',      icon:'fa-chart-line'},
+    {key:'metodologia', label:'Rigor Metodológico',           icon:'fa-dumbbell'},
+    {key:'custom',      label:'Customización',                icon:'fa-user-check'},
+    {key:'rpe',         label:'RPE / Esfuerzo Subjetivo',     icon:'fa-gauge-high'},
 ];
 
 const AUD_TRAINERS = [
@@ -3271,7 +3268,7 @@ function audAbrirSocio(nombre){
 
     // Restaurar valores si ya fue auditado
     const prev = audSociosAuditados[nombre];
-    ['audFHallazgos','audFRPE'].forEach(id=>document.getElementById(id).value=prev?prev[id]||'':'');
+    ['audFHallazgos'].forEach(id=>document.getElementById(id).value=prev?prev[id]||'':'');
 
     document.getElementById('audFormSections').innerHTML=AUD_SECTIONS.map(sec=>{
         const hoyM = new Date(); hoyM.setHours(0,0,0,0);
@@ -3322,7 +3319,6 @@ function audSaveAudit(){
     audSociosAuditados[audSocioActual]={
         semaforos, obs,
         audFHallazgos:(document.getElementById('audFHallazgos').value||'').trim(),
-        audFRPE:(document.getElementById('audFRPE').value||'').trim(),
     };
     audCloseFormModal();
     audRenderTablaHoy();
