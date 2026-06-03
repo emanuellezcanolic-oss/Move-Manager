@@ -1164,8 +1164,17 @@ tr:hover td{background:#fafbfc;}
                         style="padding:8px 18px;font-size:.82rem;font-weight:700;border:none;background:none;cursor:pointer;color:var(--muted);border-bottom:2px solid transparent;margin-bottom:-2px;font-family:inherit;">
                         <i class="fas fa-chart-bar" style="margin-right:5px;"></i>Dashboard
                     </button>
-                    <div style="flex:1;display:flex;justify-content:flex-end;align-items:center;padding-bottom:6px;gap:8px;">
+                    <div style="flex:1;display:flex;justify-content:flex-end;align-items:center;padding-bottom:6px;gap:6px;">
                         <div id="audSyncStatus" style="min-height:18px;"></div>
+                        <button onclick="audExportar()" title="Backup del historial"
+                            style="display:flex;align-items:center;gap:4px;background:var(--bg);border:1px solid var(--border);color:var(--muted);font-size:.68rem;padding:4px 8px;border-radius:6px;cursor:pointer;font-family:inherit;">
+                            <i class="fas fa-download" style="font-size:.6rem;"></i> Backup
+                        </button>
+                        <label title="Restaurar historial desde backup"
+                            style="display:flex;align-items:center;gap:4px;background:var(--bg);border:1px solid var(--border);color:var(--muted);font-size:.68rem;padding:4px 8px;border-radius:6px;cursor:pointer;font-family:inherit;">
+                            <i class="fas fa-upload" style="font-size:.6rem;"></i> Restaurar
+                            <input type="file" accept=".json" onchange="audImportar(event)" style="display:none;">
+                        </label>
                         <button onclick="audCargarHistorial()" style="display:flex;align-items:center;gap:5px;background:var(--bg);border:1px solid var(--border);color:var(--muted);font-size:.72rem;padding:4px 10px;border-radius:6px;cursor:pointer;font-family:inherit;">
                             <i class="fas fa-rotate-right" style="font-size:.65rem;"></i> Actualizar
                         </button>
@@ -2819,71 +2828,73 @@ function audSetSyncUI(state, msg=''){
     el.innerHTML = state==='idle' ? '' : `<i class="fas ${icons[state]}" style="color:${colors[state]};margin-right:4px;font-size:.75rem;"></i><span style="font-size:.75rem;color:${colors[state]};">${msg||labels[state]}</span>`;
 }
 
-// Cargar historial desde Gist — lectura pública, sin token
+const AUD_LS_KEY = 'move_auditoria_historial';
+
+// ── Carga desde localStorage ──────────────────────
 async function audCargarHistorial(){
     audSetSyncUI('loading');
     try {
-        // El Gist es público — no necesita token para leer
-        const resp = await fetch(`https://api.github.com/gists/${AUD_GIST_ID}`, {
-            headers: {'Accept': 'application/vnd.github.v3+json'}
-        });
-        if(!resp.ok) throw new Error(`HTTP ${resp.status}`);
-        const data = await resp.json();
-        const content = data.files[AUD_GIST_FILE]?.content;
-        if(content){
-            const parsed = JSON.parse(content);
+        const raw = localStorage.getItem(AUD_LS_KEY);
+        if(raw){
+            const parsed = JSON.parse(raw);
             audHistorial = parsed.historial || [];
         }
         audRenderHistorial();
         audRenderDashboard();
-        audSetSyncUI('ok');
-        setTimeout(()=>audSetSyncUI('idle'), 2000);
+        audSetSyncUI('ok', 'Cargado');
+        setTimeout(()=>audSetSyncUI('idle'), 1500);
     } catch(e){
-        console.warn('No se pudo cargar historial:', e);
-        audSetSyncUI('error', 'Sin conexión — modo local');
+        audSetSyncUI('error', 'Error al cargar');
         audRenderHistorial();
     }
 }
 
-// Guardar historial en Gist con retry
+// ── Guardar en localStorage ───────────────────────
 async function audGuardarHistorial(){
-    audSetSyncUI('saving');
-    const body = JSON.stringify({
-        files: {
-            [AUD_GIST_FILE]: {
-                content: JSON.stringify({
-                    historial: audHistorial,
-                    version: 1,
-                    updated: new Date().toISOString()
-                })
-            }
-        }
-    });
-    for(let intento=0; intento<3; intento++){
-        try {
-            const resp = await fetch(`https://api.github.com/gists/${AUD_GIST_ID}`, {
-                method: 'PATCH',
-                headers: {
-                    'Accept': 'application/vnd.github.v3+json',
-                    'Content-Type': 'application/json',
-                    'Authorization': `token ${AUD_TOKEN}`
-                },
-                body
-            });
-            if(!resp.ok) throw new Error(`HTTP ${resp.status}`);
-            audSetSyncUI('ok', '¡Guardado y compartido!');
-            setTimeout(()=>audSetSyncUI('idle'), 3000);
-            return;
-        } catch(e){
-            if(intento===2){
-                audSetSyncUI('error', 'Error al guardar — reintentá');
-                console.error('Error guardando historial:', e);
-            } else {
-                await new Promise(r=>setTimeout(r,1000));
-            }
-        }
+    try {
+        localStorage.setItem(AUD_LS_KEY, JSON.stringify({
+            historial: audHistorial,
+            updated: new Date().toISOString()
+        }));
+        audSetSyncUI('ok', 'Guardado');
+        setTimeout(()=>audSetSyncUI('idle'), 1500);
+    } catch(e){
+        audSetSyncUI('error', 'Error al guardar');
     }
 }
+function audExportar(){
+    const data = JSON.stringify({historial: audHistorial, exported: new Date().toISOString()}, null, 2);
+    const blob = new Blob([data], {type:'application/json'});
+    const url = URL.createObjectURL(blob);
+    const a = document.createElement('a');
+    a.href = url;
+    a.download = `move_auditoria_backup_${new Date().toLocaleDateString('es-AR').replace(/\//g,'-')}.json`;
+    a.click();
+    URL.revokeObjectURL(url);
+}
+
+function audImportar(event){
+    const file = event.target.files[0];
+    if(!file) return;
+    const reader = new FileReader();
+    reader.onload = e => {
+        try {
+            const parsed = JSON.parse(e.target.result);
+            const hist = parsed.historial || [];
+            if(!hist.length){ alert('El archivo no tiene auditorías.'); return; }
+            if(!confirm(`¿Restaurar ${hist.length} auditorías? Esto reemplaza el historial actual.`)) return;
+            audHistorial = hist;
+            audGuardarHistorial();
+            audRenderHistorial();
+            audRenderDashboard();
+        } catch(err) {
+            alert('Archivo inválido. Tiene que ser un backup de MOVE.');
+        }
+    };
+    reader.readAsText(file);
+    event.target.value = '';
+}
+
 let audCurrentProfe = null;
 let audCantPlanes = 5;
 let audSociosData = [];
