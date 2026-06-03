@@ -1208,14 +1208,13 @@ tr:hover td{background:#fafbfc;}
                     <label class="aud-form-label">Hallazgos Técnicos</label>
                     <textarea class="aud-form-textarea" id="audFHallazgos" rows="2" placeholder="Describir hallazgos observados..."></textarea>
                 </div>
-                <div style="font-size:.75rem;font-weight:700;color:var(--muted);text-transform:uppercase;letter-spacing:.8px;margin-bottom:8px;">Plan de Acción</div>
-                <div class="aud-form-group"><input class="aud-form-input" id="audFP1" placeholder="Acción correctiva 1..."></div>
-                <div class="aud-form-group"><input class="aud-form-input" id="audFP2" placeholder="Acción correctiva 2..."></div>
-                <div class="aud-form-group"><input class="aud-form-input" id="audFP3" placeholder="Acción correctiva 3..."></div>
+                <div class="aud-form-group">
+                    <label class="aud-form-label"><i class="fas fa-gauge-high" style="color:var(--accent);margin-right:5px;"></i>RPE / Escala Subjetiva de Esfuerzo</label>
+                    <textarea class="aud-form-textarea" id="audFRPE" rows="2" placeholder="Ej: RPE 7/10, escala Borg 14, percepción del esfuerzo, tolerancia al trabajo..."></textarea>
+                </div>
                 <div class="aud-modal-actions">
                     <button class="aud-btn-cancel" onclick="audCloseFormModal()">Cancelar</button>
                     <button class="aud-btn-save" id="audBtnGuardar" onclick="audSaveAudit()"><i class="fas fa-floppy-disk"></i> Guardar y Continuar</button>
-
                 </div>
             </div>
         </div>
@@ -3272,13 +3271,16 @@ function audAbrirSocio(nombre){
 
     // Restaurar valores si ya fue auditado
     const prev = audSociosAuditados[nombre];
-    ['audFHallazgos','audFP1','audFP2','audFP3'].forEach(id=>document.getElementById(id).value=prev?prev[id]||'':'');
+    ['audFHallazgos','audFRPE'].forEach(id=>document.getElementById(id).value=prev?prev[id]||'':'');
 
     document.getElementById('audFormSections').innerHTML=AUD_SECTIONS.map(sec=>{
-        const prevVal = prev?prev.semaforos[sec.key]:'verde';
+        const hoyM = new Date(); hoyM.setHours(0,0,0,0);
+        const planVenc = socio.vencPlan && socio.vencPlan < hoyM;
+        // Auto-semáforo: gestion = rojo si plan vencido (pero respeta valor guardado si ya fue auditado)
+        let prevVal = prev ? prev.semaforos[sec.key] : (sec.key==='gestion' && planVenc ? 'rojo' : 'verde');
         return `<div class="aud-section-block">
             <div style="display:flex;justify-content:space-between;align-items:center;flex-wrap:wrap;gap:8px;margin-bottom:8px;">
-                <div style="font-size:.84rem;font-weight:700;display:flex;align-items:center;gap:6px;"><i class="fas ${sec.icon}" style="color:var(--accent);font-size:.8rem;"></i>${sec.label}</div>
+                <div style="font-size:.84rem;font-weight:700;display:flex;align-items:center;gap:6px;"><i class="fas ${sec.icon}" style="color:var(--accent);font-size:.8rem;"></i>${sec.label}${sec.key==='gestion'&&planVenc&&!prev?'<span style="font-size:.6rem;background:#fee2e2;color:#ef4444;border-radius:4px;padding:1px 5px;margin-left:4px;">PLAN VENCIDO</span>':''}</div>
                 <div class="aud-sem-group">
                     <input type="radio" class="aud-sem-radio g" name="asem_${sec.key}" id="asem_${sec.key}_v" value="verde" ${prevVal==='verde'?'checked':''}><label class="aud-sem-lbl" for="asem_${sec.key}_v">🟢 Verde</label>
                     <input type="radio" class="aud-sem-radio y" name="asem_${sec.key}" id="asem_${sec.key}_a" value="amarillo" ${prevVal==='amarillo'?'checked':''}><label class="aud-sem-lbl" for="asem_${sec.key}_a">🟡 Amarillo</label>
@@ -3302,22 +3304,28 @@ function audCloseFormModal(){document.getElementById('audFormModal').classList.r
 
 function audSaveAudit(){
     const semaforos={}, obs={};
+
+    // Auto-semáforo: si el socio tiene plan vencido, gestion = rojo por defecto
+    const socioData = audSociosData.find(s=>s.nombre===audSocioActual);
+    const hoyAudit = new Date(); hoyAudit.setHours(0,0,0,0);
+    const planVencido = socioData && socioData.vencPlan && socioData.vencPlan < hoyAudit;
+
     AUD_SECTIONS.forEach(sec=>{
         const ch=document.querySelector(`input[name="asem_${sec.key}"]:checked`);
-        semaforos[sec.key]=ch?ch.value:'verde';
+        // Si el radio ya fue cambiado por el usuario, respetar su elección
+        // Si gestion y plan vencido y no tocaron el radio (viene en verde por defecto) → rojo
+        let val = ch ? ch.value : 'verde';
+        semaforos[sec.key]=val;
         obs[sec.key]=(document.getElementById('aobs_'+sec.key).value||'').trim();
     });
-    // Guardar auditoría del socio actual
+
     audSociosAuditados[audSocioActual]={
         semaforos, obs,
         audFHallazgos:(document.getElementById('audFHallazgos').value||'').trim(),
-        audFP1:(document.getElementById('audFP1').value||'').trim(),
-        audFP2:(document.getElementById('audFP2').value||'').trim(),
-        audFP3:(document.getElementById('audFP3').value||'').trim()
+        audFRPE:(document.getElementById('audFRPE').value||'').trim(),
     };
     audCloseFormModal();
     audRenderTablaHoy();
-    // Abrir siguiente socio no auditado automáticamente
     const siguiente = audSociosSeleccionados.find(s=>!audSociosAuditados[s.nombre]);
     if(siguiente) setTimeout(()=>audAbrirSocio(siguiente.nombre), 300);
 }
@@ -3350,7 +3358,7 @@ function audFinalizarDia(){
         nombre,
         semaforos:a.semaforos,
         hallazgos:a.audFHallazgos,
-        planes:[a.audFP1,a.audFP2,a.audFP3].filter(Boolean),
+        rpe:a.audFRPE,
         obs:a.obs
     }));
 
@@ -3394,7 +3402,7 @@ function audRenderHistorial(){
                     <div class="aud-chips">${dChips}</div>
                 </div>
                 ${d.hallazgos?`<div style="font-size:.76rem;color:var(--muted);margin-top:4px;line-height:1.4;"><i class="fas fa-circle-info" style="color:var(--accent);margin-right:3px;font-size:.7rem;"></i>${d.hallazgos}</div>`:''}
-                ${d.planes&&d.planes.length?`<div style="font-size:.72rem;color:var(--muted);margin-top:5px;">${d.planes.map(p=>`<span style="display:inline-block;background:var(--card);border:1px solid var(--border);border-radius:4px;padding:1px 6px;margin:1px;">→ ${p}</span>`).join('')}</div>`:''}
+                ${d.rpe?`<div style="font-size:.72rem;color:var(--muted);margin-top:3px;"><i class="fas fa-gauge-high" style="color:#f59e0b;margin-right:3px;font-size:.65rem;"></i><span style="color:#f59e0b;font-weight:600;">RPE:</span> ${d.rpe}</div>`:''}
                 ${Object.keys(d.obs||{}).filter(k=>d.obs[k]).map(k=>{
                     const sec=AUD_SECTIONS.find(s=>s.key===k);
                     return sec&&d.obs[k]?`<div style="font-size:.7rem;color:var(--muted);margin-top:3px;"><span style="color:var(--accent);font-weight:600;">${sec.label.split(' ')[0]}:</span> ${d.obs[k]}</div>`:'';
@@ -3427,6 +3435,10 @@ function audRenderHistorial(){
                 </div>
                 <div style="display:flex;align-items:center;gap:6px;flex-shrink:0;">
                     <div class="aud-chips">${chips}</div>
+                    <button onclick="event.stopPropagation();audEditarAuditoria('${a.id}')" title="Editar auditoría"
+                        style="width:26px;height:26px;border-radius:6px;border:1px solid #bfdbfe;background:#eff6ff;color:#2563eb;cursor:pointer;display:flex;align-items:center;justify-content:center;flex-shrink:0;">
+                        <i class="fas fa-pen" style="font-size:.6rem;pointer-events:none;"></i>
+                    </button>
                     <button onclick="event.stopPropagation();audBorrar('${a.id}')" title="Borrar auditoría"
                         style="width:26px;height:26px;border-radius:6px;border:1px solid #fca5a5;background:#fee2e2;color:#ef4444;cursor:pointer;display:flex;align-items:center;justify-content:center;flex-shrink:0;">
                         <i class="fas fa-trash" style="font-size:.65rem;pointer-events:none;"></i>
@@ -3472,6 +3484,100 @@ function audSwitchTab(tab){
 function audBorrar(id){
     if(!confirm('¿Borrar esta auditoría? No se puede deshacer.')) return;
     audHistorial = audHistorial.filter(a=>a.id!==id);
+    audRenderHistorial();
+    audRenderDashboard();
+    audGuardarHistorial();
+}
+
+// Modal de edición de auditoría ya guardada
+let audEditandoId = null;
+
+function audEditarAuditoria(id){
+    const a = audHistorial.find(x=>x.id===id);
+    if(!a) return;
+    audEditandoId = id;
+
+    // Crear modal de edición
+    let modal = document.getElementById('audEditModal');
+    if(!modal){
+        modal = document.createElement('div');
+        modal.id = 'audEditModal';
+        modal.className = 'aud-modal-overlay';
+        modal.style.zIndex = '1100';
+        document.body.appendChild(modal);
+    }
+
+    // Reconstruir socios de esa auditoría
+    const sociosList = a.detalleSocios || [];
+
+    modal.innerHTML = `<div class="aud-modal" style="max-height:80vh;overflow-y:auto;">
+        <div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:14px;">
+            <div>
+                <div class="aud-modal-title">Editar Auditoría</div>
+                <div style="font-size:.72rem;color:var(--muted);">${a.profe} · ${a.date}</div>
+            </div>
+            <button onclick="audCerrarEdicion()" style="background:none;border:none;color:var(--muted);font-size:1.1rem;cursor:pointer;">✕</button>
+        </div>
+        ${sociosList.length ? sociosList.map(d=>`
+            <div style="border:1px solid var(--border);border-radius:10px;padding:12px;margin-bottom:10px;">
+                <div style="font-weight:700;font-size:.85rem;margin-bottom:10px;">${d.nombre}</div>
+                ${AUD_SECTIONS.map(sec=>`
+                    <div style="display:flex;justify-content:space-between;align-items:center;flex-wrap:wrap;gap:6px;margin-bottom:6px;">
+                        <span style="font-size:.78rem;font-weight:600;">${sec.label}</span>
+                        <div class="aud-sem-group">
+                            <input type="radio" class="aud-sem-radio g" name="edit_${id}_${d.nombre}_${sec.key}" id="edit_${id}_${d.nombre}_${sec.key}_v" value="verde" ${(d.semaforos||{})[sec.key]==='verde'?'checked':''}><label class="aud-sem-lbl" for="edit_${id}_${d.nombre}_${sec.key}_v">🟢</label>
+                            <input type="radio" class="aud-sem-radio y" name="edit_${id}_${d.nombre}_${sec.key}" id="edit_${id}_${d.nombre}_${sec.key}_a" value="amarillo" ${(d.semaforos||{})[sec.key]==='amarillo'?'checked':''}><label class="aud-sem-lbl" for="edit_${id}_${d.nombre}_${sec.key}_a">🟡</label>
+                            <input type="radio" class="aud-sem-radio r" name="edit_${id}_${d.nombre}_${sec.key}" id="edit_${id}_${d.nombre}_${sec.key}_r" value="rojo" ${(d.semaforos||{})[sec.key]==='rojo'?'checked':''}><label class="aud-sem-lbl" for="edit_${id}_${d.nombre}_${sec.key}_r">🔴</label>
+                        </div>
+                    </div>`).join('')}
+                <div style="margin-top:6px;">
+                    <div style="font-size:.68rem;color:var(--muted);margin-bottom:3px;">Hallazgos / RPE</div>
+                    <input style="width:100%;background:var(--bg);border:1px solid var(--border);border-radius:6px;padding:6px 8px;font-size:.75rem;color:var(--text);" id="edit_hall_${id}_${d.nombre}" value="${(d.hallazgos||'').replace(/"/g,'&quot;')}">
+                </div>
+            </div>`).join('') : '<p style="color:var(--muted);font-size:.8rem;">Sin detalle de socios en esta auditoría.</p>'}
+        <div style="display:flex;justify-content:flex-end;gap:8px;margin-top:14px;">
+            <button class="aud-btn-cancel" onclick="audCerrarEdicion()">Cancelar</button>
+            <button class="aud-btn-save" onclick="audGuardarEdicion('${id}')"><i class="fas fa-floppy-disk"></i> Guardar cambios</button>
+        </div>
+    </div>`;
+    modal.classList.add('open');
+}
+
+function audCerrarEdicion(){
+    const m = document.getElementById('audEditModal');
+    if(m) m.classList.remove('open');
+    audEditandoId = null;
+}
+
+function audGuardarEdicion(id){
+    const a = audHistorial.find(x=>x.id===id);
+    if(!a || !a.detalleSocios) return;
+
+    // Actualizar semáforos de cada socio
+    a.detalleSocios.forEach(d=>{
+        AUD_SECTIONS.forEach(sec=>{
+            const ch = document.querySelector(`input[name="edit_${id}_${d.nombre}_${sec.key}"]:checked`);
+            if(ch) d.semaforos[sec.key] = ch.value;
+        });
+        const hallEl = document.getElementById(`edit_hall_${id}_${d.nombre}`);
+        if(hallEl) d.hallazgos = hallEl.value.trim();
+    });
+
+    // Recalcular semáforo resumen
+    const counts={gestion:{v:0,a:0,r:0},diagnostico:{v:0,a:0,r:0},metodologia:{v:0,a:0,r:0},custom:{v:0,a:0,r:0}};
+    a.detalleSocios.forEach(d=>{
+        AUD_SECTIONS.forEach(sec=>{
+            if(d.semaforos[sec.key]==='verde') counts[sec.key].v++;
+            else if(d.semaforos[sec.key]==='amarillo') counts[sec.key].a++;
+            else counts[sec.key].r++;
+        });
+    });
+    AUD_SECTIONS.forEach(sec=>{
+        const c=counts[sec.key];
+        a.semaforos[sec.key]=c.r>0?'rojo':c.a>0?'amarillo':'verde';
+    });
+
+    audCerrarEdicion();
     audRenderHistorial();
     audRenderDashboard();
     audGuardarHistorial();
