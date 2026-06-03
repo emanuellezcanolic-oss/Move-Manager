@@ -2830,10 +2830,17 @@ function audSetSyncUI(state, msg=''){
 
 async function audCargarHistorial(){
     audSetSyncUI('loading');
+    // Mostrar lo que haya en localStorage mientras carga
+    const raw = localStorage.getItem(AUD_LS_KEY);
+    if(raw){ audHistorial = JSON.parse(raw).historial||[]; audRenderHistorial(); audRenderDashboard(); }
     try {
+        const controller = new AbortController();
+        const timeout = setTimeout(()=>controller.abort(), 8000);
         const resp = await fetch(`https://api.github.com/gists/${AUD_GIST_ID}`,{
-            headers:{'Authorization':`token ${AUD_TOKEN}`,'Accept':'application/vnd.github.v3+json'}
+            headers:{'Authorization':`token ${AUD_TOKEN}`,'Accept':'application/vnd.github.v3+json'},
+            signal: controller.signal
         });
+        clearTimeout(timeout);
         if(!resp.ok) throw new Error(`HTTP ${resp.status}`);
         const data = await resp.json();
         const content = data.files[AUD_GIST_FILE]?.content;
