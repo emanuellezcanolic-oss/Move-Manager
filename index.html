@@ -2877,8 +2877,6 @@ async function audGuardarHistorial(){
     }
 }
 
-}
-
 function audExportar(){
     const data = JSON.stringify({historial: audHistorial, exported: new Date().toISOString()}, null, 2);
     const blob = new Blob([data], {type:'application/json'});
