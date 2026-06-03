@@ -2819,15 +2819,13 @@ function audSetSyncUI(state, msg=''){
     el.innerHTML = state==='idle' ? '' : `<i class="fas ${icons[state]}" style="color:${colors[state]};margin-right:4px;font-size:.75rem;"></i><span style="font-size:.75rem;color:${colors[state]};">${msg||labels[state]}</span>`;
 }
 
-// Cargar historial desde Gist
+// Cargar historial desde Gist — lectura pública, sin token
 async function audCargarHistorial(){
     audSetSyncUI('loading');
     try {
+        // El Gist es público — no necesita token para leer
         const resp = await fetch(`https://api.github.com/gists/${AUD_GIST_ID}`, {
-            headers: {
-                'Accept': 'application/vnd.github.v3+json',
-                'Authorization': `token ${AUD_TOKEN}`
-            }
+            headers: {'Accept': 'application/vnd.github.v3+json'}
         });
         if(!resp.ok) throw new Error(`HTTP ${resp.status}`);
         const data = await resp.json();
@@ -2842,7 +2840,7 @@ async function audCargarHistorial(){
         setTimeout(()=>audSetSyncUI('idle'), 2000);
     } catch(e){
         console.warn('No se pudo cargar historial:', e);
-        audSetSyncUI('error', 'Sin conexión al servidor — guardado solo local');
+        audSetSyncUI('error', 'Sin conexión — modo local');
         audRenderHistorial();
     }
 }
