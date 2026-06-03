@@ -3122,8 +3122,8 @@ function audCargarPlanilla(){
     } else {
         // Otros entrenadores: leer CSV de Google Sheets en tiempo real
         const t = AUD_TRAINERS.find(x=>x.id===audCurrentProfe);
-        const url = `https://docs.google.com/spreadsheets/d/${t.sheetId}/export?format=csv&gid=${t.gid}`;
-        fetch(url).then(r=>r.text()).then(csv=>{
+        const url = `https://docs.google.com/spreadsheets/d/${t.sheetId}/export?format=csv&gid=${t.gid}&t=${Date.now()}`;
+        fetch(url, {cache:'no-store'}).then(r=>r.text()).then(csv=>{
             const socios = audParsearCSV(csv, t.renovCond);
             audProcesarSocios(socios);
         }).catch(e=>{
@@ -3783,8 +3783,8 @@ async function recepCargarDatos(id){
     document.getElementById('recepError').style.display='none';
 
     try {
-        const url = `https://docs.google.com/spreadsheets/d/${r.sheetId}/export?format=csv&gid=${r.gid}`;
-        const resp = await fetch(url);
+        const url = `https://docs.google.com/spreadsheets/d/${r.sheetId}/export?format=csv&gid=${r.gid}&t=${Date.now()}`;
+        const resp = await fetch(url, {cache:'no-store'});
         if(!resp.ok) throw new Error(`HTTP ${resp.status}`);
         const csv = await resp.text();
         const datos = recepParsear(csv);
