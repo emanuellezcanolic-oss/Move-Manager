@@ -2812,9 +2812,6 @@ const AUD_TRAINERS = [
 ];
 
 let audHistorial = [];
-// URL del Apps Script para escribir hallazgos en la planilla del entrenador
-// Pegá tu URL aquí después de deployar el script en Google Apps Script
-const AUD_APPS_SCRIPT_URL = 'https://script.google.com/macros/s/AKfycbyyiQy8IrVDcBoRLbF4D8iAidphBs0PBEQzIFivBKMOlQjoUlg_5rtYC9p7hOauMXQv/exec';
 
 const AUD_GIST_ID = '0894016bb00afb2f7fd49964896ee0db';
 const AUD_GIST_FILE = 'auditoria_historial.json';
@@ -3413,39 +3410,6 @@ function audFinalizarDia(){
     document.getElementById('audBtnFinalizar').style.display='none';
     audRenderTablaHoy();
     document.getElementById('audHistorial').scrollIntoView({behavior:'smooth'});
-
-    // Escribir hallazgos en la planilla del entrenador (si Apps Script configurado)
-    audSyncHallazgosToSheet(t, detalleSocios);
-}
-
-async function audSyncHallazgosToSheet(trainer, detalleSocios){
-    if(!AUD_APPS_SCRIPT_URL) return;
-    const socsConHallazgo = detalleSocios.filter(d=>d.hallazgos && d.hallazgos.trim());
-    if(!socsConHallazgo.length) return;
-
-    let ok=0;
-    for(const d of socsConHallazgo){
-        try{
-            // GET con params en URL — Apps Script convierte POST→GET en redirect,
-            // así que mandamos GET directo con doGet para que los params no se pierdan
-            const params = new URLSearchParams({
-                sheetId:  trainer.sheetId,
-                gid:      trainer.gid,
-                nombre:   d.nombre,
-                hallazgo: d.hallazgos,
-                prioridad: d.rpe ? `RPE: ${d.rpe}` : ''
-            });
-            await fetch(`${AUD_APPS_SCRIPT_URL}?${params}`, { mode:'no-cors' });
-            ok++;
-            console.log(`Sync enviado: ${d.nombre} → ${d.hallazgos}`);
-        } catch(e){
-            console.error(`Sync error ${d.nombre}:`, e);
-        }
-    }
-    if(ok>0){
-        audSetSyncUI('ok', `${ok} hallazgo${ok!==1?'s':''} enviado${ok!==1?'s':''} a planilla`);
-        setTimeout(()=>audSetSyncUI('idle'),3000);
-    }
 }
 
 function audRenderHistorial(){
