@@ -3426,7 +3426,8 @@ async function audSyncHallazgosToSheet(trainer, detalleSocios){
     let ok=0;
     for(const d of socsConHallazgo){
         try{
-            // URLSearchParams evita el preflight CORS que bloquea Apps Script
+            // GET con params en URL — Apps Script convierte POST→GET en redirect,
+            // así que mandamos GET directo con doGet para que los params no se pierdan
             const params = new URLSearchParams({
                 sheetId:  trainer.sheetId,
                 gid:      trainer.gid,
@@ -3434,13 +3435,9 @@ async function audSyncHallazgosToSheet(trainer, detalleSocios){
                 hallazgo: d.hallazgos,
                 prioridad: d.rpe ? `RPE: ${d.rpe}` : ''
             });
-            await fetch(AUD_APPS_SCRIPT_URL, {
-                method:   'POST',
-                mode:     'no-cors',   // evita error CORS — Apps Script no devuelve headers CORS
-                body:     params
-            });
+            await fetch(`${AUD_APPS_SCRIPT_URL}?${params}`, { mode:'no-cors' });
             ok++;
-            console.log(`Sync OK: ${d.nombre} → ${d.hallazgos}`);
+            console.log(`Sync enviado: ${d.nombre} → ${d.hallazgos}`);
         } catch(e){
             console.error(`Sync error ${d.nombre}:`, e);
         }
