@@ -2812,6 +2812,10 @@ const AUD_TRAINERS = [
 ];
 
 let audHistorial = [];
+// URL del Apps Script para escribir hallazgos en la planilla del entrenador
+// Pegá tu URL aquí después de deployar el script en Google Apps Script
+const AUD_APPS_SCRIPT_URL = '';
+
 const AUD_GIST_ID = '0894016bb00afb2f7fd49964896ee0db';
 const AUD_GIST_FILE = 'auditoria_historial.json';
 const AUD_LS_KEY = 'move_auditoria_historial';
@@ -3409,6 +3413,39 @@ function audFinalizarDia(){
     document.getElementById('audBtnFinalizar').style.display='none';
     audRenderTablaHoy();
     document.getElementById('audHistorial').scrollIntoView({behavior:'smooth'});
+
+    // Escribir hallazgos en la planilla del entrenador (si Apps Script configurado)
+    audSyncHallazgosToSheet(t, detalleSocios);
+}
+
+async function audSyncHallazgosToSheet(trainer, detalleSocios){
+    if(!AUD_APPS_SCRIPT_URL) return;
+    const socsConHallazgo = detalleSocios.filter(d=>d.hallazgos && d.hallazgos.trim());
+    if(!socsConHallazgo.length) return;
+
+    let ok=0, err=0;
+    for(const d of socsConHallazgo){
+        try{
+            const resp = await fetch(AUD_APPS_SCRIPT_URL, {
+                method:'POST',
+                headers:{'Content-Type':'application/json'},
+                body: JSON.stringify({
+                    sheetId:  trainer.sheetId,
+                    gid:      trainer.gid,
+                    nombre:   d.nombre,
+                    hallazgo: d.hallazgos,
+                    prioridad: d.rpe ? `RPE: ${d.rpe}` : ''
+                })
+            });
+            const json = await resp.json();
+            if(json.ok) ok++; else err++;
+        } catch(e){ err++; }
+    }
+    console.log(`Sync planilla: ${ok} escritos, ${err} errores`);
+    if(ok>0){
+        audSetSyncUI('ok', `${ok} hallazgo${ok!==1?'s':''} guardado${ok!==1?'s':''} en planilla`);
+        setTimeout(()=>audSetSyncUI('idle'),3000);
+    }
 }
 
 function audRenderHistorial(){
