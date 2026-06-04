@@ -3423,27 +3423,30 @@ async function audSyncHallazgosToSheet(trainer, detalleSocios){
     const socsConHallazgo = detalleSocios.filter(d=>d.hallazgos && d.hallazgos.trim());
     if(!socsConHallazgo.length) return;
 
-    let ok=0, err=0;
+    let ok=0;
     for(const d of socsConHallazgo){
         try{
-            const resp = await fetch(AUD_APPS_SCRIPT_URL, {
-                method:'POST',
-                headers:{'Content-Type':'application/json'},
-                body: JSON.stringify({
-                    sheetId:  trainer.sheetId,
-                    gid:      trainer.gid,
-                    nombre:   d.nombre,
-                    hallazgo: d.hallazgos,
-                    prioridad: d.rpe ? `RPE: ${d.rpe}` : ''
-                })
+            // URLSearchParams evita el preflight CORS que bloquea Apps Script
+            const params = new URLSearchParams({
+                sheetId:  trainer.sheetId,
+                gid:      trainer.gid,
+                nombre:   d.nombre,
+                hallazgo: d.hallazgos,
+                prioridad: d.rpe ? `RPE: ${d.rpe}` : ''
             });
-            const json = await resp.json();
-            if(json.ok) ok++; else err++;
-        } catch(e){ err++; }
+            await fetch(AUD_APPS_SCRIPT_URL, {
+                method:   'POST',
+                mode:     'no-cors',   // evita error CORS — Apps Script no devuelve headers CORS
+                body:     params
+            });
+            ok++;
+            console.log(`Sync OK: ${d.nombre} → ${d.hallazgos}`);
+        } catch(e){
+            console.error(`Sync error ${d.nombre}:`, e);
+        }
     }
-    console.log(`Sync planilla: ${ok} escritos, ${err} errores`);
     if(ok>0){
-        audSetSyncUI('ok', `${ok} hallazgo${ok!==1?'s':''} guardado${ok!==1?'s':''} en planilla`);
+        audSetSyncUI('ok', `${ok} hallazgo${ok!==1?'s':''} enviado${ok!==1?'s':''} a planilla`);
         setTimeout(()=>audSetSyncUI('idle'),3000);
     }
 }
