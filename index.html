@@ -4369,6 +4369,11 @@ function aeGvizCSV(sid, hoja){
     const url=`https://docs.google.com/spreadsheets/d/${sid}/gviz/tq?tqx=out:csv&sheet=${encodeURIComponent(hoja)}&t=${Date.now()}`;
     return fetch(url,{cache:'no-store'}).then(r=>r.text()).then(aeParseCSV);
 }
+// Export CSV de la pestaña "Planilla 2026" (gid 24691950) — layout estable: header fila5, socios fila6+
+function aeExportCSV(sid){
+    const url=`https://docs.google.com/spreadsheets/d/${sid}/export?format=csv&gid=24691950&t=${Date.now()}`;
+    return fetch(url,{cache:'no-store'}).then(r=>r.text()).then(aeParseCSV);
+}
 function aeNum(s){
     if(s==null) return null;
     s=String(s).replace('%','').replace(/\./g,'').replace(',','.').trim();
@@ -4383,7 +4388,7 @@ async function aeLoadLive(id){
     const base=AE_FALLBACK[id];
     const [obj, plan, tar] = await Promise.all([
         aeGvizCSV(sid,'Objetivos'),
-        aeGvizCSV(sid,'Planilla 2026'),
+        aeExportCSV(sid),                 // Planilla 2026 vía export (layout estable, socios fila6+)
         aeGvizCSV(sid,'Tareas Mensuales')
     ]);
 
