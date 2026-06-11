@@ -1681,7 +1681,7 @@ function go(sec){
     if(sec==='bari-enc') loadEncuestasBari();
     if(sec==='auditoria'){ audInitSelector(); }
     if(sec==='recepcion'){ recepInit(); }
-    if(sec==='analisis-entrenadores'){ aeRender(aeMesActual); }
+    if(sec==='analisis-entrenadores'){ aeSelProfe(aeProfeActual); }
     closeSb();
 }
 function toggleSb(){
@@ -4330,15 +4330,141 @@ const AE_GIULIANO = {
     ],
 };
 
-const AE_DATA = {belen: AE_BELEN, fer: AE_FER, enzo: AE_ENZO, javi: AE_JAVI, agus: AE_AGUS, camila: AE_CAMILA, carla: AE_CARLA, giuliano: AE_GIULIANO};
+// Datos hardcodeados = SOLO fallback si falla la red. Lo real se lee vivo de la planilla.
+const AE_FALLBACK = {belen: AE_BELEN, fer: AE_FER, enzo: AE_ENZO, javi: AE_JAVI, agus: AE_AGUS, camila: AE_CAMILA, carla: AE_CARLA, giuliano: AE_GIULIANO};
+const AE_DATA = {...AE_FALLBACK};   // se va pisando con datos vivos
 let aeProfeActual = 'belen';
+let aeLiveCargado = {};   // {id: true} para no refetchear
 
-function aeSelProfe(id, btn){
+// sheetId de cada planilla
+const AE_SHEETS = {
+    belen:'1_sQLCugQmvqxpL7LdfQ0UyWqwQfpsDfR', fer:'1clVzTQMCSt48xRpHTzxnfUl1kCuoSQhS',
+    enzo:'1WiQnNgDvC8K7FWCIh0xDDrPiPy7IRkO-', javi:'1vtE6cjgvHxJwWpvw89ynoadcZbyTNHpx',
+    agus:'1XCjiaBOYOWVaPLPtI9kCRYdqJAySSIeQ', camila:'1n8n7z1RgJlvyvdzvc8DGqI4e-64bStI1',
+    carla:'19zuljlNy--GZPm9Sdf2xwlACHmTsrsHZ', giuliano:'1bOyKt3MJ180nv6pPxCJOutBDlSAP22nt'
+};
+// Columnas de meses en pestaña "Planilla 2026" (ENE-DIC, salta col15 vacía)
+const AE_MES_COLS = [11,12,13,14,16,17,18,19,20,21,22,23];
+
+// Parser CSV robusto (maneja comas dentro de comillas)
+function aeParseCSV(txt){
+    const rows=[]; let row=[], cur='', q=false;
+    for(let i=0;i<txt.length;i++){
+        const c=txt[i];
+        if(q){
+            if(c==='"'){ if(txt[i+1]==='"'){cur+='"';i++;} else q=false; }
+            else cur+=c;
+        } else {
+            if(c==='"') q=true;
+            else if(c===','){ row.push(cur); cur=''; }
+            else if(c==='\n'){ row.push(cur); rows.push(row); row=[]; cur=''; }
+            else if(c==='\r'){}
+            else cur+=c;
+        }
+    }
+    if(cur!==''||row.length){ row.push(cur); rows.push(row); }
+    return rows;
+}
+function aeGvizCSV(sid, hoja){
+    const url=`https://docs.google.com/spreadsheets/d/${sid}/gviz/tq?tqx=out:csv&sheet=${encodeURIComponent(hoja)}&t=${Date.now()}`;
+    return fetch(url,{cache:'no-store'}).then(r=>r.text()).then(aeParseCSV);
+}
+function aeNum(s){
+    if(s==null) return null;
+    s=String(s).replace('%','').replace(/\./g,'').replace(',','.').trim();
+    const n=parseFloat(s);
+    return isNaN(n)?null:n;
+}
+
+// Construye el objeto datos (mismo shape que el hardcodeado) leyendo las 3 pestañas
+async function aeLoadLive(id){
+    const sid=AE_SHEETS[id];
+    if(!sid) throw new Error('sin sheetId');
+    const base=AE_FALLBACK[id];
+    const [obj, plan, tar] = await Promise.all([
+        aeGvizCSV(sid,'Objetivos'),
+        aeGvizCSV(sid,'Planilla 2026'),
+        aeGvizCSV(sid,'Tareas Mensuales')
+    ]);
+
+    // ── Objetivos: fila datos = 13 + m*6, puntos en fila+4 col10 ──
+    const objetivos=[], movimiento=[], tareas=[];
+    for(let m=0;m<12;m++){
+        const dr=13+m*6, pr=dr+4;
+        const drow=obj[dr]||[], prow=obj[pr]||[];
+        const activos = aeNum(drow[5])||0;
+        let des = aeNum(drow[6]); if(des==null) des=0;
+        const tarea = aeNum(drow[7])||0;
+        const reeval = aeNum(drow[8])||0;
+        const puntaje = aeNum(prow[10])||0;
+        const retencion = activos>0 && aeNum(drow[6])!=null ? Math.round((100-des)*10)/10 : 0;
+        objetivos.push({activos, desercion:Math.round(des*10)/10, tarea:Math.round(tarea), reeval:Math.round(reeval*100)/100, puntaje, retencion});
+
+        // ── Movimiento: contar condiciones en la columna del mes ──
+        const col=AE_MES_COLS[m];
+        const cnt={renueva:0,luciaTani:0,liberado:0,vacaciones:0,deriv:0,baja:0};
+        for(let i=6;i<plan.length;i++){
+            const r=plan[i]; if(!r||r.length<=col) continue;
+            const nombre=(r[4]||'').trim(); if(!nombre) continue;
+            if(!/^\d/.test((r[2]||'').trim())) continue;
+            const v=(r[col]||'').trim().toUpperCase();
+            if(!v) continue;
+            if(v.startsWith('RENUEVA')||v==='NUEVO') cnt.renueva++;
+            else if(v==='LUCIA'||v==='TANI'||v==='RUBEN'||v==='KEILA') cnt.luciaTani++;
+            else if(v==='LIBERADO') cnt.liberado++;
+            else if(v==='VACACIONES') cnt.vacaciones++;
+            else if(v.startsWith('DERIV')) cnt.deriv++;
+            else if(v==='BAJA') cnt.baja++;
+        }
+        movimiento.push(cnt);
+
+        // ── Tareas: banda=m//4, grupo=m%4. Header banda en fila banda*8, tareas debajo ──
+        const banda=Math.floor(m/4), grupo=m%4;
+        const cT=grupo*4+1, cC=grupo*4+3;
+        const ts=[];
+        const fIni=banda*8+1;
+        for(let f=fIni; f<fIni+6 && f<tar.length; f++){
+            const row=tar[f]||[];
+            const desc=(row[cT]||'').trim();
+            const obs=(row[cT+1]||'').trim();
+            const cond=(row[cC]||'').trim();
+            if(!desc || desc.toLowerCase().includes('descripción de tarea') || desc==='Tarea') continue;
+            const ok = cond==='✔'||cond==='✓'||cond.toUpperCase()==='SI'||cond.toUpperCase()==='SÍ';
+            ts.push({desc, obs:obs||'—', ok});
+        }
+        tareas.push(ts);
+    }
+
+    // Mostrar meses ENE hasta el último con socios activos (evita meses futuros vacíos)
+    let ultimo=0;
+    objetivos.forEach((o,i)=>{ if(o.activos>0) ultimo=i; });
+    const n=ultimo+1;
+    const MNOMBRE=['ENE','FEB','MAR','ABR','MAY','JUN','JUL','AGO','SEP','OCT','NOV','DIC'];
+    const MFULL=['Enero','Febrero','Marzo','Abril','Mayo','Junio','Julio','Agosto','Septiembre','Octubre','Noviembre','Diciembre'];
+
+    const datos={
+        nombre: base?base.nombre:id, sede: base?base.sede:'',
+        meses: MNOMBRE.slice(0,n),
+        mesesFull: MFULL.slice(0,n),
+        objetivos: objetivos.slice(0,n),
+        movimiento: movimiento.slice(0,n),
+        tareas: tareas.slice(0,n)
+    };
+    AE_DATA[id]=datos;
+    aeLiveCargado[id]=true;
+    return datos;
+}
+
+async function aeSelProfe(id, btn){
     aeProfeActual = id;
     document.querySelectorAll('#section-analisis-entrenadores .tab').forEach(b=>b.classList.remove('active'));
     if(btn) btn.classList.add('active');
-    // Ir al mes más reciente con datos
-    const datos = AE_DATA[id];
+    // Cargar datos vivos (si no están cacheados). Fallback al hardcodeado si falla.
+    if(!aeLiveCargado[id]){
+        try { await aeLoadLive(id); }
+        catch(e){ console.warn('AE live fallo, uso fallback', id, e); AE_DATA[id]=AE_FALLBACK[id]; }
+    }
+    const datos = AE_DATA[id] || AE_FALLBACK[id];
     const mesConDatos = datos.objetivos.map((o,i)=>o.activos>0?i:-1).filter(i=>i>=0);
     aeMesActual = mesConDatos.length ? mesConDatos[mesConDatos.length-1] : 4;
     aeRender(aeMesActual);
