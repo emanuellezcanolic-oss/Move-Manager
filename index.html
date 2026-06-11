@@ -4343,8 +4343,9 @@ const AE_SHEETS = {
     agus:'1XCjiaBOYOWVaPLPtI9kCRYdqJAySSIeQ', camila:'1n8n7z1RgJlvyvdzvc8DGqI4e-64bStI1',
     carla:'19zuljlNy--GZPm9Sdf2xwlACHmTsrsHZ', giuliano:'1bOyKt3MJ180nv6pPxCJOutBDlSAP22nt'
 };
-// Columnas de meses en pestaña "Planilla 2026" (ENE-DIC, salta col15 vacía)
-const AE_MES_COLS = [11,12,13,14,16,17,18,19,20,21,22,23];
+// Columnas de meses en pestaña "Planilla 2026" (export). Hay huecos: col15 (ABR→MAY) y col20 (AGO→SEP).
+// ENE11 FEB12 MAR13 ABR14 [15] MAY16 JUN17 JUL18 AGO19 [20] SEP21 OCT22 NOV23 DIC24
+const AE_MES_COLS = [11,12,13,14,16,17,18,19,21,22,23,24];
 
 // Parser CSV robusto (maneja comas dentro de comillas)
 function aeParseCSV(txt){
