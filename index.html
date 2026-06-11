@@ -4426,7 +4426,8 @@ async function aeLoadLive(id){
         for(let f=fIni; f<fIni+6 && f<tar.length; f++){
             const row=tar[f]||[];
             const desc=(row[cT]||'').trim();
-            const obs=(row[cT+1]||'').trim();
+            let obs=(row[cT+1]||'').trim();
+            if(obs==='Observaciones') obs='';   // placeholder vacío de la planilla
             const cond=(row[cC]||'').trim();
             if(!desc || desc.toLowerCase().includes('descripción de tarea') || desc==='Tarea') continue;
             const ok = cond==='✔'||cond==='✓'||cond.toUpperCase()==='SI'||cond.toUpperCase()==='SÍ';
