@@ -2904,6 +2904,33 @@ async function audCargarHistorial(){
     }
 }
 
+async function audGuardarAuditados(){
+    const ahora = new Date();
+    const mesActual = ahora.getFullYear()+'-'+String(ahora.getMonth()+1).padStart(2,'0');
+    const lsKey = 'move_auditados_mes';
+    const data = {mes:mesActual, auditados:audSociosAuditados};
+    
+    // Guardar en localStorage inmediatamente
+    localStorage.setItem(lsKey, JSON.stringify(data));
+    
+    // Sincronizar con Gist
+    const body = JSON.stringify({files:{'auditados_mes.json':{content:JSON.stringify(data, null, 2)}}});
+    for(let i=0;i<2;i++){
+        try {
+            const resp = await fetch(`https://api.github.com/gists/0894016bb00afb2f7fd49964896ee0db`,{
+                method:'PATCH',
+                headers:{'Authorization':`token ${AUD_TOKEN}`,'Content-Type':'application/json','Accept':'application/vnd.github.v3+json'},
+                body
+            });
+            if(!resp.ok) throw new Error(`HTTP ${resp.status}`);
+            return;
+        } catch(e){
+            if(i===1) console.error('No se pudo sincronizar auditados');
+            else await new Promise(r=>setTimeout(r,800));
+        }
+    }
+}
+
 async function audGuardarHistorial(){
     localStorage.setItem(AUD_LS_KEY, JSON.stringify({historial:audHistorial}));
     audSetSyncUI('saving');
@@ -2996,6 +3023,7 @@ function audInitSelector(){
         </div>`).join('');
     document.getElementById('audStep2').style.display='none';
     document.getElementById('audPlanillaKpis').style.display='none';
+    audCargarAuditados();
     audCargarHistorial();
 }
 
@@ -3124,6 +3152,44 @@ const DATOS_BELU = [
     ["Guzman Mariela OL", "27/05/2026", "", "16/03/2026", "", "", ["RENUEVA", "RENUEVA", "RENUEVA", "DERIV. Online", ""]],
 ];
 
+function audCargarAuditados(){
+    const ahora = new Date();
+    const mesActual = ahora.getFullYear()+'-'+String(ahora.getMonth()+1).padStart(2,'0');
+    const lsKey = 'move_auditados_mes';
+    
+    // Cargar desde localStorage (inmediato)
+    const lsData = localStorage.getItem(lsKey);
+    if(lsData){
+        try{
+            const data = JSON.parse(lsData);
+            if(data.mes === mesActual){
+                audSociosAuditados = data.auditados || {};
+            } else {
+                audSociosAuditados = {};
+            }
+        } catch(e){
+            audSociosAuditados = {};
+        }
+    } else {
+        audSociosAuditados = {};
+    }
+    
+    // Sincronizar con Gist en background
+    const controller = new AbortController();
+    const timeout = setTimeout(()=>controller.abort(), 5000);
+    
+    fetch(`https://gist.githubusercontent.com/emanuellezcanolic-oss/0894016bb00afb2f7fd49964896ee0db/raw/auditados_mes.json?t=${Date.now()}`, {signal:controller.signal})
+        .then(r=>r.json())
+        .then(gistData=>{
+            if(gistData.mes === mesActual){
+                audSociosAuditados = gistData.auditados || {};
+                localStorage.setItem(lsKey, JSON.stringify(gistData));
+            }
+        })
+        .catch(()=>{})
+        .finally(()=>clearTimeout(timeout));
+}
+
 function audCargarPlanilla(){
     const t = AUD_TRAINERS.find(x=>x.id===audCurrentProfe);
     document.getElementById('audPlanillaKpis').style.display='block';
@@ -3132,6 +3198,9 @@ function audCargarPlanilla(){
     document.getElementById('audPlanKpis').innerHTML='<div style="color:var(--muted);font-size:.8rem;">Cargando planilla...</div>';
     document.getElementById('audVencTable').innerHTML='';
     document.getElementById('audHoyTable').innerHTML='';
+    
+    // Cargar los auditados del mes actual
+    audCargarAuditados();
 
     function parseDate(s){
         if(!s||s.length<5) return null;
@@ -3396,6 +3465,7 @@ function audSaveAudit(){
     };
     audCloseFormModal();
     audRenderTablaHoy();
+    audGuardarAuditados();
     const siguiente = audSociosSeleccionados.find(s=>!audSociosAuditados[s.nombre]);
     if(siguiente) setTimeout(()=>audAbrirSocio(siguiente.nombre), 300);
 }
