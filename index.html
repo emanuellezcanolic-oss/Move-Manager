@@ -3246,12 +3246,13 @@ function audProcesarSocios(socios){
             </tr>`;
         }).join('');
 
-    // Selección ALEATORIA de socios a auditar
-    const shuffled = [...activos].sort(()=>Math.random()-0.5);
-    const paraAud = shuffled.slice(0, audCantPlanes);
-    audSociosSeleccionados=paraAud;
-    audSociosAuditados={};
-    document.getElementById('audHoyBadge').textContent=`${paraAud.length} planes`;
+    // Selección ALEATORIA sin repetir — excluir ya auditados
+    const noAuditados = activos.filter(s => !audSociosAuditados[s.nombre]);
+    const shuffled = [...noAuditados].sort(() => Math.random() - 0.5);
+    const paraAud = shuffled.slice(0, Math.min(audCantPlanes, shuffled.length));
+    audSociosSeleccionados = paraAud;
+    // NO resetear audSociosAuditados — solo agregar nuevos
+    document.getElementById('audHoyBadge').textContent=`${paraAud.length} planes (${Object.keys(audSociosAuditados).length} ya auditados)`;
     audRenderTablaHoy();
     document.getElementById('audProgresoWrap').style.display='none';
     document.getElementById('audBtnFinalizar').style.display='none';
