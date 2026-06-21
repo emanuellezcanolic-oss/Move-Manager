@@ -1246,7 +1246,7 @@ tr:hover td{background:#fafbfc;}
                     <button class="tab" onclick="aeSelProfe('agus',this)">Agus <span style="font-size:.62rem;opacity:.7;">102 socios</span></button>
                     <button class="tab" onclick="aeSelProfe('camila',this)">Camila <span style="font-size:.62rem;opacity:.7;">75 socios</span></button>
                     <button class="tab" onclick="aeSelProfe('carla',this)">Carla <span style="font-size:.62rem;opacity:.7;">74 socios</span></button>
-                    <button class="tab" onclick="aeSelProfe('giuliano',this)">Giuliano <span style="font-size:.62rem;opacity:.7;">83 socios</span></button>
+                    <button class="tab" onclick="aeSelProfe('estefania',this)">Estefanía <span style="font-size:.62rem;opacity:.7;">83 socios</span></button>
                 </div>
             </div>
 
@@ -1363,7 +1363,7 @@ const SEDE_MAP = {
     'Valeria':'Lago Puelo','Facundo':'Lago Puelo',
     'Luz':'Lago Puelo','Leonardo':'Lago Puelo','Emanuel':'Ambas',
     // Bariloche
-    'Camila':'Bariloche','Carla':'Bariloche','Giuliano':'Bariloche'
+    'Camila':'Bariloche','Carla':'Bariloche','Estefania':'Bariloche'
 };
 const PROFE_CONTEXT = {
     'Belu':     {reemplazaA:'Francisco', turno:'Ma\u00f1ana'},
@@ -1378,7 +1378,7 @@ const PROFE_CONTEXT = {
 const BARILOCHE_PROFES = [
     {nombre:'Camila Romero',     id:'1n8n7z1RgJlvyvdzvc8DGqI4e-64bStI1', gid:'328722414'},
     {nombre:'Carla Agostini',    id:'19zuljlNy--GZPm9Sdf2xwlACHmTsrsHZ', gid:'328722414'},
-    {nombre:'Giuliano Palomeque',id:'1bOyKt3MJ180nv6pPxCJOutBDlSAP22nt', gid:'328722414'},
+    {nombre:'Estefanía',id:'1bOyKt3MJ180nv6pPxCJOutBDlSAP22nt', gid:'328722414'},
 ];
 // Columnas de meses en planilla Bariloche: C=1,D=2,E=3,F=4,[G skip],H=6,I=7,J=8,K=9,[L skip],M=11,N=12,O=13,P=14 (offset desde col B)
 const BARI_MONTH_COLS = [1,2,3,4,6,7,8,9,11,12,13,14];
@@ -2849,7 +2849,7 @@ const AUD_TRAINERS = [
     // BARILOCHE
     {id:'camila',  name:'Camila',   sede:'Bariloche',  sheetId:'1n8n7z1RgJlvyvdzvc8DGqI4e-64bStI1', gid:'24691950', activos:75,  renovCond:['RENUEVA','RENUEVA X2','NUEVO','LUCIA','TANI','RAYU','LIBERADO','VACACIONES','DERIV. A RF','DERIV. ONLINE','DERIV. PROFE.','RUBEN','KEILA']},
     {id:'carla',   name:'Carla',    sede:'Bariloche',  sheetId:'19zuljlNy--GZPm9Sdf2xwlACHmTsrsHZ', gid:'24691950', activos:74,  renovCond:['RENUEVA','RENUEVA X2','NUEVO','LUCIA','TANI','RAYU','LIBERADO','VACACIONES','DERIV. A RF','DERIV. ONLINE','DERIV. PROFE.','RUBEN','KEILA']},
-    {id:'giuliano',name:'Giuliano', sede:'Bariloche',  sheetId:'1bOyKt3MJ180nv6pPxCJOutBDlSAP22nt', gid:'24691950', activos:83,  renovCond:['RENUEVA','RENUEVA X2','NUEVO','LUCIA','TANI','RAYU','LIBERADO','VACACIONES','DERIV. A RF','DERIV. ONLINE','DERIV. PROFE.','RUBEN','KEILA']},
+    {id:'estefania',name:'Estefanía', sede:'Bariloche',  sheetId:'1bOyKt3MJ180nv6pPxCJOutBDlSAP22nt', gid:'24691950', activos:83,  renovCond:['RENUEVA','RENUEVA X2','NUEVO','LUCIA','TANI','RAYU','LIBERADO','VACACIONES','DERIV. A RF','DERIV. ONLINE','DERIV. PROFE.','RUBEN','KEILA']},
 ];
 
 let audHistorial = [];
@@ -4341,7 +4341,7 @@ const AE_CARLA = {
     ],
 };
 
-const AE_GIULIANO = {
+const AE_ESTEFANIA = {
     nombre:'Giuliano', sede:'Bariloche',
     meses:['ENE','FEB','MAR','ABR','MAY','JUN'],
     mesesFull:['Enero','Febrero','Marzo','Abril','Mayo','Junio'],
@@ -4372,7 +4372,7 @@ const AE_GIULIANO = {
 };
 
 // Datos hardcodeados = SOLO fallback si falla la red. Lo real se lee vivo de la planilla.
-const AE_FALLBACK = {belen: AE_BELEN, fer: AE_FER, enzo: AE_ENZO, javi: AE_JAVI, agus: AE_AGUS, camila: AE_CAMILA, carla: AE_CARLA, giuliano: AE_GIULIANO};
+const AE_FALLBACK = {belen: AE_BELEN, fer: AE_FER, enzo: AE_ENZO, javi: AE_JAVI, agus: AE_AGUS, camila: AE_CAMILA, carla: AE_CARLA, estefania: AE_ESTEFANIA};
 const AE_DATA = {...AE_FALLBACK};   // se va pisando con datos vivos
 let aeProfeActual = 'belen';
 let aeLiveCargado = {};   // {id: true} para no refetchear
@@ -4382,7 +4382,7 @@ const AE_SHEETS = {
     belen:'1_sQLCugQmvqxpL7LdfQ0UyWqwQfpsDfR', fer:'1clVzTQMCSt48xRpHTzxnfUl1kCuoSQhS',
     enzo:'1WiQnNgDvC8K7FWCIh0xDDrPiPy7IRkO-', javi:'1vtE6cjgvHxJwWpvw89ynoadcZbyTNHpx',
     agus:'1XCjiaBOYOWVaPLPtI9kCRYdqJAySSIeQ', camila:'1n8n7z1RgJlvyvdzvc8DGqI4e-64bStI1',
-    carla:'19zuljlNy--GZPm9Sdf2xwlACHmTsrsHZ', giuliano:'1bOyKt3MJ180nv6pPxCJOutBDlSAP22nt'
+    carla:'19zuljlNy--GZPm9Sdf2xwlACHmTsrsHZ', estefania:'1bOyKt3MJ180nv6pPxCJOutBDlSAP22nt'
 };
 // Columnas de meses en pestaña "Planilla 2026" (export). Hay huecos: col15 (ABR→MAY) y col20 (AGO→SEP).
 // ENE11 FEB12 MAR13 ABR14 [15] MAY16 JUN17 JUL18 AGO19 [20] SEP21 OCT22 NOV23 DIC24
