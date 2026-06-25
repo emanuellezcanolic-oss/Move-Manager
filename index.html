@@ -5209,6 +5209,33 @@ let encMState = { sede:'todas', profe:'todos', tipo:'bienvenida' };
 let encMAll = null;       // {bienvenida:[...], baja:[...]}
 let encMCargando = false;
 
+// Catálogo oficial de profesionales (normaliza nombres sueltos de las encuestas)
+const ENC_PROFES = [
+    {nombre:'Agustina Ostarriecht', sede:'Lago Puelo', activo:true,  keys:['agustina','ostarr']},
+    {nombre:'Belen Juarez',         sede:'El Bolsón',  activo:true,  keys:['belen','juarez','con belen']},
+    {nombre:'Camila Romeo',         sede:'Bariloche',  activo:true,  keys:['camila','romeo','romero']},
+    {nombre:'Carla Agostini',       sede:'Bariloche',  activo:true,  keys:['carla','agostini']},
+    {nombre:'Emanuel Lezcano',      sede:'Ambas',      activo:true,  kine:true, keys:['emanuel','lezcano']},
+    {nombre:'Enzo Lega',            sede:'El Bolsón',  activo:true,  keys:['enzo','lega']},
+    {nombre:'Federico Avalos',      sede:'El Bolsón',  activo:false, keys:['federico','avalos']},
+    {nombre:'Fernando Sebrie',      sede:'El Bolsón',  activo:true,  keys:['fernando','sebrie']},
+    {nombre:'Giuliano Palomeque',   sede:'Bariloche',  activo:false, keys:['giuliano','palomeque']},
+    {nombre:'Javier Larramendy',    sede:'Lago Puelo', activo:true,  keys:['javier','larramendy']},
+    {nombre:'Leonardo Alfaro',      sede:'Lago Puelo', activo:false, keys:['leonardo','alfaro']},
+    {nombre:'Lucas Siebenlist',     sede:'Ambas',      activo:true,  kine:true, keys:['lucas','siebenlist']},
+    {nombre:'Sol Carballo',         sede:'Bariloche',  activo:true,  kine:true, keys:['sol carballo','carballo']},
+    {nombre:'Sofia Bertinotti',     sede:'Bariloche',  activo:true,  kine:true, keys:['sofia','bertinotti']},
+    {nombre:'Estefania Eberstein',  sede:'Bariloche',  activo:true,  keys:['estefania','eberstein']},
+];
+const _encNorm = s => String(s||'').toLowerCase().normalize('NFD').replace(/[̀-ͯ]/g,'');
+function encMatchProfe(raw){
+    const t=_encNorm(raw); if(!t) return null;
+    for(const p of ENC_PROFES){ for(const k of p.keys){ if(t.includes(_encNorm(k))) return p; } }
+    return null;
+}
+function encProfeMeta(nombre){ return ENC_PROFES.find(p=>p.nombre===nombre); }
+function encProfeLabel(nombre){ const m=encProfeMeta(nombre); if(!m) return nombre; let s=nombre; if(m.kine) s+=' · Kine'; if(!m.activo) s+=' · inactivo'; return s; }
+
 function encParseFecha(v){
     if(!v) return null;
     if(v instanceof Date) return isNaN(v)?null:v;
@@ -5222,9 +5249,13 @@ function encParseFecha(v){
 function encMBuild(rows, tipo, sedeHint){
     return (rows||[]).map(r=>{
         const profeRaw = String(getCol(r,'profesor')||getCol(r,'profesional')||getCol(r,'profe')||'').trim();
-        const profe = profeRaw ? profeRaw.split(/\s+/).slice(0,2).join(' ') : 'Sin asignar';
+        const canon = encMatchProfe(profeRaw);
+        const profe = canon ? canon.nombre : 'Sin asignar';
         let sede = sedeHint;
-        if(!sede){ const s=getCol(r,'sede'); sede = s?infNormSede(s):infNormSede(getSede(profeRaw)); }
+        if(!sede){
+            if(canon && canon.sede!=='Ambas') sede = infNormSede(canon.sede);
+            else { const s=getCol(r,'sede'); sede = s?infNormSede(s):infNormSede(getSede(profeRaw)); }
+        }
         let f = encParseFecha(getCol(r,'temporal')||getCol(r,'marca')||getCol(r,'fecha')||getCol(r,'timestamp'));
         if(!f){ for(const v of Object.values(r)){ const s=String(v||''); if(/^Date\(\d/.test(s) || /^\d{1,2}[\/\-]\d{1,2}[\/\-]\d{2,4}/.test(s)){ const d=encParseFecha(s); if(d){ f=d; break; } } } }
         let nps = tipo==='bienvenida' ? getNPSVal(r) : null;
@@ -5274,12 +5305,12 @@ function encMRebuildControls(){
     const sedes=['todas','El Bolsón','Lago Puelo','Bariloche'];
     document.getElementById('encMSedeBtns').innerHTML = sedes.map(s=>
         encMBtn(s==='todas'?'Todas':s, encMState.sede===s, `encMSetSede('${s.replace(/'/g,"\\'")}')`)).join('');
-    // Profes dentro del scope sede+tipo
+    // Profes dentro del scope sede+tipo (solo nombres reales; "Sin asignar" no se lista)
     const rows = encMScopeRows(true);
-    const profes = [...new Set(rows.map(r=>r.profe))].sort();
+    const profes = [...new Set(rows.map(r=>r.profe))].filter(p=>p!=='Sin asignar').sort();
     document.getElementById('encMProfeBtns').innerHTML =
         encMBtn('Todos', encMState.profe==='todos', "encMSetProfe('todos')")
-        + profes.map(p=>encMBtn(p, encMState.profe===p, `encMSetProfe('${p.replace(/'/g,"\\'")}')`)).join('');
+        + profes.map(p=>{ const m=encProfeMeta(p); const lbl=encProfeLabel(p); const style=m&&!m.activo?'opacity:.6;':''; return `<button class="tab ${encMState.profe===p?'active':''}" style="font-size:.74rem;padding:5px 12px;${style}" onclick="encMSetProfe('${p.replace(/'/g,"\\'")}')">${lbl}</button>`; }).join('');
     encMRenderTipoBtns();
 }
 function encMSetSede(s){ encMState.sede=s; encMState.profe='todos'; encMRebuildControls(); encMRender(); }
@@ -5348,8 +5379,9 @@ function encMRender(){
     pArr.forEach(x=>{
         const npsCol=x.nps==null?'#94a3b8':x.nps>=50?'#10b981':x.nps>=30?'#3b82f6':x.nps>=0?'#f59e0b':'#ef4444';
         const sel = encMState.profe===x.p;
-        pb+=`<tr style="cursor:pointer;${sel?'background:#eef2ff;':''}" onclick="encMSetProfe('${x.p.replace(/'/g,"\\'")}')">
-            <td><b>${x.p}</b></td><td>${x.sede}</td><td>${x.n}</td>
+        const meta=encProfeMeta(x.p); const inact=meta&&!meta.activo;
+        pb+=`<tr style="cursor:pointer;${sel?'background:#eef2ff;':''}${inact?'opacity:.65;':''}" onclick="encMSetProfe('${x.p.replace(/'/g,"\\'")}')">
+            <td><b>${x.p}</b>${meta&&meta.kine?' <span style="font-size:.6rem;color:#6366f1;font-weight:700;">KINE</span>':''}${inact?' <span style="font-size:.6rem;color:#94a3b8;font-weight:700;">INACTIVO</span>':''}</td><td>${x.sede}</td><td>${x.n}</td>
             <td>${esBienv?`<span style="color:${npsCol};font-weight:700;">${x.nps==null?'—':x.nps}</span>`:'—'}</td>
         </tr>`;
     });
@@ -5376,9 +5408,10 @@ function encMRender(){
             c4 = '';
         }
         const com = r.comentario ? r.comentario.replace(/</g,'&lt;') : '';
+        const meta=encProfeMeta(r.profe); const profLbl = r.profe + (meta&&!meta.activo?' <span style="font-size:.58rem;color:#94a3b8;font-weight:700;">INACTIVO</span>':'') + (meta&&meta.kine?' <span style="font-size:.58rem;color:#6366f1;font-weight:700;">KINE</span>':'');
         rb += `<tr>
             <td style="white-space:nowrap;">${fl}${nuevo}</td>
-            <td>${r.profe}</td>
+            <td>${profLbl}</td>
             <td>${c3}</td>
             <td>${c4}</td>
             <td style="font-size:.78rem;color:var(--muted);max-width:300px;">${com}</td>
