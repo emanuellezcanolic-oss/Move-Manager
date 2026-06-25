@@ -4770,6 +4770,9 @@ async function informeGenerar(){
         }
     }));
 
+    // 1b) Planillas generales (altas 2025/2026, deserción) — para Estado y 2025 vs 2026
+    try { if(!planData){ await cargarTodo(); } } catch(e){}
+
     // 2) Auditorías (ya cargadas en localStorage/gist al abrir la sección de auditoría)
     try { if(typeof audCargarHistorial==='function' && (!audHistorial||!audHistorial.length)) audCargarHistorial(); } catch(e){}
 
@@ -4808,8 +4811,104 @@ async function informeGenerar(){
 
     // ── Construir HTML ──
     const hoy = new Date().toLocaleDateString('es-AR',{day:'2-digit',month:'long',year:'numeric'});
+    // Mes de referencia = último mes CERRADO (el mes calendario en curso está incompleto)
+    let gMi = new Date().getMonth() - 1; if(gMi<0) gMi=0;
+    // si no hay datos de ese mes en ninguna planilla, retroceder hasta encontrarlos
+    const _hayMes = ab => INF_PROFE_IDS.some(id=>{ const d=AE_DATA[id]||{}; const ms=d.meses||[]; const j=ms.indexOf(ab); return j>=0 && d.objetivos&&d.objetivos[j]&&d.objetivos[j].activos>0; });
+    while(gMi>0 && !_hayMes(MESES[gMi])) gMi--;
+    const gAbbr = MESES[gMi];
+    const gMesNombre = ['Enero','Febrero','Marzo','Abril','Mayo','Junio','Julio','Agosto','Septiembre','Octubre','Noviembre','Diciembre'][gMi];
+
+    // Métricas por profesional, fijadas al mismo mes para todas las sedes (mes actual vs anterior)
+    const infProfe = {};   // id -> {sede,nombre,mes,mesPrev,o,oPrev}
+    INF_PROFE_IDS.forEach(id=>{
+        const d = AE_DATA[id] || AE_FALLBACK[id] || {};
+        const objs = d.objetivos||[]; const ms = d.meses||[];
+        let li = ms.indexOf(gAbbr);
+        if(li<0 || !objs[li] || !objs[li].activos){ li=-1; objs.forEach((o,i)=>{ if(o&&o.activos>0) li=i; }); }
+        const o = li>=0 ? objs[li] : null;
+        const pi = li>0 ? li-1 : -1;
+        const oPrev = pi>=0 ? objs[pi] : null;
+        infProfe[id] = {
+            sede: INF_SEDE[id], nombre: INF_NOMBRE[id], li,
+            mes: li>=0 ? ((d.mesesFull&&d.mesesFull[li])||ms[li]||'') : '',
+            mesPrev: pi>=0 ? ((d.mesesFull&&d.mesesFull[pi])||ms[pi]||'') : '',
+            o, oPrev,
+            tareas: (d.tareas&&d.tareas[li])||null
+        };
+    });
+
     let H = `<h1>Informe Consolidado — MOVE</h1>
         <div class="inf-meta">Generado el ${hoy} · Datos en vivo de las planillas, auditorías y encuestas · Las tres sedes y todos los profesionales</div>`;
+
+    // ── PANORAMA: socios actuales (roster vivo) por sede vs último mes cerrado ──
+    // Conteo real de socios HOY (mismo número que los KPIs de la app)
+    const liveSede = {'El Bolsón':0,'Lago Puelo':0,'Bariloche':0};
+    let liveHay = {'El Bolsón':false,'Lago Puelo':false,'Bariloche':false};
+    (planData&&planData.profes||[]).forEach(p=>{ const s=infNormSede(getSede(p.nombre)); if(liveSede[s]!=null){ liveSede[s]+=(p.activos||0); liveHay[s]=true; } });
+    (bariData||[]).forEach(p=>{ liveSede['Bariloche']+=(p.activos||0); liveHay['Bariloche']=true; });
+
+    H += `<h2><i class="fas fa-users"></i> Panorama de socios — crecimiento vs mes anterior</h2>`;
+    H += `<div class="inf-muted" style="font-size:.78rem;margin-bottom:6px;">Socios activos hoy comparados con el cierre de <b>${gMesNombre}</b> (último mes completo; el mes en curso todavía se está cargando).</div>`;
+    let totCur=0, totPrev=0, panRows='';
+    INF_SEDES_ORDER.forEach(sede=>{
+        const ids = INF_PROFE_IDS.filter(id=>INF_SEDE[id]===sede);
+        const cur = liveHay[sede] ? liveSede[sede] : null;
+        let prev=0, hayPrev=false;
+        ids.forEach(id=>{ const p=infProfe[id]; if(p.o){ prev+=p.o.activos; hayPrev=true; } });
+        if(cur!=null) totCur+=cur; if(hayPrev) totPrev+=prev;
+        const diff = (cur!=null&&hayPrev) ? cur-prev : null;
+        const pct = (diff!=null && prev>0) ? Math.round(diff/prev*100) : null;
+        const col = diff==null?'#94a3b8':diff>0?'#10b981':diff<0?'#ef4444':'#64748b';
+        const arrow = diff==null?'':diff>0?'▲':diff<0?'▼':'=';
+        panRows += `<tr>
+            <td><b>${sede}</b></td>
+            <td>${cur!=null?('<b>'+cur+'</b>'):'<span class="inf-muted">—</span>'}</td>
+            <td>${hayPrev?prev:'<span class="inf-muted">—</span>'}</td>
+            <td style="color:${col};font-weight:700;">${diff==null?'<span class="inf-muted">—</span>':(arrow+' '+(diff>=0?'+':'')+diff)}</td>
+            <td style="color:${col};font-weight:700;">${pct==null?'<span class="inf-muted">—</span>':((pct>=0?'+':'')+pct+'%')}</td>
+        </tr>`;
+    });
+    const tDiff = totPrev>0 ? totCur-totPrev : null;
+    const tPct = totPrev>0 ? Math.round((totCur-totPrev)/totPrev*100) : null;
+    const tCol = tDiff==null?'#64748b':tDiff>0?'#10b981':tDiff<0?'#ef4444':'#64748b';
+    H += `<table>
+        <thead><tr><th>Sede</th><th>Socios activos (hoy)</th><th>Cierre ${gMesNombre}</th><th>Crecimiento</th><th>%</th></tr></thead>
+        <tbody>${panRows}</tbody>
+        <tfoot><tr style="font-weight:700;background:#eef2ff;">
+            <td>TOTAL MOVE</td><td>${totCur||'—'}</td><td>${totPrev||'—'}</td>
+            <td style="color:${tCol};">${tDiff==null?'—':(tDiff>=0?'+':'')+tDiff}</td>
+            <td style="color:${tCol};">${tPct==null?'—':(tPct>=0?'+':'')+tPct+'%'}</td>
+        </tr></tfoot>
+    </table>`;
+
+    // ── ESTADO DEL GYM: semáforo de deserción por profesional ──
+    const infSem = d => d<15 ? {c:'#10b981',cls:'inf-g',lbl:'Bajo control'} : d<25 ? {c:'#f59e0b',cls:'inf-y',lbl:'Moderada'} : {c:'#ef4444',cls:'inf-r',lbl:'Crítica'};
+    H += `<h2><i class="fas fa-traffic-light"></i> Estado del Gym — Semáforo de deserción por profesional</h2>`;
+    H += `<div class="inf-muted" style="font-size:.78rem;margin-bottom:6px;">Deserción del cierre de <b>${gMesNombre}</b> · 🟢 &lt;15% · 🟡 15–25% · 🔴 &gt;25% · tendencia vs mes previo.</div>`;
+    INF_SEDES_ORDER.forEach(sede=>{
+        const ids = INF_PROFE_IDS.filter(id=>INF_SEDE[id]===sede);
+        let rows='';
+        ids.forEach(id=>{
+            const p=infProfe[id];
+            if(!p.o){ rows+=`<tr><td><b>${p.nombre}</b></td><td colspan="4" class="inf-muted">sin datos</td></tr>`; return; }
+            const des=p.o.desercion; const s=infSem(des);
+            let tend='<span class="inf-muted">—</span>';
+            if(p.oPrev && p.oPrev.desercion!=null){
+                const diff=des-p.oPrev.desercion;
+                if(Math.abs(diff)>=0.5){ const tc=diff>0?'#ef4444':'#10b981'; tend=`<span style="color:${tc};font-weight:700;">${diff>0?'↑':'↓'} ${Math.abs(diff).toFixed(1)}%</span> <span class="inf-muted" style="font-size:.7rem;">vs ${p.mesPrev}</span>`; }
+                else tend='<span class="inf-muted">estable</span>';
+            }
+            rows+=`<tr>
+                <td><b>${p.nombre}</b></td>
+                <td><span class="${s.cls}">● ${s.lbl}</span></td>
+                <td style="color:${s.c};font-weight:700;">${des.toFixed(1)}%</td>
+                <td>${tend}</td>
+                <td>${p.o.activos} <span class="inf-muted" style="font-size:.7rem;">activos</span></td>
+            </tr>`;
+        });
+        H += `<h3>${sede}</h3><table><thead><tr><th>Profesional</th><th>Estado</th><th>Deserción ${''}</th><th>Tendencia</th><th>Socios</th></tr></thead><tbody>${rows}</tbody></table>`;
+    });
 
     INF_SEDES_ORDER.forEach(sede=>{
         const ids = INF_PROFE_IDS.filter(id=>INF_SEDE[id]===sede);
@@ -4819,14 +4918,12 @@ async function informeGenerar(){
         let totAct=0, desArr=[], retArr=[];
         let rows='';
         ids.forEach(id=>{
-            const d = AE_DATA[id] || AE_FALLBACK[id] || {};
-            const objs = d.objetivos||[];
-            let li=-1; objs.forEach((o,i)=>{ if(o&&o.activos>0) li=i; });
-            const o = li>=0 ? objs[li] : null;
-            const mesN = li>=0 ? ((d.mesesFull&&d.mesesFull[li])||(d.meses&&d.meses[li])||'') : '';
-            // tareas cumplidas del último mes
+            const p = infProfe[id] || {};
+            const o = p.o || null;
+            const mesN = p.mes || '';
+            // tareas cumplidas del mes de referencia
             let tareasTxt='<span class="inf-muted">—</span>';
-            if(d.tareas && d.tareas[li]){ const ts=d.tareas[li]; const ok=ts.filter(t=>t.ok).length; tareasTxt = ts.length? (ok+'/'+ts.length) : '<span class="inf-muted">—</span>'; }
+            if(p.tareas){ const ts=p.tareas; const ok=ts.filter(t=>t.ok).length; tareasTxt = ts.length? (ok+'/'+ts.length) : '<span class="inf-muted">—</span>'; }
             if(o){ totAct+=o.activos; if(o.desercion!=null) desArr.push(o.desercion); if(o.retencion!=null) retArr.push(o.retencion); }
             rows += `<tr>
                 <td><b>${INF_NOMBRE[id]}</b><br><span class="inf-muted" style="font-size:.7rem;">${mesN||'sin datos'}</span></td>
@@ -4902,6 +4999,44 @@ async function informeGenerar(){
 
         H += `</div>`; // /inf-sede
     });
+
+    // ── 2025 vs 2026 — Altas (Bolsón y Lago Puelo) ──
+    H += `<h2><i class="fas fa-exchange-alt"></i> 2025 vs 2026 — Comparación de altas</h2>`;
+    if(planData && planData.profes && planData.profes.length){
+        let mi=0;
+        for(let i=MESES.length-1;i>=0;i--){ if(planData.profes.some(p=>(p.histAltas26[i]||0)>5)){ mi=i; break; } }
+        const activos = planData.profes.filter(p=>{ const ctx=PROFE_CONTEXT[p.nombre]; return !ctx||!ctx.reemplazadoPor; });
+        ['El Bolsón','Lago Puelo'].forEach(sede=>{
+            const profes = activos.filter(p=>getSede(p.nombre)===sede);
+            if(!profes.length) return;
+            let rows='', s26=0,s25=0, y26=0,y25=0;
+            profes.forEach(p=>{
+                const a26=p.histAltas26[mi]||0, a25=p.histAltas25[mi]||0;
+                const yt26=p.histAltas26.slice(0,mi+1).reduce((a,b)=>a+b,0);
+                const yt25=p.histAltas25.slice(0,mi+1).reduce((a,b)=>a+b,0);
+                s26+=a26; s25+=a25; y26+=yt26; y25+=yt25;
+                const diff=a26-a25, pct=a25>0?Math.round(diff/a25*100):null;
+                const col=diff>=0?'#10b981':'#ef4444';
+                rows+=`<tr><td><b>${p.nombre.split(' ')[0]}</b></td><td>${a25}</td><td>${a26}</td>
+                    <td style="color:${col};font-weight:700;">${diff>=0?'+':''}${diff}${pct!=null?' ('+(pct>=0?'+':'')+pct+'%)':''}</td>
+                    <td>${yt25} → ${y26?'':''}${yt26}</td></tr>`;
+            });
+            const sDiff=s26-s25, sPct=s25>0?Math.round(sDiff/s25*100):null;
+            const yDiff=y26-y25, yPct=y25>0?Math.round(yDiff/y25*100):null;
+            const sCol=sDiff>=0?'#10b981':'#ef4444';
+            H += `<h3>${sede} — ${MESES[mi]} 2026</h3>
+            <table><thead><tr><th>Profesional</th><th>Altas 2025</th><th>Altas 2026</th><th>Diferencia (mes)</th><th>Acum. 25 → 26</th></tr></thead>
+            <tbody>${rows}</tbody>
+            <tfoot><tr style="font-weight:700;background:#eef2ff;">
+                <td>TOTAL ${sede}</td><td>${s25}</td><td>${s26}</td>
+                <td style="color:${sCol};">${sDiff>=0?'+':''}${sDiff}${sPct!=null?' ('+(sPct>=0?'+':'')+sPct+'%)':''}</td>
+                <td style="color:${yDiff>=0?'#10b981':'#ef4444'};">${y25} → ${y26}${yPct!=null?' ('+(yPct>=0?'+':'')+yPct+'%)':''}</td>
+            </tr></tfoot></table>`;
+        });
+        H += `<p class="inf-muted" style="font-size:.76rem;">Bariloche no tiene base 2025 para comparar altas (sede nueva en 2026).</p>`;
+    } else {
+        H += `<p class="inf-muted" style="font-size:.82rem;">Sin datos de planillas para la comparación 2025 vs 2026.</p>`;
+    }
 
     H += `<p style="margin-top:30px;font-size:.74rem;color:#94a3b8;border-top:1px solid #e2e8f0;padding-top:10px;">
         MOVE · Informe generado automáticamente desde el panel. Los valores provienen de las planillas vivas de cada profesional, del historial de auditorías y de las encuestas de bienvenida y baja. Editá cualquier texto antes de descargar.</p>`;
