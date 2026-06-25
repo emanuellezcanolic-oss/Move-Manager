@@ -1459,6 +1459,16 @@ tr:hover td{background:#fafbfc;}
                     <tbody id="encMTablaProfe"></tbody>
                 </table></div>
             </div>
+
+            <!-- Respuestas individuales -->
+            <div class="card" style="margin-bottom:16px;">
+                <div class="card-title"><i class="fas fa-comment-dots"></i> Respuestas individuales <span id="encMRespCount" style="font-size:.7rem;font-weight:600;color:var(--muted);"></span></div>
+                <div id="encMRespHint" style="font-size:.75rem;color:var(--muted);margin-bottom:8px;"></div>
+                <div class="tw"><table>
+                    <thead><tr><th>Fecha</th><th>Profesional</th><th id="encMRespCol3">NPS</th><th id="encMRespCol4">Categoría</th><th>Comentario</th></tr></thead>
+                    <tbody id="encMTablaResp"></tbody>
+                </table></div>
+            </div>
         </div><!-- /section-enc-mensual -->
 
     </div><!-- /content -->
@@ -5219,7 +5229,12 @@ function encMBuild(rows, tipo, sedeHint){
         if(!f){ for(const v of Object.values(r)){ const s=String(v||''); if(/^Date\(\d/.test(s) || /^\d{1,2}[\/\-]\d{1,2}[\/\-]\d{2,4}/.test(s)){ const d=encParseFecha(s); if(d){ f=d; break; } } } }
         let nps = tipo==='bienvenida' ? getNPSVal(r) : null;
         if(nps==null||isNaN(nps)) nps=null;
-        return { sede, profe, profeRaw, fecha:f, nps, tipo };
+        const horario = String(getCol(r,'horario')||'').trim();
+        const comentario = tipo==='bienvenida'
+            ? String(getCol(r,'mejorar una')||getCol(r,'mejorar')||'').trim()
+            : String(getCol(r,'mejorar')||'').trim();
+        const motivo = tipo==='baja' ? String(getCol(r,'motivo')||'').trim() : '';
+        return { sede, profe, profeRaw, fecha:f, nps, tipo, horario, comentario, motivo };
     });
 }
 async function encMInit(){
@@ -5339,6 +5354,41 @@ function encMRender(){
         </tr>`;
     });
     document.getElementById('encMTablaProfe').innerHTML = pb || '<tr><td colspan="4" style="text-align:center;color:var(--muted);padding:18px;">Sin datos</td></tr>';
+
+    // Respuestas individuales (ordenadas por fecha, más nuevas primero)
+    document.getElementById('encMRespCol3').textContent = esBienv ? 'NPS' : 'Motivo';
+    document.getElementById('encMRespCol4').textContent = esBienv ? 'Categoría' : '';
+    const det = rows.slice().sort((a,b)=>(b.fecha?b.fecha.getTime():0)-(a.fecha?a.fecha.getTime():0));
+    const ahora = Date.now();
+    const esNueva = f => f && (ahora - f.getTime()) <= 5*86400000 && (ahora - f.getTime()) >= -86400000;
+    let rb='';
+    det.forEach(r=>{
+        const fl = r.fecha ? (r.fecha.getDate()+' '+ENCM_MS[r.fecha.getMonth()]+' '+r.fecha.getFullYear()) : 'Sin fecha';
+        const nuevo = esNueva(r.fecha) ? ' <span style="background:#10b981;color:#fff;font-size:.58rem;font-weight:700;padding:1px 7px;border-radius:9px;margin-left:4px;white-space:nowrap;">● NUEVA</span>' : '';
+        let c3, c4;
+        if(esBienv){
+            const n=r.nps;
+            const cat = n==null?{t:'—',c:'#94a3b8'} : n>=9?{t:'Promotor',c:'#10b981'} : n>=7?{t:'Pasivo',c:'#f59e0b'} : {t:'Detractor',c:'#ef4444'};
+            c3 = n==null?'<span class="inf-muted">—</span>':`<b style="color:${cat.c};">${n}</b>`;
+            c4 = `<span style="background:${cat.c}22;color:${cat.c};font-weight:700;font-size:.68rem;padding:2px 9px;border-radius:9px;">${cat.t}</span>`;
+        } else {
+            c3 = r.motivo ? r.motivo.replace(/</g,'&lt;') : '<span class="inf-muted">—</span>';
+            c4 = '';
+        }
+        const com = r.comentario ? r.comentario.replace(/</g,'&lt;') : '';
+        rb += `<tr>
+            <td style="white-space:nowrap;">${fl}${nuevo}</td>
+            <td>${r.profe}</td>
+            <td>${c3}</td>
+            <td>${c4}</td>
+            <td style="font-size:.78rem;color:var(--muted);max-width:300px;">${com}</td>
+        </tr>`;
+    });
+    document.getElementById('encMTablaResp').innerHTML = rb || '<tr><td colspan="5" style="text-align:center;color:var(--muted);padding:18px;">Sin respuestas para este filtro</td></tr>';
+    document.getElementById('encMRespCount').textContent = '('+det.length+')';
+    document.getElementById('encMRespHint').innerHTML = encMState.profe==='todos'
+        ? 'Mostrando todas las respuestas del filtro actual. Seleccioná un profesional para ver solo las suyas.'
+        : ('Todas las respuestas de <b>'+encMState.profe+'</b> ('+det.length+').');
 
     // Gráficos
     const chartKeys = keys.filter(k=>k!=='zzzz');
