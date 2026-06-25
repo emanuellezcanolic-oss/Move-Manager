@@ -444,6 +444,33 @@ tr:hover td{background:#fafbfc;}
 .aud-empty{text-align:center;padding:48px 16px;color:var(--muted);}
 .aud-empty i{font-size:2.2rem;opacity:.25;margin-bottom:10px;display:block;}
 @media(max-width:700px){.aud-exp-grid{grid-template-columns:1fr;}.aud-grid{grid-template-columns:1fr;}}
+/* ── INFORME CONSOLIDADO ── */
+.informe-doc{background:#fff;border:1px solid var(--border);border-radius:12px;padding:34px 38px;max-width:920px;margin:0 auto;color:#1e293b;line-height:1.5;box-shadow:0 1px 3px rgba(0,0,0,.05);}
+.informe-doc h1{font-size:1.6rem;margin:0 0 4px;color:#0f172a;letter-spacing:-.5px;}
+.informe-doc h2{font-size:1.15rem;margin:30px 0 12px;padding-bottom:6px;border-bottom:2px solid var(--accent);color:#0f172a;display:flex;align-items:center;gap:8px;}
+.informe-doc h3{font-size:.98rem;margin:18px 0 8px;color:#334155;}
+.informe-doc table{width:100%;border-collapse:collapse;margin:8px 0 14px;font-size:.82rem;}
+.informe-doc th,.informe-doc td{border:1px solid #e2e8f0;padding:7px 9px;text-align:left;}
+.informe-doc th{background:#f1f5f9;font-weight:700;color:#475569;}
+.informe-doc tr:nth-child(even) td{background:#f8fafc;}
+.informe-doc .inf-muted{color:#94a3b8;}
+.informe-doc .inf-meta{color:#64748b;font-size:.82rem;margin-bottom:18px;}
+.informe-doc .inf-sede{margin-top:28px;}
+.informe-doc .inf-chips span{display:inline-block;font-size:.66rem;font-weight:700;padding:2px 7px;border-radius:9px;margin:1px 2px;}
+.inf-g{background:#dcfce7;color:#166534;}.inf-y{background:#fef9c3;color:#854d0e;}.inf-r{background:#fee2e2;color:#991b1b;}.inf-b{background:#e0e7ff;color:#3730a3;}
+.informe-doc .inf-find{font-size:.78rem;color:#475569;background:#f8fafc;border-left:3px solid var(--accent);padding:6px 10px;margin:4px 0;border-radius:0 6px 6px 0;}
+.informe-doc [contenteditable]:focus{outline:2px solid var(--accent);outline-offset:2px;border-radius:3px;}
+@media print{
+    nav#sidebar,#topbar,#informeToolbar,#informeStatus,.sb-footer,#sbOverlay{display:none!important;}
+    #main{margin:0!important;}
+    #content{padding:0!important;}
+    .section{display:none!important;}
+    #section-informe{display:block!important;}
+    .informe-doc{border:none;box-shadow:none;max-width:100%;padding:0;}
+    .informe-doc h2{break-after:avoid;}
+    .informe-doc table{break-inside:avoid;}
+    .inf-sede{break-inside:avoid-page;}
+}
 </style>
 </head>
 <body>
@@ -515,6 +542,12 @@ tr:hover td{background:#fafbfc;}
             </div>
             <div class="nav-item" onclick="go('recepcion')">
                 <i class="fas fa-chart-line"></i> Auditor&iacute;a Recepci&oacute;n
+            </div>
+        </div>
+        <div class="sb-group">
+            <div class="sb-group-label">Informe</div>
+            <div class="nav-item" onclick="go('informe')">
+                <i class="fas fa-file-pdf"></i> Resumen General
             </div>
         </div>
     </div>
@@ -1340,6 +1373,32 @@ tr:hover td{background:#fafbfc;}
             </div>
         </div><!-- /section-recepcion -->
 
+        <!-- ════════════════════════════════════════════ -->
+        <!-- SECCIÓN: INFORME CONSOLIDADO (RESUMEN GENERAL) -->
+        <!-- ════════════════════════════════════════════ -->
+        <div class="section" id="section-informe">
+            <div class="card" id="informeToolbar" style="margin-bottom:16px;display:flex;flex-wrap:wrap;gap:10px;align-items:center;justify-content:space-between;">
+                <div style="font-size:.82rem;color:var(--muted);max-width:520px;">
+                    <i class="fas fa-circle-info" style="color:var(--accent);margin-right:5px;"></i>
+                    Resumen de <b>todas las sedes y profesionales</b> con datos en vivo de las planillas, auditorías y encuestas.
+                    El texto es <b>editable</b>: corregí lo que haga falta antes de descargar.
+                </div>
+                <div style="display:flex;gap:8px;flex-wrap:wrap;">
+                    <button class="btn-refresh" onclick="informeGenerar()" style="background:var(--accent);">
+                        <i class="fas fa-rotate-right"></i> Generar / Actualizar
+                    </button>
+                    <button class="btn-refresh" onclick="informeDescargarPDF()" style="background:#ef4444;">
+                        <i class="fas fa-file-pdf"></i> Descargar PDF
+                    </button>
+                    <button class="btn-refresh" onclick="informeDescargarHTML()" style="background:#0f766e;">
+                        <i class="fas fa-file-arrow-down"></i> Descargar editable
+                    </button>
+                </div>
+            </div>
+            <div id="informeStatus" style="font-size:.78rem;color:var(--muted);margin-bottom:12px;"></div>
+            <div id="informeBody" class="informe-doc"></div>
+        </div><!-- /section-informe -->
+
     </div><!-- /content -->
 
 </div><!-- /main -->
@@ -1673,6 +1732,7 @@ const META = {
     'auditoria': {title:'Auditor\u00eda', sub:'Supervisi\u00f3n de entrenadores \u00b7 Metodolog\u00eda MOVE'},
     'recepcion': {title:'Auditor\u00eda Recepci\u00f3n', sub:'Control de ventas \u00b7 Recepcionistas MOVE'},
     'analisis-entrenadores': {title:'An\u00e1lisis Entrenadores', sub:'Objetivos, tareas y retenci\u00f3n \u00b7 Datos reales 2026'},
+    'informe':   {title:'Resumen General', sub:'Informe consolidado \u00b7 Bols\u00f3n, Lago Puelo y Bariloche \u00b7 Editable + PDF'},
 };
 function go(sec){
     document.querySelectorAll('.section').forEach(s=>s.classList.remove('active'));
@@ -1689,6 +1749,7 @@ function go(sec){
     if(sec==='auditoria'){ audInitSelector(); }
     if(sec==='recepcion'){ recepInit(); }
     if(sec==='analisis-entrenadores'){ aeSelProfe(aeProfeActual); }
+    if(sec==='informe'){ informeInit(); }
     closeSb();
 }
 function toggleSb(){
@@ -4678,6 +4739,203 @@ function aeRender(mesIdx){
             <td style="font-family:monospace;">${m.deriv}</td>
             <td style="font-family:monospace;color:${m.baja>10?'#ef4444':m.baja>5?'#f59e0b':'var(--accent)'};">${m.baja}</td>
         </tr>`).join('');
+}
+
+// ══════════════════════════════════════════════════
+// INFORME CONSOLIDADO — Resumen General (todas las sedes)
+// ══════════════════════════════════════════════════
+const INF_PROFE_IDS = ['belen','fer','enzo','javi','agus','camila','carla','estefania'];
+const INF_SEDE   = {belen:'El Bolsón',fer:'El Bolsón',enzo:'El Bolsón',javi:'Lago Puelo',agus:'Lago Puelo',camila:'Bariloche',carla:'Bariloche',estefania:'Bariloche'};
+const INF_NOMBRE = {belen:'Belén',fer:'Fer',enzo:'Enzo',javi:'Javi',agus:'Agus',camila:'Camila',carla:'Carla',estefania:'Estefanía'};
+const INF_SEDES_ORDER = ['El Bolsón','Lago Puelo','Bariloche'];
+let informeGenerado = false;
+let informeCargando = false;
+
+function informeInit(){ if(!informeGenerado && !informeCargando) informeGenerar(); }
+function infSet(msg){ const el=document.getElementById('informeStatus'); if(el) el.innerHTML=msg; }
+function infEsc(s){ return String(s==null?'':s).replace(/&/g,'&amp;').replace(/</g,'&lt;').replace(/>/g,'&gt;'); }
+function infNum(v,suf){ return (v===null||v===undefined||v===''||(typeof v==='number'&&isNaN(v)))?'<span class="inf-muted">—</span>':(v+(suf||'')); }
+function infNormSede(s){ s=String(s||''); if(/bols/i.test(s))return 'El Bolsón'; if(/puelo/i.test(s))return 'Lago Puelo'; if(/baril/i.test(s))return 'Bariloche'; return s||'—'; }
+
+async function informeGenerar(){
+    if(informeCargando) return;
+    informeCargando = true;
+    infSet('<i class="fas fa-spinner fa-spin"></i> Leyendo planillas, auditorías y encuestas en vivo… puede tardar unos segundos.');
+
+    // 1) Datos vivos por profesional (planillas Objetivos)
+    await Promise.allSettled(INF_PROFE_IDS.map(async id=>{
+        if(!aeLiveCargado[id]){
+            try { await aeLoadLive(id); }
+            catch(e){ AE_DATA[id] = AE_FALLBACK[id]; }
+        }
+    }));
+
+    // 2) Auditorías (ya cargadas en localStorage/gist al abrir la sección de auditoría)
+    try { if(typeof audCargarHistorial==='function' && (!audHistorial||!audHistorial.length)) audCargarHistorial(); } catch(e){}
+
+    // 3) Encuestas — cargadores propios (no pisan el estado de otras secciones)
+    let bw=[],bc=[],barw=[],barc=[];
+    try {
+        [bw,bc] = await Promise.all([
+            sheetLoad(SHEET_ENC_ID,'1563858316','infBolBienv'),
+            sheetLoad(SHEET_ENC_ID,'839375428','infBolBaja')
+        ]);
+    } catch(e){}
+    try {
+        [barw,barc] = await Promise.all([
+            sheetLoad(SHEET_BARI_ENC_ID,SHEET_BARI_BIENV_GID,'infBariBienv'),
+            sheetLoad(SHEET_BARI_ENC_ID,SHEET_BARI_BAJAS_GID,'infBariBaja')
+        ]);
+    } catch(e){}
+
+    const encBienv = [...(bw||[]), ...(barw||[])];
+    const encBaja  = [...(bc||[]), ...(barc||[])];
+
+    // Agrupar encuestas por sede
+    const sedeOfRow = r => {
+        let s = getCol(r,'sede'); if(s) return infNormSede(s);
+        const p = getCol(r,'profesor')||getCol(r,'profesional')||getCol(r,'profe');
+        return infNormSede(getSede(String(p)));
+    };
+    const npsBySede={}, bajaBySede={};
+    INF_SEDES_ORDER.forEach(s=>{ npsBySede[s]=[]; bajaBySede[s]=[]; });
+    encBienv.forEach(r=>{ const s=sedeOfRow(r); const n=getNPSVal(r); if(npsBySede[s]&&!isNaN(n)) npsBySede[s].push(n); });
+    encBaja.forEach(r=>{ const s=sedeOfRow(r); if(bajaBySede[s]) bajaBySede[s].push(r); });
+
+    // Auditorías por sede
+    const audBySede={}; INF_SEDES_ORDER.forEach(s=>audBySede[s]=[]);
+    (audHistorial||[]).forEach(a=>{ const s=infNormSede(a.sede); if(audBySede[s]) audBySede[s].push(a); });
+
+    // ── Construir HTML ──
+    const hoy = new Date().toLocaleDateString('es-AR',{day:'2-digit',month:'long',year:'numeric'});
+    let H = `<h1>Informe Consolidado — MOVE</h1>
+        <div class="inf-meta">Generado el ${hoy} · Datos en vivo de las planillas, auditorías y encuestas · Las tres sedes y todos los profesionales</div>`;
+
+    INF_SEDES_ORDER.forEach(sede=>{
+        const ids = INF_PROFE_IDS.filter(id=>INF_SEDE[id]===sede);
+        H += `<div class="inf-sede"><h2><i class="fas fa-map-marker-alt"></i> ${sede}</h2>`;
+
+        // Tabla de profesionales
+        let totAct=0, desArr=[], retArr=[];
+        let rows='';
+        ids.forEach(id=>{
+            const d = AE_DATA[id] || AE_FALLBACK[id] || {};
+            const objs = d.objetivos||[];
+            let li=-1; objs.forEach((o,i)=>{ if(o&&o.activos>0) li=i; });
+            const o = li>=0 ? objs[li] : null;
+            const mesN = li>=0 ? ((d.mesesFull&&d.mesesFull[li])||(d.meses&&d.meses[li])||'') : '';
+            // tareas cumplidas del último mes
+            let tareasTxt='<span class="inf-muted">—</span>';
+            if(d.tareas && d.tareas[li]){ const ts=d.tareas[li]; const ok=ts.filter(t=>t.ok).length; tareasTxt = ts.length? (ok+'/'+ts.length) : '<span class="inf-muted">—</span>'; }
+            if(o){ totAct+=o.activos; if(o.desercion!=null) desArr.push(o.desercion); if(o.retencion!=null) retArr.push(o.retencion); }
+            rows += `<tr>
+                <td><b>${INF_NOMBRE[id]}</b><br><span class="inf-muted" style="font-size:.7rem;">${mesN||'sin datos'}</span></td>
+                <td>${o?infNum(o.activos):'<span class="inf-muted">—</span>'}</td>
+                <td>${o?infNum(o.desercion,'%'):'<span class="inf-muted">—</span>'}</td>
+                <td>${o?infNum(o.retencion,'%'):'<span class="inf-muted">—</span>'}</td>
+                <td>${o?infNum(o.reeval):'<span class="inf-muted">—</span>'}</td>
+                <td>${o?infNum(o.puntaje):'<span class="inf-muted">—</span>'}</td>
+                <td>${tareasTxt}</td>
+            </tr>`;
+        });
+        const avgDes = desArr.length ? (desArr.reduce((a,b)=>a+b,0)/desArr.length).toFixed(1) : null;
+        const avgRet = retArr.length ? (retArr.reduce((a,b)=>a+b,0)/retArr.length).toFixed(1) : null;
+        H += `<table>
+            <thead><tr><th>Profesional</th><th>Activos</th><th>Deserción</th><th>Retención</th><th>Re-eval.</th><th>Puntaje</th><th>Tareas</th></tr></thead>
+            <tbody>${rows}</tbody>
+            <tfoot><tr style="font-weight:700;background:#eef2ff;">
+                <td>TOTAL / Promedio</td><td>${totAct||'<span class="inf-muted">—</span>'}</td>
+                <td>${infNum(avgDes,'%')}</td><td>${infNum(avgRet,'%')}</td><td>—</td><td>—</td><td>—</td>
+            </tr></tfoot>
+        </table>`;
+
+        // Encuestas de la sede
+        const npsArr = npsBySede[sede]||[];
+        const nps = npsArr.length ? calcNPS(npsArr) : null;
+        const bajas = bajaBySede[sede]||[];
+        H += `<h3><i class="fas fa-star" style="color:#f59e0b;"></i> Encuestas</h3>`;
+        if(npsArr.length || bajas.length){
+            H += `<table><thead><tr><th>Indicador</th><th>Valor</th></tr></thead><tbody>
+                <tr><td>NPS Bienvenida (nuevos socios)</td><td>${nps!=null? '<b>'+nps+'</b> ('+npsArr.length+' respuestas)':'<span class="inf-muted">sin respuestas</span>'}</td></tr>
+                <tr><td>Encuestas de baja (ex-socios)</td><td>${bajas.length? '<b>'+bajas.length+'</b> registradas':'<span class="inf-muted">sin registros</span>'}</td></tr>
+            </tbody></table>`;
+            // Top motivos de baja
+            if(bajas.length){
+                const mot={};
+                bajas.forEach(r=>{ const m=String(getCol(r,'motivo')||'').trim(); if(m){ mot[m]=(mot[m]||0)+1; } });
+                const top=Object.entries(mot).sort((a,b)=>b[1]-a[1]).slice(0,4);
+                if(top.length){ H+='<div style="font-size:.8rem;margin:2px 0 10px;"><b>Principales motivos de baja:</b> '+top.map(t=>infEsc(t[0])+' ('+t[1]+')').join(' · ')+'</div>'; }
+            }
+        } else {
+            H += `<p class="inf-muted" style="font-size:.82rem;">Sin datos de encuestas disponibles para esta sede (planilla privada o sin respuestas).</p>`;
+        }
+
+        // Auditorías de la sede
+        const auds = audBySede[sede]||[];
+        H += `<h3><i class="fas fa-clipboard-check" style="color:var(--accent);"></i> Auditorías</h3>`;
+        if(auds.length){
+            // última auditoría por profe
+            const porProfe={};
+            auds.forEach(a=>{ const k=a.profe||'—'; if(!porProfe[k]) porProfe[k]=a; });
+            let arows='';
+            Object.values(porProfe).forEach(a=>{
+                const sem = a.semaforos||{};
+                const chips = AUD_SECTIONS.map(s=>{ const v=sem[s.key]; const c=v==='rojo'?'inf-r':v==='amarillo'?'inf-y':v==='verde'?'inf-g':'inf-b'; return `<span class="${c}">${s.label.split(' ')[0]}</span>`; }).join('');
+                arows += `<tr>
+                    <td><b>${infEsc(a.profe)}</b><br><span class="inf-muted" style="font-size:.7rem;">${infEsc(a.date||'')}</span></td>
+                    <td>${a.planesAuditados!=null?a.planesAuditados:'—'}</td>
+                    <td>${a.planesVencidos!=null?a.planesVencidos:'—'}</td>
+                    <td class="inf-chips">${chips}</td>
+                </tr>`;
+            });
+            H += `<table><thead><tr><th>Profesional (última)</th><th>Planes auditados</th><th>Planes vencidos</th><th>Semáforos</th></tr></thead><tbody>${arows}</tbody></table>`;
+            // Hallazgos recientes
+            const hall=[];
+            auds.forEach(a=>{ (a.detalleSocios||[]).forEach(d=>{ if(d.hallazgos&&d.hallazgos.trim()) hall.push({p:a.profe,n:d.nombre,h:d.hallazgos}); }); });
+            if(hall.length){
+                H += `<div style="font-size:.82rem;font-weight:700;margin:10px 0 4px;">Hallazgos técnicos registrados</div>`;
+                hall.slice(0,8).forEach(x=>{ H += `<div class="inf-find"><b>${infEsc(x.p)} · ${infEsc(x.n)}:</b> ${infEsc(x.h)}</div>`; });
+            }
+        } else {
+            H += `<p class="inf-muted" style="font-size:.82rem;">Sin auditorías registradas para esta sede.</p>`;
+        }
+
+        H += `</div>`; // /inf-sede
+    });
+
+    H += `<p style="margin-top:30px;font-size:.74rem;color:#94a3b8;border-top:1px solid #e2e8f0;padding-top:10px;">
+        MOVE · Informe generado automáticamente desde el panel. Los valores provienen de las planillas vivas de cada profesional, del historial de auditorías y de las encuestas de bienvenida y baja. Editá cualquier texto antes de descargar.</p>`;
+
+    const body = document.getElementById('informeBody');
+    body.innerHTML = H;
+    body.setAttribute('contenteditable','true');
+    informeGenerado = true;
+    informeCargando = false;
+    infSet('<i class="fas fa-circle-check" style="color:var(--accent);"></i> Informe listo · ' + hoy + ' — podés editarlo y luego descargarlo.');
+}
+
+function informeDescargarPDF(){
+    if(!informeGenerado){ alert('Generá el informe primero.'); return; }
+    window.print();
+}
+
+function informeDescargarHTML(){
+    if(!informeGenerado){ alert('Generá el informe primero.'); return; }
+    const css = `body{font-family:Calibri,Arial,sans-serif;color:#1e293b;line-height:1.5;max-width:920px;margin:0 auto;padding:20px;}
+        h1{font-size:22pt;color:#0f172a;} h2{font-size:15pt;border-bottom:2px solid #10b981;padding-bottom:4px;} h3{font-size:12pt;color:#334155;}
+        table{width:100%;border-collapse:collapse;margin:8px 0 14px;font-size:10pt;}
+        th,td{border:1px solid #cbd5e1;padding:6px 8px;text-align:left;} th{background:#f1f5f9;}
+        .inf-find{background:#f8fafc;border-left:3px solid #10b981;padding:6px 10px;margin:4px 0;font-size:10pt;}
+        .inf-chips span,.inf-g,.inf-y,.inf-r,.inf-b{font-size:8pt;padding:2px 6px;border-radius:8px;}
+        .inf-g{background:#dcfce7;color:#166534;}.inf-y{background:#fef9c3;color:#854d0e;}.inf-r{background:#fee2e2;color:#991b1b;}.inf-b{background:#e0e7ff;color:#3730a3;}.inf-muted{color:#94a3b8;}`;
+    const doc = `<!DOCTYPE html><html><head><meta charset="utf-8"><title>Informe MOVE</title><style>${css}</style></head><body>${document.getElementById('informeBody').innerHTML}</body></html>`;
+    const blob = new Blob(['﻿'+doc], {type:'application/msword'});
+    const url = URL.createObjectURL(blob);
+    const a = document.createElement('a');
+    const f = new Date().toISOString().slice(0,10);
+    a.href=url; a.download='Informe_MOVE_'+f+'.doc';
+    document.body.appendChild(a); a.click(); document.body.removeChild(a);
+    setTimeout(()=>URL.revokeObjectURL(url), 2000);
 }
 
 cargarTodo();
