@@ -534,6 +534,9 @@ tr:hover td{background:#fafbfc;}
             <div class="nav-item" onclick="go('bari-enc')">
                 <i class="fas fa-mountain"></i> Bariloche
             </div>
+            <div class="nav-item" onclick="go('enc-mensual')">
+                <i class="fas fa-calendar-week"></i> An&aacute;lisis Mensual
+            </div>
         </div>
         <div class="sb-group">
             <div class="sb-group-label">Gesti&oacute;n</div>
@@ -1399,6 +1402,65 @@ tr:hover td{background:#fafbfc;}
             <div id="informeBody" class="informe-doc"></div>
         </div><!-- /section-informe -->
 
+        <!-- ════════════════════════════════════════════ -->
+        <!-- SECCIÓN: ENCUESTAS — ANÁLISIS MENSUAL       -->
+        <!-- ════════════════════════════════════════════ -->
+        <div class="section" id="section-enc-mensual">
+            <!-- Filtros -->
+            <div class="card" style="margin-bottom:16px;">
+                <div class="card-title"><i class="fas fa-filter" style="color:var(--accent);"></i> Filtros</div>
+                <div style="display:flex;flex-direction:column;gap:12px;">
+                    <div>
+                        <div style="font-size:.68rem;font-weight:700;text-transform:uppercase;letter-spacing:.6px;color:var(--muted);margin-bottom:6px;">Sede</div>
+                        <div id="encMSedeBtns" style="display:flex;flex-wrap:wrap;gap:6px;"></div>
+                    </div>
+                    <div>
+                        <div style="font-size:.68rem;font-weight:700;text-transform:uppercase;letter-spacing:.6px;color:var(--muted);margin-bottom:6px;">Profesional</div>
+                        <div id="encMProfeBtns" style="display:flex;flex-wrap:wrap;gap:6px;"></div>
+                    </div>
+                    <div>
+                        <div style="font-size:.68rem;font-weight:700;text-transform:uppercase;letter-spacing:.6px;color:var(--muted);margin-bottom:6px;">Tipo de encuesta</div>
+                        <div id="encMTipoBtns" style="display:flex;flex-wrap:wrap;gap:6px;"></div>
+                    </div>
+                </div>
+            </div>
+
+            <div id="encMStatus" style="font-size:.8rem;color:var(--muted);margin-bottom:12px;"></div>
+
+            <!-- KPIs -->
+            <div id="encMKpis" style="display:grid;grid-template-columns:repeat(auto-fill,minmax(150px,1fr));gap:10px;margin-bottom:16px;"></div>
+
+            <!-- Gráficos -->
+            <div style="display:grid;grid-template-columns:1fr 1fr;gap:14px;margin-bottom:16px;" id="encMCharts">
+                <div class="card">
+                    <div class="card-title"><i class="fas fa-chart-line"></i> NPS por mes</div>
+                    <canvas id="encMChartNps" height="150"></canvas>
+                </div>
+                <div class="card">
+                    <div class="card-title"><i class="fas fa-chart-column"></i> Respuestas por mes</div>
+                    <canvas id="encMChartResp" height="150"></canvas>
+                </div>
+            </div>
+
+            <!-- Tabla por mes -->
+            <div class="card" style="margin-bottom:16px;">
+                <div class="card-title"><i class="fas fa-calendar-days"></i> Detalle por mes</div>
+                <div class="tw"><table>
+                    <thead><tr><th>Mes</th><th>Respuestas</th><th>NPS</th><th>Promotores</th><th>Pasivos</th><th>Detractores</th></tr></thead>
+                    <tbody id="encMTablaMes"></tbody>
+                </table></div>
+            </div>
+
+            <!-- Tabla comparativa por profesional -->
+            <div class="card" style="margin-bottom:16px;">
+                <div class="card-title"><i class="fas fa-user-group"></i> Comparativa por profesional</div>
+                <div class="tw"><table>
+                    <thead><tr><th>Profesional</th><th>Sede</th><th>Respuestas</th><th>NPS</th></tr></thead>
+                    <tbody id="encMTablaProfe"></tbody>
+                </table></div>
+            </div>
+        </div><!-- /section-enc-mensual -->
+
     </div><!-- /content -->
 
 </div><!-- /main -->
@@ -1733,6 +1795,7 @@ const META = {
     'recepcion': {title:'Auditor\u00eda Recepci\u00f3n', sub:'Control de ventas \u00b7 Recepcionistas MOVE'},
     'analisis-entrenadores': {title:'An\u00e1lisis Entrenadores', sub:'Objetivos, tareas y retenci\u00f3n \u00b7 Datos reales 2026'},
     'informe':   {title:'Resumen General', sub:'Informe consolidado \u00b7 Bols\u00f3n, Lago Puelo y Bariloche \u00b7 Editable + PDF'},
+    'enc-mensual':{title:'Encuestas \u2014 An\u00e1lisis Mensual', sub:'NPS y respuestas por mes \u00b7 Filtr\u00e1 y compar\u00e1 por sede, profesional o mes'},
 };
 function go(sec){
     document.querySelectorAll('.section').forEach(s=>s.classList.remove('active'));
@@ -1750,6 +1813,7 @@ function go(sec){
     if(sec==='recepcion'){ recepInit(); }
     if(sec==='analisis-entrenadores'){ aeSelProfe(aeProfeActual); }
     if(sec==='informe'){ informeInit(); }
+    if(sec==='enc-mensual'){ encMInit(); }
     closeSb();
 }
 function toggleSb(){
@@ -5125,6 +5189,165 @@ function informeDescargarHTML(){
     a.href=url; a.download='Informe_MOVE_'+f+'.doc';
     document.body.appendChild(a); a.click(); document.body.removeChild(a);
     setTimeout(()=>URL.revokeObjectURL(url), 2000);
+}
+
+// ══════════════════════════════════════════════════
+// ENCUESTAS — ANÁLISIS MENSUAL (filtros + comparativas)
+// ══════════════════════════════════════════════════
+const ENCM_MS = ['Ene','Feb','Mar','Abr','May','Jun','Jul','Ago','Sep','Oct','Nov','Dic'];
+let encMState = { sede:'todas', profe:'todos', tipo:'bienvenida' };
+let encMAll = null;       // {bienvenida:[...], baja:[...]}
+let encMCargando = false;
+
+function encParseFecha(v){
+    if(!v) return null;
+    if(v instanceof Date) return isNaN(v)?null:v;
+    const s = String(v).trim();
+    let m = s.match(/^Date\((\d+),(\d+),(\d+)(?:,(\d+),(\d+),(\d+))?\)/);
+    if(m) return new Date(+m[1],+m[2],+m[3],+(m[4]||0),+(m[5]||0),+(m[6]||0));
+    m = s.match(/^(\d{1,2})[\/\-](\d{1,2})[\/\-](\d{2,4})/);
+    if(m){ let y=+m[3]; if(y<100) y+=2000; return new Date(y,(+m[2])-1,+m[1]); }
+    const d = new Date(s); return isNaN(d)?null:d;
+}
+function encMBuild(rows, tipo, sedeHint){
+    return (rows||[]).map(r=>{
+        const profeRaw = String(getCol(r,'profesor')||getCol(r,'profesional')||getCol(r,'profe')||'').trim();
+        const profe = profeRaw ? profeRaw.split(/\s+/).slice(0,2).join(' ') : 'Sin asignar';
+        let sede = sedeHint;
+        if(!sede){ const s=getCol(r,'sede'); sede = s?infNormSede(s):infNormSede(getSede(profeRaw)); }
+        let f = encParseFecha(getCol(r,'temporal')||getCol(r,'marca')||getCol(r,'fecha')||getCol(r,'timestamp'));
+        if(!f){ for(const v of Object.values(r)){ const s=String(v||''); if(/^Date\(\d/.test(s) || /^\d{1,2}[\/\-]\d{1,2}[\/\-]\d{2,4}/.test(s)){ const d=encParseFecha(s); if(d){ f=d; break; } } } }
+        let nps = tipo==='bienvenida' ? getNPSVal(r) : null;
+        if(nps==null||isNaN(nps)) nps=null;
+        return { sede, profe, profeRaw, fecha:f, nps, tipo };
+    });
+}
+async function encMInit(){
+    encMRenderTipoBtns();
+    if(encMAll){ encMRebuildControls(); encMRender(); return; }
+    if(encMCargando) return;
+    encMCargando = true;
+    document.getElementById('encMStatus').innerHTML = '<i class="fas fa-spinner fa-spin"></i> Cargando encuestas de las tres sedes…';
+    let bw=[],bc=[],barw=[],barc=[];
+    try { [bw,bc] = await Promise.all([ sheetLoad(SHEET_ENC_ID,'1563858316','encmBolBienv'), sheetLoad(SHEET_ENC_ID,'839375428','encmBolBaja') ]); } catch(e){}
+    try { [barw,barc] = await Promise.all([ sheetLoad(SHEET_BARI_ENC_ID,SHEET_BARI_BIENV_GID,'encmBariBienv'), sheetLoad(SHEET_BARI_ENC_ID,SHEET_BARI_BAJAS_GID,'encmBariBaja') ]); } catch(e){}
+    encMAll = {
+        bienvenida: [ ...encMBuild(bw,'bienvenida',null), ...encMBuild(barw,'bienvenida','Bariloche') ],
+        baja:       [ ...encMBuild(bc,'baja',null),        ...encMBuild(barc,'baja','Bariloche') ]
+    };
+    encMCargando = false;
+    document.getElementById('encMStatus').innerHTML = '';
+    encMRebuildControls();
+    encMRender();
+}
+function encMScopeRows(ignoreProfe){
+    let rows = (encMAll && encMAll[encMState.tipo]) ? encMAll[encMState.tipo] : [];
+    if(encMState.sede!=='todas') rows = rows.filter(r=>r.sede===encMState.sede);
+    if(!ignoreProfe && encMState.profe!=='todos') rows = rows.filter(r=>r.profe===encMState.profe);
+    return rows;
+}
+function encMBtn(label, active, onclick){
+    return `<button class="tab ${active?'active':''}" style="font-size:.74rem;padding:5px 12px;" onclick="${onclick}">${label}</button>`;
+}
+function encMRenderTipoBtns(){
+    const el=document.getElementById('encMTipoBtns'); if(!el) return;
+    el.innerHTML = encMBtn('🟢 Bienvenida (NPS)', encMState.tipo==='bienvenida', "encMSetTipo('bienvenida')")
+                 + encMBtn('🔴 Bajas', encMState.tipo==='baja', "encMSetTipo('baja')");
+}
+function encMRebuildControls(){
+    // Sedes
+    const sedes=['todas','El Bolsón','Lago Puelo','Bariloche'];
+    document.getElementById('encMSedeBtns').innerHTML = sedes.map(s=>
+        encMBtn(s==='todas'?'Todas':s, encMState.sede===s, `encMSetSede('${s.replace(/'/g,"\\'")}')`)).join('');
+    // Profes dentro del scope sede+tipo
+    const rows = encMScopeRows(true);
+    const profes = [...new Set(rows.map(r=>r.profe))].sort();
+    document.getElementById('encMProfeBtns').innerHTML =
+        encMBtn('Todos', encMState.profe==='todos', "encMSetProfe('todos')")
+        + profes.map(p=>encMBtn(p, encMState.profe===p, `encMSetProfe('${p.replace(/'/g,"\\'")}')`)).join('');
+    encMRenderTipoBtns();
+}
+function encMSetSede(s){ encMState.sede=s; encMState.profe='todos'; encMRebuildControls(); encMRender(); }
+function encMSetProfe(p){ encMState.profe=p; encMRebuildControls(); encMRender(); }
+function encMSetTipo(t){ encMState.tipo=t; encMState.profe='todos'; encMRebuildControls(); encMRender(); }
+
+function encMRender(){
+    const rows = encMScopeRows();
+    const esBienv = encMState.tipo==='bienvenida';
+
+    // Agrupar por mes
+    const byMonth = {};
+    rows.forEach(r=>{
+        const key = r.fecha ? (r.fecha.getFullYear()+'-'+String(r.fecha.getMonth()+1).padStart(2,'0')) : 'zzzz';
+        const lbl = r.fecha ? (ENCM_MS[r.fecha.getMonth()]+' '+r.fecha.getFullYear()) : 'Sin fecha';
+        (byMonth[key] = byMonth[key] || {lbl, rows:[]}).rows.push(r);
+    });
+    const keys = Object.keys(byMonth).sort();
+
+    // KPIs
+    const npsAll = rows.map(r=>r.nps).filter(n=>n!=null);
+    const npsGen = npsAll.length ? calcNPS(npsAll) : null;
+    let mejor=null, peor=null;
+    keys.forEach(k=>{ if(k==='zzzz') return; const ns=byMonth[k].rows.map(r=>r.nps).filter(n=>n!=null); if(!ns.length) return; const v=calcNPS(ns); if(mejor===null||v>mejor.v) mejor={l:byMonth[k].lbl,v}; if(peor===null||v<peor.v) peor={l:byMonth[k].lbl,v}; });
+    const kpiCard=(l,v,c,sub)=>`<div class="stat-card" style="background:var(--card);border:1px solid var(--border);border-radius:10px;padding:14px;border-left:3px solid ${c};">
+        <div style="font-size:1.5rem;font-weight:800;color:${c};font-family:monospace;">${v}</div>
+        <div style="font-size:.6rem;font-weight:700;text-transform:uppercase;letter-spacing:.5px;color:var(--muted);margin-top:4px;">${l}</div>
+        ${sub?`<div style="font-size:.68rem;color:var(--muted);margin-top:2px;">${sub}</div>`:''}</div>`;
+    let kpis = kpiCard('Respuestas totales', rows.length, 'var(--accent)', (encMState.sede==='todas'?'Todas las sedes':encMState.sede));
+    if(esBienv){
+        const npsCol = npsGen==null?'#94a3b8':npsGen>=50?'#10b981':npsGen>=30?'#3b82f6':npsGen>=0?'#f59e0b':'#ef4444';
+        kpis += kpiCard('NPS general', npsGen==null?'—':npsGen, npsCol, npsAll.length+' con puntaje');
+        kpis += kpiCard('Mejor mes', mejor?mejor.v:'—', '#10b981', mejor?mejor.l:'');
+        kpis += kpiCard('Mes más bajo', peor?peor.v:'—', '#ef4444', peor?peor.l:'');
+    } else {
+        const meses = keys.filter(k=>k!=='zzzz').length;
+        kpis += kpiCard('Meses con bajas', meses, '#f59e0b', '');
+    }
+    document.getElementById('encMKpis').innerHTML = kpis;
+
+    // Tabla por mes
+    let tb='';
+    keys.forEach(k=>{
+        const g=byMonth[k]; const ns=g.rows.map(r=>r.nps).filter(n=>n!=null);
+        const nps=ns.length?calcNPS(ns):null;
+        const prom=ns.filter(n=>n>=9).length, pas=ns.filter(n=>n>=7&&n<=8).length, det=ns.filter(n=>n<=6).length;
+        const npsCol=nps==null?'#94a3b8':nps>=50?'#10b981':nps>=30?'#3b82f6':nps>=0?'#f59e0b':'#ef4444';
+        tb+=`<tr>
+            <td><b>${g.lbl}</b></td>
+            <td>${g.rows.length}</td>
+            <td>${esBienv?`<span style="color:${npsCol};font-weight:700;">${nps==null?'—':nps}</span>`:'—'}</td>
+            <td>${esBienv?prom:'—'}</td>
+            <td>${esBienv?pas:'—'}</td>
+            <td>${esBienv?det:'—'}</td>
+        </tr>`;
+    });
+    document.getElementById('encMTablaMes').innerHTML = tb || '<tr><td colspan="6" style="text-align:center;color:var(--muted);padding:18px;">Sin datos para este filtro</td></tr>';
+
+    // Tabla comparativa por profesional (dentro de sede+tipo, ignora filtro de profe)
+    const scopeProfe = encMScopeRows(true);
+    const byProfe={};
+    scopeProfe.forEach(r=>{ (byProfe[r.profe]=byProfe[r.profe]||{sede:r.sede,rows:[]}).rows.push(r); });
+    const pArr = Object.entries(byProfe).map(([p,o])=>{ const ns=o.rows.map(r=>r.nps).filter(n=>n!=null); return {p, sede:o.sede, n:o.rows.length, nps:ns.length?calcNPS(ns):null}; });
+    pArr.sort((a,b)=>(b.nps==null?-999:b.nps)-(a.nps==null?-999:a.nps));
+    let pb='';
+    pArr.forEach(x=>{
+        const npsCol=x.nps==null?'#94a3b8':x.nps>=50?'#10b981':x.nps>=30?'#3b82f6':x.nps>=0?'#f59e0b':'#ef4444';
+        const sel = encMState.profe===x.p;
+        pb+=`<tr style="cursor:pointer;${sel?'background:#eef2ff;':''}" onclick="encMSetProfe('${x.p.replace(/'/g,"\\'")}')">
+            <td><b>${x.p}</b></td><td>${x.sede}</td><td>${x.n}</td>
+            <td>${esBienv?`<span style="color:${npsCol};font-weight:700;">${x.nps==null?'—':x.nps}</span>`:'—'}</td>
+        </tr>`;
+    });
+    document.getElementById('encMTablaProfe').innerHTML = pb || '<tr><td colspan="4" style="text-align:center;color:var(--muted);padding:18px;">Sin datos</td></tr>';
+
+    // Gráficos
+    const chartKeys = keys.filter(k=>k!=='zzzz');
+    const labels = chartKeys.map(k=>byMonth[k].lbl);
+    const respData = chartKeys.map(k=>byMonth[k].rows.length);
+    const npsData = chartKeys.map(k=>{ const ns=byMonth[k].rows.map(r=>r.nps).filter(n=>n!=null); return ns.length?calcNPS(ns):0; });
+    const wrap=document.getElementById('encMCharts');
+    if(esBienv && labels.length){ wrap.style.display='grid'; try{ line('encMChartNps',labels,[{l:'NPS',d:npsData,c:'#6366f1'}]); bar('encMChartResp',labels,[{l:'Respuestas',d:respData,c:'#10b981'}]); }catch(e){} }
+    else { wrap.style.display='none'; if(CH['encMChartNps'])CH['encMChartNps'].destroy(); if(CH['encMChartResp'])CH['encMChartResp'].destroy(); }
 }
 
 cargarTodo();
