@@ -4272,7 +4272,15 @@ function recepRenderMes(datos, mesIdx){
 // ══════════════════════════════════════════════════════════
 let recepAllData = null;
 let recepTeamCargando = false;
+let recepServerLog = null;   // registro automático (GitHub Actions) desde analisis/recep-log.json
 const RECEP_LOG_KEY = 'moveRecepLog_v1';
+
+function recepCargarServerLog(){
+    return fetch('analisis/recep-log.json?t='+Date.now(), {cache:'no-store'})
+        .then(r=> r.ok ? r.json() : [])
+        .then(j=>{ recepServerLog = Array.isArray(j)?j:[]; })
+        .catch(()=>{ recepServerLog = recepServerLog||[]; });
+}
 const RECEP_METRICS = [
     {k:'ventas', obj:RECEP_OBJ.ventas}, {k:'planes3m', obj:RECEP_OBJ.planes3m},
     {k:'indumentaria', obj:RECEP_OBJ.indumentaria}, {k:'mensajes', obj:RECEP_OBJ.mensajes},
@@ -4285,13 +4293,16 @@ async function recepTeamLoad(force){
     if(recepAllData && !force){ recepRenderTeam(); return; }
     recepTeamCargando = true;
     const st=document.getElementById('recepTeamStatus'); if(st) st.innerHTML='<i class="fas fa-spinner fa-spin"></i> Cargando planillas del equipo…';
-    const res = await Promise.all(RECEP_CONFIG.map(async r=>{
-        try {
-            const url=`https://docs.google.com/spreadsheets/d/${r.sheetId}/export?format=csv&gid=${r.gid}&t=${Date.now()}`;
-            const resp=await fetch(url,{cache:'no-store'}); if(!resp.ok) throw 0;
-            const csv=await resp.text(); return {cfg:r, datos:recepParsear(csv)};
-        } catch(e){ return {cfg:r, datos:null}; }
-    }));
+    const [res] = await Promise.all([
+        Promise.all(RECEP_CONFIG.map(async r=>{
+            try {
+                const url=`https://docs.google.com/spreadsheets/d/${r.sheetId}/export?format=csv&gid=${r.gid}&t=${Date.now()}`;
+                const resp=await fetch(url,{cache:'no-store'}); if(!resp.ok) throw 0;
+                const csv=await resp.text(); return {cfg:r, datos:recepParsear(csv)};
+            } catch(e){ return {cfg:r, datos:null}; }
+        })),
+        recepCargarServerLog()
+    ]);
     recepAllData = res;
     recepTeamCargando = false;
     if(st) st.innerHTML='';
@@ -4406,7 +4417,11 @@ function recepSnapshotCheck(){
 }
 function recepRenderLog(){
     const body=document.getElementById('recepLogBody'); if(!body) return;
-    const log=recepLeerLog().slice().reverse();
+    // Combinar registro automático (nube) + local, deduplicado por fecha (la nube manda)
+    const map={};
+    recepLeerLog().forEach(e=>{ if(e&&e.fecha) map[e.fecha]=e; });
+    (recepServerLog||[]).forEach(e=>{ if(e&&e.fecha) map[e.fecha]={...e, auto:true}; });
+    const log=Object.values(map).sort((a,b)=>(a.ts||0)-(b.ts||0)).reverse();
     if(!log.length){ body.innerHTML='<tr><td colspan="5" style="text-align:center;color:var(--muted);padding:16px;">Aún sin registros. Se generará el primero automáticamente.</td></tr>'; return; }
     body.innerHTML = log.map((e,i)=>{
         const prev = log[i+1];
@@ -4414,8 +4429,9 @@ function recepRenderLog(){
         let delta='<span class="inf-muted">—</span>';
         if(prev){ const pAv=prev.avance!=null?prev.avance:prev.cargaProm; const dC=av-pAv; const dV=e.ventasAcum-prev.ventasAcum; const c=dC>0?'#10b981':dC<0?'#ef4444':'#64748b';
             delta=`<span style="color:${c};font-weight:700;">${dC>0?'+':''}${dC}% avance</span> <span class="inf-muted" style="font-size:.7rem;">· ${dV>=0?'+':''}${dV} ventas</span>`; }
+        const autoBadge = e.auto ? ' <span style="background:#e0e7ff;color:#3730a3;font-size:.55rem;font-weight:700;padding:1px 6px;border-radius:8px;">AUTO</span>' : '';
         return `<tr>
-            <td style="white-space:nowrap;"><b>${e.fecha}</b><br><span class="inf-muted" style="font-size:.68rem;">${e.mes}</span></td>
+            <td style="white-space:nowrap;"><b>${e.fecha}</b>${autoBadge}<br><span class="inf-muted" style="font-size:.68rem;">${e.mes}</span></td>
             <td style="font-weight:700;">${av}%</td>
             <td>${e.ventasAcum}</td>
             <td>${e.puntProm==null?'—':e.puntProm}</td>
