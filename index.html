@@ -544,7 +544,7 @@ tr:hover td{background:#fafbfc;}
                 <i class="fas fa-clipboard-check"></i> Auditor&iacute;a
             </div>
             <div class="nav-item" onclick="go('recepcion')">
-                <i class="fas fa-chart-line"></i> Auditor&iacute;a Recepci&oacute;n
+                <i class="fas fa-cash-register"></i> Ventas Recepci&oacute;n
             </div>
         </div>
         <div class="sb-group">
@@ -1330,6 +1330,60 @@ tr:hover td{background:#fafbfc;}
         <!-- SECCIÓN: AUDITORÍA RECEPCIÓN               -->
         <!-- ════════════════════════════════════════════ -->
         <div class="section" id="section-recepcion">
+
+            <!-- ════ PANEL DE EQUIPO (VENTAS) ════ -->
+            <div id="recepTeamPanel">
+                <div style="display:flex;justify-content:space-between;align-items:center;flex-wrap:wrap;gap:8px;margin-bottom:12px;">
+                    <div style="font-size:.95rem;font-weight:800;color:var(--text);">
+                        <i class="fas fa-chart-pie" style="color:var(--accent);margin-right:6px;"></i>Panel del Equipo · <span id="recepTeamMes">—</span>
+                    </div>
+                    <button class="tab" onclick="recepTeamLoad(true)" style="font-size:.72rem;"><i class="fas fa-rotate-right"></i> Actualizar equipo</button>
+                </div>
+                <div id="recepTeamStatus" style="font-size:.8rem;color:var(--muted);margin-bottom:10px;"></div>
+
+                <!-- KPIs equipo -->
+                <div id="recepTeamKpis" style="display:grid;grid-template-columns:repeat(auto-fill,minmax(140px,1fr));gap:10px;margin-bottom:16px;"></div>
+
+                <!-- Ranking + gráficos -->
+                <div style="display:grid;grid-template-columns:1fr 1fr;gap:14px;margin-bottom:16px;">
+                    <div class="card">
+                        <div class="card-title"><i class="fas fa-ranking-star"></i> Ranking de ventas (mes)</div>
+                        <canvas id="recepChartRanking" height="160"></canvas>
+                    </div>
+                    <div class="card">
+                        <div class="card-title"><i class="fas fa-bullseye"></i> Cumplimiento de objetivos</div>
+                        <canvas id="recepChartCumpl" height="160"></canvas>
+                    </div>
+                </div>
+                <div class="card" style="margin-bottom:16px;">
+                    <div class="card-title"><i class="fas fa-chart-line"></i> Evolución de ventas del equipo</div>
+                    <canvas id="recepChartTrend" height="90"></canvas>
+                </div>
+
+                <!-- Tabla comparativa equipo -->
+                <div class="card" style="margin-bottom:16px;">
+                    <div class="card-title"><i class="fas fa-users"></i> Comparativa por recepcionista</div>
+                    <div class="tw"><table>
+                        <thead><tr><th>#</th><th>Recepcionista</th><th>Sede</th><th>Ventas</th><th>Planes 3m</th><th>Mensajes</th><th>Cumplim.</th><th>Puntaje</th></tr></thead>
+                        <tbody id="recepTeamTabla"></tbody>
+                    </table></div>
+                </div>
+
+                <!-- Registro automático de avance (cada 5 días) -->
+                <div class="card" style="margin-bottom:24px;">
+                    <div class="card-title"><i class="fas fa-clipboard-list" style="color:var(--accent);"></i> Registro de avance de carga <span style="font-size:.68rem;font-weight:500;color:var(--muted);">· se guarda automáticamente cada 5 días</span></div>
+                    <div class="tw"><table>
+                        <thead><tr><th>Fecha</th><th>Avance objetivos</th><th>Ventas acum. mes</th><th>Puntaje prom.</th><th>vs registro anterior</th></tr></thead>
+                        <tbody id="recepLogBody"></tbody>
+                    </table></div>
+                </div>
+
+                <div style="border-top:2px solid var(--border);margin:8px 0 18px;"></div>
+                <div style="font-size:.82rem;font-weight:700;color:var(--muted);text-transform:uppercase;letter-spacing:.6px;margin-bottom:12px;">
+                    <i class="fas fa-magnifying-glass-chart" style="margin-right:5px;"></i>Detalle por recepcionista
+                </div>
+            </div>
+
             <div style="margin-bottom:20px;">
                 <!-- Selector recepcionista -->
                 <div class="card" style="margin-bottom:16px;">
@@ -1802,7 +1856,7 @@ const META = {
     'bari-enc':  {title:'Bariloche \u2014 Encuestas', sub:'Bienvenida & An\u00e1lisis de Bajas sede Bariloche'},
     'bolson-enc':{title:'Bols\u00f3n & Lago Puelo \u2014 Encuestas', sub:'Bienvenida & An\u00e1lisis de Bajas'},
     'auditoria': {title:'Auditor\u00eda', sub:'Supervisi\u00f3n de entrenadores \u00b7 Metodolog\u00eda MOVE'},
-    'recepcion': {title:'Auditor\u00eda Recepci\u00f3n', sub:'Control de ventas \u00b7 Recepcionistas MOVE'},
+    'recepcion': {title:'Ventas Recepci\u00f3n', sub:'Performance de ventas y avance de carga \u00b7 Equipo de recepci\u00f3n MOVE'},
     'analisis-entrenadores': {title:'An\u00e1lisis Entrenadores', sub:'Objetivos, tareas y retenci\u00f3n \u00b7 Datos reales 2026'},
     'informe':   {title:'Resumen General', sub:'Informe consolidado \u00b7 Bols\u00f3n, Lago Puelo y Bariloche \u00b7 Editable + PDF'},
     'enc-mensual':{title:'Encuestas \u2014 An\u00e1lisis Mensual', sub:'NPS y respuestas por mes \u00b7 Filtr\u00e1 y compar\u00e1 por sede, profesional o mes'},
@@ -4014,6 +4068,7 @@ function recepInit(){
         </div>`).join('');
     document.getElementById('recepPlanillaKpis').style.display='none';
     document.getElementById('recepError').style.display='none';
+    recepTeamLoad();
 }
 
 function recepSeleccionar(id){
@@ -4111,13 +4166,14 @@ function recepParsear(csv){
 }
 
 function recepRenderizar(datos){
-    // Tabs de mes — solo mostrar meses con al menos un dato
-    const mesesConDato = datos.filter(d=>d.ventas!==null||d.mensajes!==null||d.puntaje!==null);
+    // Tabs de mes — solo meses con datos reales (evita meses futuros con 0 espurios)
+    const tieneReal = d => (d.ventas>0)||(d.mensajes>0)||(d.puntaje>0);
+    const mesesConDato = datos.filter(tieneReal);
     const mesMostrar = mesesConDato.length ? Math.max(...mesesConDato.map(d=>d.mes)) : recepMesActual;
     if(mesesConDato.length) recepMesActual = mesMostrar;
 
     document.getElementById('recepMesTabs').innerHTML = RECEP_MESES.map((m,i)=>{
-        const tieneDato = datos[i].ventas!==null||datos[i].mensajes!==null;
+        const tieneDato = tieneReal(datos[i]);
         return `<button class="tab ${i===recepMesActual?'active':''} ${!tieneDato?'':''})"
             onclick="recepCambiarMes(${i})"
             style="font-size:.68rem;padding:4px 10px;${!tieneDato?'opacity:.4;':''}">
@@ -4196,7 +4252,7 @@ function recepRenderMes(datos, mesIdx){
 
     // Tabla historial — solo meses con datos
     document.getElementById('recepTabla').innerHTML = datos.map((d,i)=>{
-        const tieneDato = d.ventas!==null||d.mensajes!==null||d.puntaje!==null;
+        const tieneDato = (d.ventas>0)||(d.mensajes>0)||(d.puntaje>0);
         if(!tieneDato) return '';
         const p = pct(d.ventas, RECEP_OBJ.ventas);
         const c = color(p);
@@ -4207,6 +4263,163 @@ function recepRenderMes(datos, mesIdx){
             <td style="font-family:monospace">${d.indumentaria!==null?d.indumentaria:'—'}</td>
             <td style="font-family:monospace">${d.mensajes!==null?d.mensajes:'—'}</td>
             <td style="font-family:monospace;font-weight:700">${d.puntaje!==null?d.puntaje:'—'}</td>
+        </tr>`;
+    }).join('');
+}
+
+// ══════════════════════════════════════════════════════════
+// PANEL DE EQUIPO — VENTAS RECEPCIÓN (métricas + snapshot 5 días)
+// ══════════════════════════════════════════════════════════
+let recepAllData = null;
+let recepTeamCargando = false;
+const RECEP_LOG_KEY = 'moveRecepLog_v1';
+const RECEP_METRICS = [
+    {k:'ventas', obj:RECEP_OBJ.ventas}, {k:'planes3m', obj:RECEP_OBJ.planes3m},
+    {k:'indumentaria', obj:RECEP_OBJ.indumentaria}, {k:'mensajes', obj:RECEP_OBJ.mensajes},
+    {k:'prueba', obj:RECEP_OBJ.prueba}
+];
+const recepSum = (arr,k) => arr.reduce((s,x)=> s + (x!=null&&x[k]!=null?x[k]:0), 0);
+
+async function recepTeamLoad(force){
+    if(recepTeamCargando) return;
+    if(recepAllData && !force){ recepRenderTeam(); return; }
+    recepTeamCargando = true;
+    const st=document.getElementById('recepTeamStatus'); if(st) st.innerHTML='<i class="fas fa-spinner fa-spin"></i> Cargando planillas del equipo…';
+    const res = await Promise.all(RECEP_CONFIG.map(async r=>{
+        try {
+            const url=`https://docs.google.com/spreadsheets/d/${r.sheetId}/export?format=csv&gid=${r.gid}&t=${Date.now()}`;
+            const resp=await fetch(url,{cache:'no-store'}); if(!resp.ok) throw 0;
+            const csv=await resp.text(); return {cfg:r, datos:recepParsear(csv)};
+        } catch(e){ return {cfg:r, datos:null}; }
+    }));
+    recepAllData = res;
+    recepTeamCargando = false;
+    if(st) st.innerHTML='';
+    recepSnapshotCheck();
+    recepRenderTeam();
+}
+
+function recepTeamVentasMes(idx){ let t=0; (recepAllData||[]).forEach(x=>{ const dd=x.datos?x.datos[idx]:null; if(dd&&dd.ventas!=null) t+=dd.ventas; }); return t; }
+function recepTeamMesIdx(){
+    // Último mes con ventas reales del equipo (>5). Evita meses futuros con 0 espurios.
+    for(let i=RECEP_MESES.length-1;i>=0;i--){ if(recepTeamVentasMes(i)>5) return i; }
+    for(let i=RECEP_MESES.length-1;i>=0;i--){ if(recepTeamVentasMes(i)>0) return i; }
+    return new Date().getMonth();
+}
+function recepPerRecep(mi){
+    return (recepAllData||[]).map(x=>{
+        const d = x.datos ? x.datos[mi] : null;
+        const real = d && (d.ventas>0 || d.puntaje>0 || d.mensajes>0);
+        let cumpl=null;
+        if(real){
+            let suma=0;
+            RECEP_METRICS.forEach(m=>{ const v=d[m.k]; if(v!=null) suma += Math.min(v/m.obj,1); });
+            cumpl = Math.round(suma/RECEP_METRICS.length*100);
+        }
+        return { id:x.cfg.id, name:x.cfg.name, sede:x.cfg.sede, d:real?d:null, cumpl, sinDatos:!real };
+    });
+}
+
+function recepRenderTeam(){
+    if(!recepAllData) return;
+    const mi = recepTeamMesIdx();
+    document.getElementById('recepTeamMes').textContent = RECEP_MESES_FULL[mi] + ' 2026';
+    const pr = recepPerRecep(mi);
+    const conD = pr.filter(p=>!p.sinDatos);
+
+    // Totales / métricas de ventas
+    const ds = conD.map(p=>p.d);
+    const totVentas = recepSum(ds,'ventas'), totPlanes=recepSum(ds,'planes3m'), totMsg=recepSum(ds,'mensajes'), totIndu=recepSum(ds,'indumentaria');
+    const puntajes = ds.map(d=>d.puntaje).filter(v=>v!=null);
+    const puntProm = puntajes.length ? Math.round(puntajes.reduce((a,b)=>a+b,0)/puntajes.length) : null;
+    const cumpls = conD.map(p=>p.cumpl).filter(v=>v!=null);
+    const cumplProm = cumpls.length ? Math.round(cumpls.reduce((a,b)=>a+b,0)/cumpls.length) : null;
+    const convPlanes = totVentas>0 ? Math.round(totPlanes/totVentas*100) : null;  // % ventas que son plan 3m
+    const induXventa = totVentas>0 ? (totIndu/totVentas).toFixed(1) : null;
+
+    const col = p => p==null?'#94a3b8':p>=80?'#10b981':p>=50?'#f59e0b':'#ef4444';
+    const kc=(l,v,c,sub)=>`<div class="stat-card" style="background:var(--card);border:1px solid var(--border);border-radius:10px;padding:14px;border-left:3px solid ${c};">
+        <div style="font-size:1.45rem;font-weight:800;color:${c};font-family:monospace;">${v}</div>
+        <div style="font-size:.6rem;font-weight:700;text-transform:uppercase;letter-spacing:.5px;color:var(--muted);margin-top:4px;">${l}</div>
+        ${sub?`<div style="font-size:.66rem;color:var(--muted);margin-top:2px;">${sub}</div>`:''}</div>`;
+    document.getElementById('recepTeamKpis').innerHTML =
+        kc('Ventas equipo', totVentas, 'var(--accent)', 'obj '+(RECEP_OBJ.ventas*conD.length)) +
+        kc('Cumplimiento prom.', cumplProm==null?'—':cumplProm+'%', col(cumplProm), 'de objetivos') +
+        kc('Puntaje prom.', puntProm==null?'—':puntProm, col(puntProm), 'equipo') +
+        kc('Planes 3 meses', totPlanes, '#6366f1', (convPlanes!=null?convPlanes+'% de las ventas':'')) +
+        kc('Mensajes', totMsg, '#0ea5e9', 'enviados') +
+        kc('Indument. x venta', induXventa==null?'—':induXventa, '#f59e0b', 'unidades');
+
+    // Tabla comparativa (ranking por ventas)
+    const rank = pr.slice().sort((a,b)=>((b.d?b.d.ventas||0:-1))-((a.d?a.d.ventas||0:-1)));
+    const med = i=>i===0?'🥇':i===1?'🥈':i===2?'🥉':(i+1)+'º';
+    document.getElementById('recepTeamTabla').innerHTML = rank.map((p,i)=>{
+        if(p.sinDatos) return `<tr style="opacity:.55;"><td>—</td><td><b>${p.name}</b></td><td>${p.sede}</td><td colspan="5" class="inf-muted">sin datos cargados este mes</td></tr>`;
+        const d=p.d;
+        return `<tr>
+            <td style="text-align:center;font-weight:700;">${med(i)}</td>
+            <td><b>${p.name}</b></td><td>${p.sede}</td>
+            <td style="font-weight:700;color:${col(Math.round((d.ventas||0)/RECEP_OBJ.ventas*100))};">${d.ventas!=null?d.ventas:'—'}</td>
+            <td>${d.planes3m!=null?d.planes3m:'—'}</td>
+            <td>${d.mensajes!=null?d.mensajes:'—'}</td>
+            <td style="font-weight:700;color:${col(p.cumpl)};">${p.cumpl}%</td>
+            <td style="font-weight:700;">${d.puntaje!=null?d.puntaje:'—'}</td>
+        </tr>`;
+    }).join('') || '<tr><td colspan="8" style="text-align:center;color:var(--muted);padding:18px;">Sin datos del equipo</td></tr>';
+
+    // Gráficos
+    const lbls = conD.map(p=>p.name);
+    try { bar('recepChartRanking', conD.map(p=>p.name), [{l:'Ventas', d:conD.map(p=>p.d.ventas||0), c:'#10b981'}]); } catch(e){}
+    try { bar('recepChartCumpl', lbls, [{l:'Cumplimiento %', d:conD.map(p=>p.cumpl||0), c:'#6366f1'}]); } catch(e){}
+    // Evolución ventas equipo por mes
+    const mesesLbl=[], serie=[];
+    RECEP_MESES.forEach((m,idx)=>{
+        let any=false, tot=0;
+        (recepAllData||[]).forEach(x=>{ const dd=x.datos?x.datos[idx]:null; if(dd&&dd.ventas!=null){ any=true; tot+=dd.ventas; } });
+        if(any){ mesesLbl.push(m); serie.push(tot); }
+    });
+    try { line('recepChartTrend', mesesLbl, [{l:'Ventas equipo', d:serie, c:'#10b981'}]); } catch(e){}
+}
+
+// ── Registro automático de avance (snapshot cada 5 días) ──
+function recepLeerLog(){ try{ return JSON.parse(localStorage.getItem(RECEP_LOG_KEY))||[]; }catch(e){ return []; } }
+function recepGuardarLog(l){ try{ localStorage.setItem(RECEP_LOG_KEY, JSON.stringify(l.slice(-40))); }catch(e){} }
+function recepSnapshotCheck(){
+    const mi = recepTeamMesIdx();
+    const pr = recepPerRecep(mi);
+    const conD = pr.filter(p=>!p.sinDatos);
+    if(!conD.length){ recepRenderLog(); return; }
+    const cumpls = conD.map(p=>p.cumpl).filter(v=>v!=null);
+    const avance = cumpls.length?Math.round(cumpls.reduce((a,b)=>a+b,0)/cumpls.length):0;
+    const ventasAcum = recepSum(conD.map(p=>p.d),'ventas');
+    const punt = conD.map(p=>p.d.puntaje).filter(v=>v!=null);
+    const puntProm = punt.length?Math.round(punt.reduce((a,b)=>a+b,0)/punt.length):null;
+    const log = recepLeerLog();
+    const ahora = Date.now();
+    const ultimo = log[log.length-1];
+    const pasaron5 = !ultimo || (ahora - (ultimo.ts||0)) >= 5*86400000;
+    if(pasaron5){
+        log.push({ ts:ahora, fecha:new Date().toLocaleDateString('es-AR'), mes:RECEP_MESES_FULL[mi], avance, ventasAcum, puntProm });
+        recepGuardarLog(log);
+    }
+    recepRenderLog();
+}
+function recepRenderLog(){
+    const body=document.getElementById('recepLogBody'); if(!body) return;
+    const log=recepLeerLog().slice().reverse();
+    if(!log.length){ body.innerHTML='<tr><td colspan="5" style="text-align:center;color:var(--muted);padding:16px;">Aún sin registros. Se generará el primero automáticamente.</td></tr>'; return; }
+    body.innerHTML = log.map((e,i)=>{
+        const prev = log[i+1];
+        const av = e.avance!=null?e.avance:e.cargaProm;
+        let delta='<span class="inf-muted">—</span>';
+        if(prev){ const pAv=prev.avance!=null?prev.avance:prev.cargaProm; const dC=av-pAv; const dV=e.ventasAcum-prev.ventasAcum; const c=dC>0?'#10b981':dC<0?'#ef4444':'#64748b';
+            delta=`<span style="color:${c};font-weight:700;">${dC>0?'+':''}${dC}% avance</span> <span class="inf-muted" style="font-size:.7rem;">· ${dV>=0?'+':''}${dV} ventas</span>`; }
+        return `<tr>
+            <td style="white-space:nowrap;"><b>${e.fecha}</b><br><span class="inf-muted" style="font-size:.68rem;">${e.mes}</span></td>
+            <td style="font-weight:700;">${av}%</td>
+            <td>${e.ventasAcum}</td>
+            <td>${e.puntProm==null?'—':e.puntProm}</td>
+            <td>${delta}</td>
         </tr>`;
     }).join('');
 }
