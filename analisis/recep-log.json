@@ -25,5 +25,14 @@
     "ventasAcum": 7,
     "puntProm": 51,
     "auto": true
+  },
+  {
+    "ts": 1783776184361,
+    "fecha": "11/7/2026",
+    "mes": "Julio",
+    "avance": 32,
+    "ventasAcum": 15,
+    "puntProm": 94,
+    "auto": true
   }
 ]
