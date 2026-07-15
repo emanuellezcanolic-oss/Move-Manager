@@ -3097,11 +3097,16 @@ async function audGuardarAuditados(){
     const ahora = new Date();
     const mesActual = ahora.getFullYear()+'-'+String(ahora.getMonth()+1).padStart(2,'0');
     const lsKey = 'move_auditados_mes';
-    const data = {mes:mesActual, auditados:audSociosAuditados};
-    
+    // Estructura por profesor: {mes, porProfe:{profeId:{socio:audit}}}
+    let store = null;
+    try { store = JSON.parse(localStorage.getItem(lsKey)); } catch(e){}
+    if(!store || store.mes!==mesActual || !store.porProfe) store = {mes:mesActual, porProfe:{}};
+    if(audCurrentProfe) store.porProfe[audCurrentProfe] = audSociosAuditados;
+    const data = store;
+
     // Guardar en localStorage inmediatamente
     localStorage.setItem(lsKey, JSON.stringify(data));
-    
+
     // Sincronizar con Gist
     const body = JSON.stringify({files:{'auditados_mes.json':{content:JSON.stringify(data, null, 2)}}});
     for(let i=0;i<2;i++){
@@ -3345,34 +3350,30 @@ function audCargarAuditados(){
     const ahora = new Date();
     const mesActual = ahora.getFullYear()+'-'+String(ahora.getMonth()+1).padStart(2,'0');
     const lsKey = 'move_auditados_mes';
-    
+    const profe = audCurrentProfe;
+    // Extrae SOLO los socios del profesor actual (formato nuevo por profesor).
+    // El formato viejo global (data.auditados) se ignora para no mezclar entre profes.
+    const extract = store => (store && store.mes===mesActual && store.porProfe && profe)
+        ? (store.porProfe[profe] || {}) : {};
+
     // Cargar desde localStorage (inmediato)
-    const lsData = localStorage.getItem(lsKey);
-    if(lsData){
-        try{
-            const data = JSON.parse(lsData);
-            if(data.mes === mesActual){
-                audSociosAuditados = data.auditados || {};
-            } else {
-                audSociosAuditados = {};
-            }
-        } catch(e){
-            audSociosAuditados = {};
-        }
-    } else {
-        audSociosAuditados = {};
-    }
-    
+    let lsStore = null;
+    try { lsStore = JSON.parse(localStorage.getItem(lsKey)); } catch(e){}
+    audSociosAuditados = extract(lsStore);
+
     // Sincronizar con Gist en background
     const controller = new AbortController();
     const timeout = setTimeout(()=>controller.abort(), 5000);
-    
+
     fetch(`https://gist.githubusercontent.com/emanuellezcanolic-oss/0894016bb00afb2f7fd49964896ee0db/raw/auditados_mes.json?t=${Date.now()}`, {signal:controller.signal})
         .then(r=>r.json())
         .then(gistData=>{
-            if(gistData.mes === mesActual){
-                audSociosAuditados = gistData.auditados || {};
+            if(gistData && gistData.mes===mesActual && gistData.porProfe){
                 localStorage.setItem(lsKey, JSON.stringify(gistData));
+                if(audCurrentProfe===profe){
+                    audSociosAuditados = gistData.porProfe[profe] || {};
+                    try { if(audSociosSeleccionados && audSociosSeleccionados.length) audRenderTablaHoy(); } catch(e){}
+                }
             }
         })
         .catch(()=>{})
