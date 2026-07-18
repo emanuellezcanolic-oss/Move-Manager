@@ -3748,8 +3748,8 @@ function audRenderHistorial(){
                 ).join('')}
             </div>`:'';
         const scoreColor=a.semaforos?Object.values(a.semaforos).filter(v=>v==='rojo').length>1?'#ef4444':Object.values(a.semaforos).filter(v=>v==='amarillo').length>0?'#f59e0b':'#10b981':'#10b981';
-        return `<div class="aud-audit-item" onclick="audToggle('${a.id}')">
-            <div class="aud-audit-top">
+        return `<div class="aud-audit-item">
+            <div class="aud-audit-top" onclick="audToggle('${a.id}')" style="cursor:pointer;">
                 <div style="flex:1;">
                     <div class="aud-audit-socio">
                         <i class="fas fa-user-tie" style="font-size:.7rem;color:var(--muted);margin-right:5px;"></i>
