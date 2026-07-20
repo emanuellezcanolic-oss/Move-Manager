@@ -8,6 +8,7 @@
 <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700;800&display=swap" rel="stylesheet"/>
 <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css"/>
 <script src="https://cdn.jsdelivr.net/npm/chart.js@4.4.0/dist/chart.umd.min.js"></script>
+<script src="https://cdnjs.cloudflare.com/ajax/libs/jspdf/2.5.1/jspdf.umd.min.js"></script>
 <style>
 :root{
     --sb:260px;
@@ -1329,7 +1330,10 @@ tr:hover td{background:#fafbfc;}
             <div class="card" style="margin-bottom:16px;border-left:3px solid var(--accent);">
                 <div style="display:flex;justify-content:space-between;align-items:center;flex-wrap:wrap;gap:8px;margin-bottom:14px;">
                     <div class="card-title" style="margin:0;"><i class="fas fa-gauge-high"></i>Panel del mes · <span id="aePanelProfe" style="color:var(--accent);">—</span></div>
-                    <button class="aud-btn-save" onclick="aeGenerarMensaje()" style="font-size:.78rem;padding:8px 16px;display:flex;align-items:center;gap:6px;"><i class="fas fa-comment-dots"></i> Generar mensaje</button>
+                    <div style="display:flex;gap:6px;flex-wrap:wrap;">
+                        <button class="aud-btn-save" onclick="aeDescargarPDF()" style="font-size:.78rem;padding:8px 14px;display:flex;align-items:center;gap:6px;background:var(--card);border:1px solid var(--border);color:var(--text);"><i class="fas fa-file-pdf"></i> PDF</button>
+                        <button class="aud-btn-save" onclick="aeGenerarMensaje()" style="font-size:.78rem;padding:8px 16px;display:flex;align-items:center;gap:6px;"><i class="fas fa-comment-dots"></i> Generar mensaje</button>
+                    </div>
                 </div>
                 <div id="aeDeltaKpis" style="display:grid;grid-template-columns:repeat(auto-fill,minmax(150px,1fr));gap:10px;margin-bottom:16px;"></div>
                 <div style="font-size:.7rem;font-weight:700;text-transform:uppercase;letter-spacing:.6px;color:var(--muted);margin-bottom:10px;"><i class="fas fa-flag-checkered" style="margin-right:5px;color:var(--accent);"></i>Progreso hacia objetivos anuales 2026</div>
@@ -5271,8 +5275,23 @@ Mes: ${mesNombre}
 - Socios nuevos del mes: ${nuevos} — meta ≥70
 - Adherencia promedio de sus socios: ${adh!=null?adh+'%':'sin dato'}`;
 
-    const sys = `Sos el director de MOVE, un gimnasio boutique de entrenamiento integral con 3 sedes en la Patagonia argentina. Escribís un mensaje de WhatsApp a uno de tus entrenadores para darle su devolución mensual de desempeño. Tono: cercano, humano, motivador pero honesto y profesional; en español rioplatense (vos/tenés). Reconocé lo bueno, señalá con tacto lo que hay que mejorar, y conectá su trabajo con hacia dónde va MOVE como institución. No inventes números: usá SOLO los datos que te paso. No uses markdown ni asteriscos, es un WhatsApp. Máximo ~180 palabras. Cerrá con una frase que empuje hacia los objetivos del año.\n\nCONTEXTO DE MOVE:\n${MOVE_CONTEXT}`;
-    const usr = `Estos son los datos reales de este mes del entrenador. Redactá el mensaje de devolución:\n\n${metricas}`;
+    const sys = `Sos Emanuel, el director y líder de MOVE, un gimnasio boutique de entrenamiento integral con 3 sedes en la Patagonia argentina. Le escribís un WhatsApp personal a uno de tus entrenadores del equipo para acompañarlo en su mes.
+
+CÓMO ESCRIBÍS (muy importante):
+- Como un verdadero líder cercano, no como un jefe que audita. Hablás de "nosotros" y "el equipo", hacés sentir a la persona parte de MOVE.
+- Arrancás saludándolo por su nombre de pila con calidez y algo humano, no con números.
+- Reconocés y celebrás lo que viene haciendo bien, con detalle concreto (nombrá la métrica puntual que mejoró).
+- Si hay algo por mejorar, lo decís con tacto y desde el acompañamiento, nunca como reto. Enmarcás el desafío como algo que van a lograr juntos.
+- SIEMPRE, sí o sí, le preguntás de forma genuina cómo podés ayudarlo vos o el equipo a llegar a sus objetivos: qué necesita, qué le está costando, en qué le damos una mano. Esto es lo más importante del mensaje.
+- Conectás su laburo con hacia dónde va MOVE, para que sienta que su esfuerzo tiene sentido y que es parte de algo más grande.
+- Tono rioplatense (vos/tenés/sos), cálido, humano, motivador y real. Nada de corporativo ni acartonado.
+- Es un WhatsApp: sin markdown, sin asteriscos, sin títulos. Máximo ~170 palabras.
+- No inventes números: usá SOLO los datos que te paso.
+- Cerrás con una frase corta que sume, que lo deje con ganas y con la sensación de que no está solo.
+
+CONTEXTO DE MOVE:
+${MOVE_CONTEXT}`;
+    const usr = `Datos reales de este mes de tu entrenador. Escribí el WhatsApp de acompañamiento, cálido y personal, celebrando lo bueno y preguntándole en qué lo podés ayudar a llegar a los objetivos:\n\n${metricas}`;
 
     try{
         const resp = await fetch('https://api.groq.com/openai/v1/chat/completions',{
@@ -5306,6 +5325,136 @@ function aeCopiarMsg(btn){
         btn.innerHTML='<i class="fas fa-check"></i> ¡Copiado!';
         setTimeout(()=>btn.innerHTML=orig,1800);
     }).catch(()=>{ document.execCommand('copy'); });
+}
+
+// ── Descargar dashboard del entrenador en PDF ──
+function aeDescargarPDF(){
+    if(!window.jspdf || !window.jspdf.jsPDF){ alert('No se pudo cargar el generador de PDF. Revisá la conexión y reintentá.'); return; }
+    const {jsPDF} = window.jspdf;
+    const datos = AE_DATA[aeProfeActual] || AE_BELEN;
+    const mesIdx = aeMesActual;
+    const {d,prev,nuevos,nuevosPrev,adh,adhPrev,mesNombre} = aePanelDatos(mesIdx);
+    const nombre = AE_NOMBRE[aeProfeActual]||aeProfeActual;
+    const sede = AE_SEDE[aeProfeActual]||datos.sede||'';
+
+    const doc = new jsPDF({unit:'mm', format:'a4'});
+    const W = 210, M = 14;
+    const ACC=[16,185,129], DARK=[17,24,39], GRAY=[107,114,128], RED=[239,68,68], AMB=[245,158,11], LIGHT=[243,244,246];
+    const col = (v)=> v>=80?ACC : v>=50?AMB : RED;
+
+    // Header
+    doc.setFillColor(...DARK); doc.rect(0,0,W,30,'F');
+    doc.setFillColor(...ACC); doc.roundedRect(M,9,12,12,2,2,'F');
+    doc.setTextColor(255,255,255); doc.setFont('helvetica','bold'); doc.setFontSize(15);
+    doc.text('M', M+6, 17.5, {align:'center'});
+    doc.setFontSize(15); doc.text('MOVE · Dashboard de Desempeño', M+17, 14);
+    doc.setFont('helvetica','normal'); doc.setFontSize(10); doc.setTextColor(200,255,230);
+    doc.text(`${nombre}  ·  ${sede}  ·  ${mesNombre} 2026`, M+17, 21);
+    doc.setFontSize(7.5); doc.setTextColor(150,160,175);
+    doc.text(`Generado ${new Date().toLocaleDateString('es-AR')}`, W-M, 21, {align:'right'});
+
+    // Helper: delta text
+    const deltaTxt=(cur,pv,inv)=>{
+        if(pv==null||cur==null) return {t:'sin mes previo', c:GRAY};
+        const diff=Math.round((cur-pv)*10)/10;
+        if(diff===0) return {t:'= igual', c:GRAY};
+        const bueno = inv?diff<0:diff>0;
+        return {t:`${diff>0?'▲ +':'▼ '}${diff} vs mes ant.`, c:bueno?ACC:RED};
+    };
+
+    // KPI cards (grid 2x4)
+    const kpis=[
+        {l:'Socios Activos', v:String(d.activos), c:d.activos>=95?ACC:d.activos>=70?AMB:RED, dl:deltaTxt(d.activos,prev?prev.activos:null,false)},
+        {l:'% Deserción', v:(d.desercion??0)+'%', c:d.desercion<=10?ACC:d.desercion<=20?AMB:RED, dl:deltaTxt(d.desercion,prev?prev.desercion:null,true)},
+        {l:'Retención Real', v:(d.retencion??0)+'%', c:d.retencion>=90?ACC:d.retencion>=75?AMB:RED, dl:deltaTxt(d.retencion,prev?prev.retencion:null,false)},
+        {l:'Re-evaluaciones', v:(d.reeval??0)+'%', c:d.reeval>=30?ACC:d.reeval>=15?AMB:RED, dl:deltaTxt(d.reeval,prev?prev.reeval:null,false)},
+        {l:'Tarea Mensual', v:(d.tarea??0)+'%', c:col(d.tarea), dl:deltaTxt(d.tarea,prev?prev.tarea:null,false)},
+        {l:'Socios Nuevos', v:String(nuevos), c:nuevos>=70?ACC:nuevos>=35?AMB:RED, dl:deltaTxt(nuevos,prev?nuevosPrev:null,false)},
+        {l:'Adherencia Prom.', v:adh!=null?adh+'%':'—', c:adh>=80?ACC:adh>=50?AMB:RED, dl:deltaTxt(adh,adhPrev,false)},
+        {l:'Cupo objetivo', v:'110', c:GRAY, dl:{t:`faltan ${Math.max(0,110-(d.activos||0))}`, c:GRAY}},
+    ];
+    let y=38;
+    doc.setTextColor(...DARK); doc.setFont('helvetica','bold'); doc.setFontSize(11);
+    doc.text('Métricas del mes', M, y); y+=4;
+    const cardW=(W-M*2-12)/4, cardH=22, gap=4;
+    kpis.forEach((k,i)=>{
+        const cx=M+(i%4)*(cardW+gap), cy=y+Math.floor(i/4)*(cardH+gap);
+        doc.setFillColor(...LIGHT); doc.roundedRect(cx,cy,cardW,cardH,2,2,'F');
+        doc.setFillColor(...k.c); doc.rect(cx,cy,1.4,cardH,'F');
+        doc.setTextColor(...k.c); doc.setFont('helvetica','bold'); doc.setFontSize(15);
+        doc.text(k.v, cx+5, cy+9);
+        doc.setTextColor(...GRAY); doc.setFont('helvetica','bold'); doc.setFontSize(6.5);
+        doc.text(k.l.toUpperCase(), cx+5, cy+14);
+        doc.setTextColor(...k.dl.c); doc.setFont('helvetica','normal'); doc.setFontSize(6.5);
+        doc.text(k.dl.t, cx+5, cy+18.5);
+    });
+    y += cardH*2+gap+8;
+
+    // Barras hacia objetivos anuales
+    doc.setTextColor(...DARK); doc.setFont('helvetica','bold'); doc.setFontSize(11);
+    doc.text('Progreso hacia objetivos anuales 2026', M, y); y+=6;
+    const metas=[
+        {l:'Retención Real', v:d.retencion, meta:90, dir:'up', suf:'%', sub:'obj ≥90%'},
+        {l:'% Deserción', v:d.desercion, meta:10, dir:'down', suf:'%', sub:'obj ≤10%'},
+        {l:'Re-evaluaciones', v:d.reeval, meta:30, dir:'up', suf:'%', sub:'obj ≥30% socios activos'},
+        {l:'Socios Nuevos', v:nuevos, meta:70, dir:'up', suf:'', sub:'obj ≥70 liquidados/mes'},
+        {l:'Tarea Mensual', v:d.tarea, meta:100, dir:'up', suf:'%', sub:'obj 100%'},
+    ];
+    const barW=W-M*2-46;
+    metas.forEach(mt=>{
+        let pct, ok;
+        if(mt.dir==='down'){ ok=mt.v<=mt.meta; pct=mt.v<=mt.meta?100:Math.max(0,Math.min(100,Math.round((1-(mt.v-mt.meta)/(30-mt.meta))*100))); }
+        else { ok=mt.v>=mt.meta; pct=Math.max(0,Math.min(100,Math.round(mt.v/mt.meta*100))); }
+        const c = ok?ACC:pct>=60?AMB:RED;
+        doc.setTextColor(...DARK); doc.setFont('helvetica','bold'); doc.setFontSize(8);
+        doc.text(mt.l, M, y);
+        doc.setTextColor(...GRAY); doc.setFont('helvetica','normal'); doc.setFontSize(6.5);
+        doc.text(mt.sub, M+doc.getTextWidth(mt.l)+3, y);
+        doc.setTextColor(...c); doc.setFont('helvetica','bold'); doc.setFontSize(8);
+        doc.text(`${mt.v}${mt.suf} ${ok?'✓':'('+pct+'%)'}`, W-M, y, {align:'right'});
+        // barra
+        doc.setFillColor(...LIGHT); doc.roundedRect(M, y+1.6, barW, 2.6, 1.3, 1.3, 'F');
+        doc.setFillColor(...c); doc.roundedRect(M, y+1.6, barW*pct/100, 2.6, 1.3, 1.3, 'F');
+        y+=9;
+    });
+    y+=4;
+
+    // Tabla comparativa mensual
+    doc.setTextColor(...DARK); doc.setFont('helvetica','bold'); doc.setFontSize(11);
+    doc.text('Evolución mensual', M, y); y+=5;
+    const heads=['Mes','Activos','Deserción','Retención','Re-eval','Nuevos'];
+    const cw=[24,26,30,30,26,0]; cw[5]=W-M*2-cw.slice(0,5).reduce((a,b)=>a+b,0);
+    let x=M;
+    doc.setFillColor(...DARK); doc.rect(M,y,W-M*2,7,'F');
+    doc.setTextColor(255,255,255); doc.setFont('helvetica','bold'); doc.setFontSize(7.5);
+    heads.forEach((h,i)=>{ doc.text(h, x+2, y+4.6); x+=cw[i]; });
+    y+=7;
+    datos.objetivos.forEach((o,i)=>{
+        const mv=(datos.movimiento&&datos.movimiento[i])||{};
+        const nv = mv.nuevos!=null?mv.nuevos:(mv.luciaTani||0);
+        const act=i===mesIdx;
+        if(act){ doc.setFillColor(220,252,231); doc.rect(M,y,W-M*2,6.5,'F'); }
+        else if(i%2){ doc.setFillColor(249,250,251); doc.rect(M,y,W-M*2,6.5,'F'); }
+        x=M; doc.setFont('helvetica', act?'bold':'normal'); doc.setFontSize(7.5);
+        const cells=[
+            {t:datos.meses[i], c:DARK},
+            {t:String(o.activos), c:DARK},
+            {t:o.desercion+'%', c:o.desercion<=10?ACC:o.desercion<=20?AMB:RED},
+            {t:o.retencion+'%', c:o.retencion>=90?ACC:AMB},
+            {t:(o.reeval??0)+'%', c:DARK},
+            {t:String(nv), c:DARK},
+        ];
+        cells.forEach((cell,ci)=>{ doc.setTextColor(...cell.c); doc.text(cell.t, x+2, y+4.4); x+=cw[ci]; });
+        y+=6.5;
+    });
+
+    // Footer
+    y=285;
+    doc.setDrawColor(...LIGHT); doc.line(M,y-4,W-M,y-4);
+    doc.setTextColor(...GRAY); doc.setFont('helvetica','italic'); doc.setFontSize(6.8);
+    doc.text('MOVE 2026 · Homogeneizar calidad en las 3 sedes, mejorar la experiencia y retención del socio, y crecer de forma ordenada y coherente.', M, y, {maxWidth:W-M*2});
+
+    doc.save(`MOVE_${nombre}_${datos.meses[mesIdx]}_2026.pdf`);
 }
 
 // ══════════════════════════════════════════════════
