@@ -7,6 +7,7 @@
 <link rel="preconnect" href="https://fonts.googleapis.com"/>
 <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700;800&display=swap" rel="stylesheet"/>
 <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css"/>
+<link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Poppins:wght@300;400;500;700&display=swap"/>
 <script src="https://cdn.jsdelivr.net/npm/chart.js@4.4.0/dist/chart.umd.min.js"></script>
 <script src="https://cdnjs.cloudflare.com/ajax/libs/jspdf/2.5.1/jspdf.umd.min.js"></script>
 <style>
@@ -1331,6 +1332,7 @@ tr:hover td{background:#fafbfc;}
                 <div style="display:flex;justify-content:space-between;align-items:center;flex-wrap:wrap;gap:8px;margin-bottom:14px;">
                     <div class="card-title" style="margin:0;"><i class="fas fa-gauge-high"></i>Panel del mes · <span id="aePanelProfe" style="color:var(--accent);">—</span></div>
                     <div style="display:flex;gap:6px;flex-wrap:wrap;">
+                        <button class="aud-btn-save" onclick="aeDescargarImagen()" style="font-size:.78rem;padding:8px 14px;display:flex;align-items:center;gap:6px;background:var(--card);border:1px solid var(--border);color:var(--text);"><i class="fas fa-image"></i> Imagen</button>
                         <button class="aud-btn-save" onclick="aeDescargarPDF()" style="font-size:.78rem;padding:8px 14px;display:flex;align-items:center;gap:6px;background:var(--card);border:1px solid var(--border);color:var(--text);"><i class="fas fa-file-pdf"></i> PDF</button>
                         <button class="aud-btn-save" onclick="aeGenerarMensaje()" style="font-size:.78rem;padding:8px 16px;display:flex;align-items:center;gap:6px;"><i class="fas fa-comment-dots"></i> Generar mensaje</button>
                     </div>
@@ -5455,6 +5457,94 @@ function aeDescargarPDF(){
     doc.text('MOVE 2026 · Homogeneizar calidad en las 3 sedes, mejorar la experiencia y retención del socio, y crecer de forma ordenada y coherente.', M, y, {maxWidth:W-M*2});
 
     doc.save(`MOVE_${nombre}_${datos.meses[mesIdx]}_2026.pdf`);
+}
+
+// ── Descargar imagen (dashboard vertical para WhatsApp) ──
+async function aeDescargarImagen(){
+    const datos = AE_DATA[aeProfeActual] || AE_BELEN;
+    const mesIdx = aeMesActual;
+    const {d,prev,nuevos,nuevosPrev,adh,adhPrev,mesNombre} = aePanelDatos(mesIdx);
+    const nombre = AE_NOMBRE[aeProfeActual]||aeProfeActual;
+    const sede = AE_SEDE[aeProfeActual]||datos.sede||'';
+    const mesPrevN = mesIdx>0 ? (datos.meses[mesIdx-1]||'mes ant.') : 'mes ant.';
+
+    try { await document.fonts.load('700 60px Poppins'); await document.fonts.load('400 24px Poppins'); await document.fonts.ready; } catch(e){}
+
+    const W=1080,H=1440, cv=document.createElement('canvas'); cv.width=W; cv.height=H;
+    const x=cv.getContext('2d');
+    const BG='#0f1420',CARD='#1a2132',CARD2='#1f293d',ACC='#10b981',WHITE='#fff',MUT='#94a3b8',RED='#ef4444',AMB='#f59e0b';
+    const FB=w=>`700 ${w}`, FM=w=>`500 ${w}`, FR=w=>`400 ${w}`, FL=w=>`300 ${w}`;
+    const font=(s)=>`${s}px Poppins, 'Segoe UI', system-ui, sans-serif`;
+    function rr(a,b,c,dd,r,fill){ x.beginPath(); x.moveTo(a+r,b); x.arcTo(a+c,b,a+c,b+dd,r); x.arcTo(a+c,b+dd,a,b+dd,r); x.arcTo(a,b+dd,a,b,r); x.arcTo(a,b,a+c,b,r); x.closePath(); x.fillStyle=fill; x.fill(); }
+    function txt(t,px,py,wt,sz,c,al){ x.font=`${wt} ${font(sz)}`; x.fillStyle=c; x.textAlign=al||'left'; x.textBaseline='alphabetic'; x.fillText(t,px,py); }
+    function triUp(px,py,s,c){ x.beginPath(); x.moveTo(px,py+s); x.lineTo(px+s,py+s); x.lineTo(px+s/2,py); x.closePath(); x.fillStyle=c; x.fill(); }
+    function triDn(px,py,s,c){ x.beginPath(); x.moveTo(px,py); x.lineTo(px+s,py); x.lineTo(px+s/2,py+s); x.closePath(); x.fillStyle=c; x.fill(); }
+    function check(px,py,s,c){ x.beginPath(); x.moveTo(px,py+s*0.55); x.lineTo(px+s*0.4,py+s); x.lineTo(px+s,py); x.strokeStyle=c; x.lineWidth=6; x.lineCap='round'; x.lineJoin='round'; x.stroke(); }
+    const meas=(t,wt,sz)=>{ x.font=`${wt} ${font(sz)}`; return x.measureText(t).width; };
+
+    x.fillStyle=BG; x.fillRect(0,0,W,H);
+    // Header
+    x.fillStyle='#0b0f19'; x.fillRect(0,0,W,230);
+    rr(60,58,98,98,24,ACC); txt('M',109,128,'700',74,WHITE,'center');
+    txt('MOVE',185,116,'700',60,WHITE);
+    txt('DASHBOARD DE DESEMPEÑO',188,168,'500',23,MUT);
+    txt(nombre,W-60,116,'700',52,WHITE,'right');
+    txt(`${sede}  ·  ${mesNombre} 2026`,W-60,170,'400',27,ACC,'right');
+
+    // KPIs
+    let y0=290; txt('Métricas del mes',60,y0+34,'700',40,WHITE);
+    const cval=(v,g,a)=> v>=a?ACC:(v>=g?AMB:RED);
+    function dinfo(cur,pv,inv){ if(pv==null||cur==null) return{t:'sin previo',c:MUT,d:0}; let df=Math.round((cur-pv)*10)/10; if(df===0)return{t:'igual',c:MUT,d:0}; const bu=inv?df<0:df>0; return{t:`${df>0?'+':''}${df} vs ${mesPrevN}`,c:bu?ACC:RED,d:df>0?1:-1}; }
+    const kpis=[
+        {l:'SOCIOS ACTIVOS',v:String(d.activos),c:d.activos>=95?ACC:d.activos>=70?AMB:RED,dl:dinfo(d.activos,prev?prev.activos:null,false)},
+        {l:'% DESERCIÓN',v:(d.desercion??0)+'%',c:d.desercion<=10?ACC:d.desercion<=20?AMB:RED,dl:dinfo(d.desercion,prev?prev.desercion:null,true)},
+        {l:'RETENCIÓN REAL',v:(d.retencion??0)+'%',c:d.retencion>=90?ACC:AMB,dl:dinfo(d.retencion,prev?prev.retencion:null,false)},
+        {l:'RE-EVALUACIONES',v:(d.reeval??0)+'%',c:d.reeval>=30?ACC:d.reeval>=15?AMB:RED,dl:dinfo(d.reeval,prev?prev.reeval:null,false)},
+        {l:'SOCIOS NUEVOS',v:String(nuevos),c:nuevos>=70?ACC:nuevos>=35?AMB:RED,dl:dinfo(nuevos,prev?nuevosPrev:null,false)},
+        {l:'ADHERENCIA PROM.',v:adh!=null?adh+'%':'—',c:adh>=80?ACC:adh>=50?AMB:RED,dl:dinfo(adh,adhPrev,false)},
+    ];
+    const cw=(W-120-30)/2, ch=150, gx=30, gy=24, yb=y0+64;
+    kpis.forEach((k,i)=>{
+        const cx=60+(i%2)*(cw+gx), cy=yb+Math.floor(i/2)*(ch+gy);
+        rr(cx,cy,cw,ch,18,CARD); rr(cx,cy,8,ch,4,k.c);
+        txt(k.v,cx+40,cy+82,'700',62,k.c);
+        txt(k.l,cx+42,cy+124,'500',22,MUT);
+        const rx=cx+cw-30, dw=meas(k.dl.t,'400',21);
+        if(k.dl.d>0) triUp(rx-dw-26,cy+112,16,k.dl.c);
+        else if(k.dl.d<0) triDn(rx-dw-26,cy+112,16,k.dl.c);
+        txt(k.dl.t,rx,cy+128,'400',21,k.dl.c,'right');
+    });
+
+    // Objetivos anuales
+    let yb2=yb+3*(ch+gy)+30; txt('Objetivos anuales 2026',60,yb2+30,'700',36,WHITE);
+    const metas=[
+        {l:'Retención Real',v:d.retencion,meta:90,dir:'up',suf:'%'},
+        {l:'% Deserción',v:d.desercion,meta:10,dir:'down',suf:'%'},
+        {l:'Re-evaluaciones',v:d.reeval,meta:30,dir:'up',suf:'%'},
+        {l:'Socios Nuevos',v:nuevos,meta:70,dir:'up',suf:''},
+    ];
+    let yy=yb2+64; const barW=W-120;
+    metas.forEach(mt=>{
+        let pct,ok;
+        if(mt.dir==='down'){ ok=mt.v<=mt.meta; pct=mt.v<=mt.meta?100:Math.max(0,Math.min(100,Math.round((1-(mt.v-mt.meta)/(30-mt.meta))*100))); }
+        else { ok=mt.v>=mt.meta; pct=Math.max(0,Math.min(100,Math.round(mt.v/mt.meta*100))); }
+        const c=ok?ACC:pct>=60?AMB:RED;
+        txt(mt.l,60,yy+8,'500',28,WHITE);
+        const vt=`${mt.v}${mt.suf}`;
+        if(ok){ txt(vt,W-60,yy+8,'700',28,c,'right'); check(W-60-meas(vt,'700',28)-40,yy-14,26,c); }
+        else txt(`${vt}  (${pct}%)`,W-60,yy+8,'700',28,c,'right');
+        rr(60,yy+30,barW,16,8,CARD2); if(pct>0) rr(60,yy+30,Math.max(16,barW*pct/100),16,8,c);
+        yy+=92;
+    });
+
+    // Footer
+    const yf=H-96; x.fillStyle=CARD2; x.fillRect(60,yf,W-120,3);
+    txt('Cada socio, un atleta. Cada mes, un paso hacia una mejor versión de MOVE.',60,yf+42,'300',24,MUT);
+    txt(new Date().toLocaleDateString('es-AR'),W-60,yf+42,'400',22,MUT,'right');
+
+    const a=document.createElement('a');
+    a.download=`MOVE_${nombre}_${datos.meses[mesIdx]}_2026.png`;
+    a.href=cv.toDataURL('image/png'); a.click();
 }
 
 // ══════════════════════════════════════════════════
