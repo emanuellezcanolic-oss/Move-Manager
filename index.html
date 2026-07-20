@@ -1266,6 +1266,39 @@ tr:hover td{background:#fafbfc;}
             </div>
         </div>
 
+        <!-- ════ MODAL GENERADOR DE MENSAJE (Groq) ════ -->
+        <div class="aud-modal-overlay" id="aeMsgModal">
+            <div class="aud-modal">
+                <div style="display:flex;justify-content:space-between;align-items:flex-start;margin-bottom:4px;">
+                    <div class="aud-modal-title"><i class="fas fa-comment-dots" style="color:var(--accent);margin-right:6px;"></i>Mensaje para <span id="aeMsgProfe">—</span></div>
+                    <span id="aeMsgMes" style="font-size:.72rem;color:var(--muted);margin-top:4px;"></span>
+                </div>
+                <div style="font-size:.72rem;color:var(--muted);margin-bottom:12px;">Redactado con IA a partir de las métricas reales del mes. Editá lo que quieras antes de copiar.</div>
+
+                <!-- Config API key (colapsable) -->
+                <details id="aeKeyBox" style="margin-bottom:12px;background:var(--bg);border-radius:8px;padding:8px 12px;">
+                    <summary style="cursor:pointer;font-size:.75rem;font-weight:600;color:var(--muted);"><i class="fas fa-key" style="margin-right:5px;"></i>Configurar API Key de Groq</summary>
+                    <div style="margin-top:8px;">
+                        <input type="password" id="aeGroqKey" placeholder="gsk_..." style="width:100%;background:var(--card);border:1px solid var(--border);border-radius:6px;padding:8px 10px;font-size:.78rem;color:var(--text);margin-bottom:6px;">
+                        <div style="display:flex;gap:6px;align-items:center;flex-wrap:wrap;">
+                            <button class="aud-btn-save" onclick="aeGuardarKey()" style="font-size:.72rem;padding:6px 12px;">Guardar key</button>
+                            <span id="aeKeyStatus" style="font-size:.7rem;color:var(--muted);"></span>
+                        </div>
+                        <div style="font-size:.66rem;color:var(--muted);margin-top:6px;">Se guarda solo en este navegador. Conseguí una gratis en console.groq.com/keys</div>
+                    </div>
+                </details>
+
+                <div id="aeMsgStatus" style="font-size:.8rem;color:var(--muted);margin-bottom:8px;display:none;"></div>
+                <textarea id="aeMsgTexto" rows="12" style="width:100%;background:var(--bg);border:1px solid var(--border);border-radius:8px;padding:12px;font-size:.82rem;color:var(--text);line-height:1.5;font-family:inherit;resize:vertical;"></textarea>
+
+                <div class="aud-modal-actions">
+                    <button class="aud-btn-cancel" onclick="aeCerrarMsg()">Cerrar</button>
+                    <button class="aud-btn-save" onclick="aeGenerarMensaje(true)" style="background:var(--card);border:1px solid var(--border);color:var(--text);"><i class="fas fa-rotate"></i> Regenerar</button>
+                    <button class="aud-btn-save" onclick="aeCopiarMsg(this)"><i class="fas fa-copy"></i> Copiar</button>
+                </div>
+            </div>
+        </div>
+
     <!-- ═══════════════════════════════════════════════════ -->
         <!-- SECCIÓN: ANÁLISIS ENTRENADORES                    -->
         <!-- ═══════════════════════════════════════════════════ -->
@@ -1290,6 +1323,17 @@ tr:hover td{background:#fafbfc;}
             <div style="display:flex;align-items:center;gap:8px;flex-wrap:wrap;margin-bottom:16px;">
                 <span style="font-size:.68rem;font-weight:700;text-transform:uppercase;letter-spacing:.6px;color:var(--muted);">Mes:</span>
                 <div id="aeMesTabs" style="display:flex;gap:4px;flex-wrap:wrap;"></div>
+            </div>
+
+            <!-- ════ PANEL EJECUTIVO ════ -->
+            <div class="card" style="margin-bottom:16px;border-left:3px solid var(--accent);">
+                <div style="display:flex;justify-content:space-between;align-items:center;flex-wrap:wrap;gap:8px;margin-bottom:14px;">
+                    <div class="card-title" style="margin:0;"><i class="fas fa-gauge-high"></i>Panel del mes · <span id="aePanelProfe" style="color:var(--accent);">—</span></div>
+                    <button class="aud-btn-save" onclick="aeGenerarMensaje()" style="font-size:.78rem;padding:8px 16px;display:flex;align-items:center;gap:6px;"><i class="fas fa-comment-dots"></i> Generar mensaje</button>
+                </div>
+                <div id="aeDeltaKpis" style="display:grid;grid-template-columns:repeat(auto-fill,minmax(150px,1fr));gap:10px;margin-bottom:16px;"></div>
+                <div style="font-size:.7rem;font-weight:700;text-transform:uppercase;letter-spacing:.6px;color:var(--muted);margin-bottom:10px;"><i class="fas fa-flag-checkered" style="margin-right:5px;color:var(--accent);"></i>Progreso hacia objetivos anuales 2026</div>
+                <div id="aeMetasAnuales"></div>
             </div>
 
             <!-- KPIs -->
@@ -4824,6 +4868,27 @@ const AE_SHEETS = {
 // ENE11 FEB12 MAR13 ABR14 [15] MAY16 JUN17 JUL18 AGO19 [20] SEP21 OCT22 NOV23 DIC24
 const AE_MES_COLS = [11,12,13,14,16,17,18,19,21,22,23,24];
 
+// Recepcionistas (socios nuevos): Bariloche KEILA/RUBEN · Puelo ARA/AZUL · Bolsón LUCIA/TANI
+const AE_RECEP = new Set(['LUCIA','TANI','RUBEN','KEILA','ARA','AZUL']);
+
+// Metas anuales MOVE 2026 (para barras de progreso del panel ejecutivo)
+const AE_METAS_2026 = {
+    activos:    {meta:110, dir:'up',   sub:'cupo por profe'},
+    retencion:  {meta:90,  dir:'up',   sub:'obj ≥90%'},
+    desercion:  {meta:10,  dir:'down', sub:'obj ≤10%'},
+    reeval:     {meta:30,  dir:'up',   sub:'obj ≥30% socios activos'},
+    nuevos:     {meta:70,  dir:'up',   sub:'obj ≥70 liquidados/mes'},
+    tarea:      {meta:100, dir:'up',   sub:'obj 100%'},
+};
+
+// Contexto institucional MOVE (del "Camino del Socio 2026") para el generador de mensajes
+const MOVE_CONTEXT = `MOVE es un servicio de entrenamiento y recuperación integral con 3 sedes (El Bolsón, Lago Puelo, Bariloche). Cada socio es tratado como un atleta de alto rendimiento; el acompañamiento es integral (gimnasio, casa y aire libre), no solo alquiler de espacio.
+MISIÓN: servicio homogéneo y de calidad; que los socios elijan MOVE por profesionalismo, conocimiento y calidad humana; construir una comunidad orgánica que sea el principal promotor de imagen, para lograr retención y ventas más orgánicas.
+VISIÓN: ser referente reconocido en entrenamiento y recuperación integral, modelo de estilo de vida saludable.
+OBJETIVOS 2026: homogeneizar la calidad del servicio en las 3 sedes, mejorar la experiencia y retención del socio, fortalecer y profesionalizar el equipo, consolidar reputación y posicionamiento, expandir impacto social e innovación, con crecimiento ordenado y coherente.
+VALORES: calidez y atención personalizada, presencia y compromiso, soporte y corrección constante, compañerismo, responsabilidad, ética, conocimiento profesional, capacitación continua, sostenibilidad.
+METAS NUMÉRICAS 2026: deserción bajando escalonada (30%→25%→20%→10%), retención ≥90%, re-evaluaciones en más del 30% de los socios liquidados activos, más de 70 socios nuevos liquidados por mes.`;
+
 // Parser CSV robusto (maneja comas dentro de comillas)
 function aeParseCSV(txt){
     const rows=[]; let row=[], cur='', q=false;
@@ -4885,15 +4950,16 @@ async function aeLoadLive(id){
 
         // ── Movimiento: contar condiciones en la columna del mes ──
         const col=AE_MES_COLS[m];
-        const cnt={renueva:0,luciaTani:0,liberado:0,vacaciones:0,deriv:0,baja:0};
+        const cnt={renueva:0,luciaTani:0,liberado:0,vacaciones:0,deriv:0,baja:0,nuevos:0};
         for(let i=6;i<plan.length;i++){
             const r=plan[i]; if(!r||r.length<=col) continue;
             const nombre=(r[4]||'').trim(); if(!nombre) continue;
             if(!/^\d/.test((r[2]||'').trim())) continue;
             const v=(r[col]||'').trim().toUpperCase();
             if(!v) continue;
-            if(v.startsWith('RENUEVA')||v==='NUEVO') cnt.renueva++;
-            else if(v==='LUCIA'||v==='TANI'||v==='RUBEN'||v==='KEILA') cnt.luciaTani++;
+            if(v==='NUEVO'){ cnt.renueva++; cnt.nuevos++; }
+            else if(v.startsWith('RENUEVA')) cnt.renueva++;
+            else if(AE_RECEP.has(v)){ cnt.luciaTani++; cnt.nuevos++; }
             else if(v==='LIBERADO') cnt.liberado++;
             else if(v==='VACACIONES') cnt.vacaciones++;
             else if(v.startsWith('DERIV')) cnt.deriv++;
@@ -4919,6 +4985,30 @@ async function aeLoadLive(id){
         tareas.push(ts);
     }
 
+    // ── Adherencia: % de meses transcurridos que cada socio se mantuvo activo ──
+    const memPres={};
+    for(let i=6;i<plan.length;i++){
+        const r=plan[i]; if(!r) continue;
+        const nombre=(r[4]||'').trim(); if(!nombre) continue;
+        if(!/^\d/.test((r[2]||'').trim())) continue;
+        const flags=[];
+        for(let m=0;m<12;m++){
+            const v=(r[AE_MES_COLS[m]]||'').trim().toUpperCase();
+            flags.push(v.startsWith('RENUEVA')||v==='NUEVO'||AE_RECEP.has(v));
+        }
+        memPres[nombre]=flags;
+    }
+    const adherencia=[];
+    for(let m=0;m<12;m++){
+        let sum=0,c=0;
+        Object.values(memPres).forEach(flags=>{
+            if(!flags[m]) return;
+            let pres=0; for(let k=0;k<=m;k++) if(flags[k]) pres++;
+            sum += pres/(m+1); c++;
+        });
+        adherencia.push(c? Math.round(sum/c*100) : 0);
+    }
+
     // Mostrar meses ENE hasta el último con socios activos (evita meses futuros vacíos)
     let ultimo=0;
     objetivos.forEach((o,i)=>{ if(o.activos>0) ultimo=i; });
@@ -4932,6 +5022,7 @@ async function aeLoadLive(id){
         mesesFull: MFULL.slice(0,n),
         objetivos: objetivos.slice(0,n),
         movimiento: movimiento.slice(0,n),
+        adherencia: adherencia.slice(0,n),
         tareas: tareas.slice(0,n)
     };
     AE_DATA[id]=datos;
@@ -5043,6 +5134,178 @@ function aeRender(mesIdx){
             <td style="font-family:monospace;">${m.deriv}</td>
             <td style="font-family:monospace;color:${m.baja>10?'#ef4444':m.baja>5?'#f59e0b':'var(--accent)'};">${m.baja}</td>
         </tr>`).join('');
+
+    aeRenderPanel(mesIdx);
+}
+
+// ══════════════════════════════════════════════════
+// PANEL EJECUTIVO + GENERADOR DE MENSAJE (Groq)
+// ══════════════════════════════════════════════════
+const AE_GROQ_MODEL = 'openai/gpt-oss-120b';
+const AE_NOMBRE = {belen:'Belén',fer:'Fer',enzo:'Enzo',javi:'Javi',agus:'Agus',camila:'Camila',carla:'Carla',estefania:'Estefanía'};
+const AE_SEDE = {belen:'El Bolsón',fer:'El Bolsón',enzo:'El Bolsón',javi:'Lago Puelo',agus:'Lago Puelo',camila:'Bariloche',carla:'Bariloche',estefania:'Bariloche'};
+
+function aePanelDatos(mesIdx){
+    const datos = AE_DATA[aeProfeActual] || AE_BELEN;
+    const d = datos.objetivos[mesIdx] || {};
+    const prev = mesIdx>0 ? datos.objetivos[mesIdx-1] : null;
+    const mov = (datos.movimiento && datos.movimiento[mesIdx]) || {};
+    const movPrev = (prev && datos.movimiento && datos.movimiento[mesIdx-1]) || {};
+    const nuevos = mov.nuevos!=null ? mov.nuevos : (mov.luciaTani||0);
+    const nuevosPrev = movPrev.nuevos!=null ? movPrev.nuevos : (movPrev.luciaTani||0);
+    const adh = datos.adherencia ? datos.adherencia[mesIdx] : null;
+    const adhPrev = (prev && datos.adherencia) ? datos.adherencia[mesIdx-1] : null;
+    return {datos,d,prev,nuevos,nuevosPrev,adh,adhPrev,mesNombre:datos.mesesFull?datos.mesesFull[mesIdx]:datos.meses[mesIdx]};
+}
+
+function aeRenderPanel(mesIdx){
+    const {datos,d,prev,nuevos,nuevosPrev,adh,adhPrev} = aePanelDatos(mesIdx);
+    document.getElementById('aePanelProfe').textContent = `${AE_NOMBRE[aeProfeActual]||datos.nombre||aeProfeActual} · ${datos.meses[mesIdx]}`;
+
+    // delta: valor actual - previo. mejorInv=true cuando menos es mejor (deserción)
+    const delta = (cur,pv,mejorInv)=>{
+        if(pv==null||cur==null) return '<span style="font-size:.66rem;color:var(--muted);">— sin mes previo</span>';
+        const diff = Math.round((cur-pv)*10)/10;
+        if(diff===0) return '<span style="font-size:.66rem;color:var(--muted);">= igual</span>';
+        const bueno = mejorInv ? diff<0 : diff>0;
+        const col = bueno?'#10b981':'#ef4444';
+        const arr = diff>0?'▲':'▼';
+        return `<span style="font-size:.66rem;color:${col};font-weight:700;">${arr} ${diff>0?'+':''}${diff} vs mes ant.</span>`;
+    };
+    const sc = p => p>=80?'#10b981':p>=50?'#f59e0b':'#ef4444';
+
+    const kpis = [
+        {l:'Socios Activos', v:d.activos, c:d.activos>=95?'#10b981':d.activos>=70?'#f59e0b':'#ef4444', dl:delta(d.activos, prev?prev.activos:null,false)},
+        {l:'% Deserción', v:(d.desercion??0)+'%', c:d.desercion<=10?'#10b981':d.desercion<=20?'#f59e0b':'#ef4444', dl:delta(d.desercion, prev?prev.desercion:null,true)},
+        {l:'Retención Real', v:(d.retencion??0)+'%', c:d.retencion>=90?'#10b981':d.retencion>=75?'#f59e0b':'#ef4444', dl:delta(d.retencion, prev?prev.retencion:null,false)},
+        {l:'Re-evaluaciones', v:d.reeval??0, c:d.reeval>=30?'#10b981':d.reeval>=15?'#f59e0b':'#ef4444', dl:delta(d.reeval, prev?prev.reeval:null,false)},
+        {l:'Tarea Mensual', v:(d.tarea??0)+'%', c:sc(d.tarea), dl:delta(d.tarea, prev?prev.tarea:null,false)},
+        {l:'Socios Nuevos', v:nuevos, c:nuevos>=70?'#10b981':nuevos>=35?'#f59e0b':'#ef4444', dl:delta(nuevos, prev?nuevosPrev:null,false)},
+        {l:'Adherencia Prom.', v:adh!=null?adh+'%':'—', c:adh>=80?'#10b981':adh>=50?'#f59e0b':'#ef4444', dl:delta(adh, adhPrev,false)},
+    ];
+    document.getElementById('aeDeltaKpis').innerHTML = kpis.map(k=>`
+        <div style="background:var(--card2,var(--card));border:1px solid var(--border);border-radius:10px;padding:12px;border-left:3px solid ${k.c};">
+            <div style="font-size:1.4rem;font-weight:800;color:${k.c};font-family:monospace;letter-spacing:-1px;">${k.v}</div>
+            <div style="font-size:.6rem;font-weight:700;text-transform:uppercase;letter-spacing:.5px;color:var(--muted);margin-top:3px;">${k.l}</div>
+            <div style="margin-top:3px;">${k.dl}</div>
+        </div>`).join('');
+
+    // Barras hacia metas anuales
+    const bar = (label, val, cfg) => {
+        if(val==null) return '';
+        let pct, ok;
+        if(cfg.dir==='down'){ // menos es mejor (deserción): lleno cuando val<=meta
+            ok = val<=cfg.meta;
+            pct = Math.max(0, Math.min(100, Math.round((1 - (val-cfg.meta)/(30-cfg.meta))*100)));
+            if(val<=cfg.meta) pct=100;
+        } else {
+            ok = val>=cfg.meta;
+            pct = Math.max(0, Math.min(100, Math.round(val/cfg.meta*100)));
+        }
+        const col = ok?'#10b981':pct>=60?'#f59e0b':'#ef4444';
+        const valTxt = (cfg.dir==='down'||label==='% Deserción'||label==='Retención Real'||label==='Tarea Mensual')? val+'%' : val;
+        return `<div style="padding:7px 0;border-bottom:1px solid var(--border);">
+            <div style="display:flex;justify-content:space-between;font-size:.77rem;margin-bottom:4px;">
+                <span>${label} <span style="color:var(--muted);font-size:.66rem;">${cfg.sub}</span></span>
+                <span style="font-weight:700;color:${col};">${valTxt} ${ok?'<i class="fas fa-check" style="font-size:.7rem;"></i>':`(${pct}%)`}</span>
+            </div>
+            <div style="height:5px;background:var(--border);border-radius:3px;overflow:hidden;">
+                <div style="height:100%;width:${pct}%;background:${col};border-radius:3px;transition:width .5s;"></div>
+            </div>
+        </div>`;
+    };
+    document.getElementById('aeMetasAnuales').innerHTML =
+        bar('Retención Real', d.retencion, AE_METAS_2026.retencion) +
+        bar('% Deserción', d.desercion, AE_METAS_2026.desercion) +
+        bar('Re-evaluaciones', d.reeval, AE_METAS_2026.reeval) +
+        bar('Socios Nuevos', nuevos, AE_METAS_2026.nuevos) +
+        bar('Tarea Mensual', d.tarea, AE_METAS_2026.tarea);
+}
+
+// ── API Key de Groq (localStorage) ──
+const AE_GROQ_LS = 'move_groq_key';
+function aeGetKey(){ return localStorage.getItem(AE_GROQ_LS) || ''; }
+function aeGuardarKey(){
+    const k = document.getElementById('aeGroqKey').value.trim();
+    if(!k){ document.getElementById('aeKeyStatus').textContent='Pegá una key primero'; return; }
+    localStorage.setItem(AE_GROQ_LS, k);
+    document.getElementById('aeKeyStatus').innerHTML='<span style="color:#10b981;">✓ Guardada</span>';
+}
+
+function aeCerrarMsg(){ document.getElementById('aeMsgModal').classList.remove('open'); }
+
+async function aeGenerarMensaje(regen){
+    const modal = document.getElementById('aeMsgModal');
+    const {datos,d,prev,nuevos,adh,mesNombre} = aePanelDatos(aeMesActual);
+    document.getElementById('aeMsgProfe').textContent = AE_NOMBRE[aeProfeActual]||datos.nombre||aeProfeActual;
+    document.getElementById('aeMsgMes').textContent = mesNombre||'';
+    // precargar key guardada
+    const savedKey = aeGetKey();
+    const keyInput = document.getElementById('aeGroqKey');
+    if(savedKey && !keyInput.value) keyInput.value = savedKey;
+    if(savedKey) document.getElementById('aeKeyStatus').innerHTML='<span style="color:#10b981;">✓ Key guardada</span>';
+
+    modal.classList.add('open');
+
+    if(!savedKey){
+        document.getElementById('aeKeyBox').open = true;
+        const st=document.getElementById('aeMsgStatus'); st.style.display='block';
+        st.innerHTML='<span style="color:#f59e0b;"><i class="fas fa-key"></i> Configurá tu API Key de Groq arriba y volvé a tocar Generar.</span>';
+        return;
+    }
+
+    const st=document.getElementById('aeMsgStatus'); st.style.display='block';
+    st.innerHTML='<i class="fas fa-spinner fa-spin"></i> Redactando con IA…';
+    const txt=document.getElementById('aeMsgTexto'); txt.value='';
+
+    // Comparativa vs mes previo
+    const cmp = (cur,pv)=> pv==null?'sin dato previo':(cur>pv?`subió (venía de ${pv})`:cur<pv?`bajó (venía de ${pv})`:'se mantuvo');
+    const metricas =
+`Entrenador: ${AE_NOMBRE[aeProfeActual]||aeProfeActual} (sede ${AE_SEDE[aeProfeActual]||datos.sede||'—'})
+Mes: ${mesNombre}
+- Socios activos: ${d.activos} (${cmp(d.activos, prev?prev.activos:null)}) — meta cupo 110
+- Deserción: ${d.desercion}% (${cmp(d.desercion, prev?prev.desercion:null)}) — meta ≤10%
+- Retención real: ${d.retencion}% (${cmp(d.retencion, prev?prev.retencion:null)}) — meta ≥90%
+- Re-evaluaciones: ${d.reeval} (${cmp(d.reeval, prev?prev.reeval:null)}) — meta ≥30% de socios activos
+- Cumplimiento de tareas mensuales: ${d.tarea}% — meta 100%
+- Socios nuevos del mes: ${nuevos} — meta ≥70
+- Adherencia promedio de sus socios: ${adh!=null?adh+'%':'sin dato'}`;
+
+    const sys = `Sos el director de MOVE, un gimnasio boutique de entrenamiento integral con 3 sedes en la Patagonia argentina. Escribís un mensaje de WhatsApp a uno de tus entrenadores para darle su devolución mensual de desempeño. Tono: cercano, humano, motivador pero honesto y profesional; en español rioplatense (vos/tenés). Reconocé lo bueno, señalá con tacto lo que hay que mejorar, y conectá su trabajo con hacia dónde va MOVE como institución. No inventes números: usá SOLO los datos que te paso. No uses markdown ni asteriscos, es un WhatsApp. Máximo ~180 palabras. Cerrá con una frase que empuje hacia los objetivos del año.\n\nCONTEXTO DE MOVE:\n${MOVE_CONTEXT}`;
+    const usr = `Estos son los datos reales de este mes del entrenador. Redactá el mensaje de devolución:\n\n${metricas}`;
+
+    try{
+        const resp = await fetch('https://api.groq.com/openai/v1/chat/completions',{
+            method:'POST',
+            headers:{'Authorization':`Bearer ${savedKey}`,'Content-Type':'application/json'},
+            body: JSON.stringify({
+                model: AE_GROQ_MODEL,
+                messages:[{role:'system',content:sys},{role:'user',content:usr}],
+                temperature: regen?1.05:0.85,
+                max_tokens: 700
+            })
+        });
+        if(!resp.ok){
+            const e = await resp.text();
+            throw new Error(`HTTP ${resp.status} — ${e.slice(0,180)}`);
+        }
+        const data = await resp.json();
+        const msg = data.choices?.[0]?.message?.content?.trim() || '(respuesta vacía)';
+        txt.value = msg;
+        st.style.display='none';
+    }catch(e){
+        st.innerHTML=`<span style="color:#ef4444;"><i class="fas fa-triangle-exclamation"></i> ${e.message}</span>`;
+    }
+}
+
+function aeCopiarMsg(btn){
+    const txt=document.getElementById('aeMsgTexto');
+    txt.select();
+    navigator.clipboard.writeText(txt.value).then(()=>{
+        const orig=btn.innerHTML;
+        btn.innerHTML='<i class="fas fa-check"></i> ¡Copiado!';
+        setTimeout(()=>btn.innerHTML=orig,1800);
+    }).catch(()=>{ document.execCommand('copy'); });
 }
 
 // ══════════════════════════════════════════════════
