@@ -1296,6 +1296,7 @@ tr:hover td{background:#fafbfc;}
                 <div class="aud-modal-actions">
                     <button class="aud-btn-cancel" onclick="aeCerrarMsg()">Cerrar</button>
                     <button class="aud-btn-save" onclick="aeGenerarMensaje(true)" style="background:var(--card);border:1px solid var(--border);color:var(--text);"><i class="fas fa-rotate"></i> Regenerar</button>
+                    <button class="aud-btn-save" onclick="aeGuardarMsgHist(this)" style="background:var(--card);border:1px solid var(--border);color:var(--text);"><i class="fas fa-floppy-disk"></i> Guardar</button>
                     <button class="aud-btn-save" onclick="aeCopiarMsg(this)"><i class="fas fa-copy"></i> Copiar</button>
                 </div>
             </div>
@@ -5240,17 +5241,46 @@ function aeGuardarKey(){
 
 function aeCerrarMsg(){ document.getElementById('aeMsgModal').classList.remove('open'); }
 
+let aeMsgHist = null; // {trainerId:[{mes,fecha,texto}]}
+async function aeCargarMsgHist(){
+    if(aeMsgHist!==null) return aeMsgHist;
+    try{
+        const r=await fetch(`https://gist.githubusercontent.com/emanuellezcanolic-oss/0894016bb00afb2f7fd49964896ee0db/raw/mensajes_historial.json?t=${Date.now()}`);
+        aeMsgHist=await r.json();
+    }catch(e){ aeMsgHist={}; }
+    return aeMsgHist;
+}
+async function aeGuardarMsgHist(btn){
+    const txt=(document.getElementById('aeMsgTexto').value||'').trim();
+    if(!txt){ return; }
+    const datos=AE_DATA[aeProfeActual]||AE_BELEN;
+    const mesAb=datos.meses[aeMesActual];
+    await aeCargarMsgHist();
+    if(!aeMsgHist[aeProfeActual]) aeMsgHist[aeProfeActual]=[];
+    const arr=aeMsgHist[aeProfeActual];
+    const rec={mes:mesAb, fecha:new Date().toISOString(), texto:txt};
+    const idx=arr.findIndex(m=>m.mes===mesAb);
+    if(idx>=0) arr[idx]=rec; else arr.push(rec);
+    const orig=btn?btn.innerHTML:'';
+    if(btn) btn.innerHTML='<i class="fas fa-spinner fa-spin"></i> Guardando…';
+    try{
+        const body=JSON.stringify({files:{'mensajes_historial.json':{content:JSON.stringify(aeMsgHist,null,2)}}});
+        const resp=await fetch('https://api.github.com/gists/0894016bb00afb2f7fd49964896ee0db',{method:'PATCH',headers:{'Authorization':`token ${AUD_TOKEN}`,'Content-Type':'application/json'},body});
+        if(!resp.ok) throw new Error('HTTP '+resp.status);
+        if(btn){ btn.innerHTML='<i class="fas fa-check"></i> ¡Guardado!'; setTimeout(()=>btn.innerHTML=orig,1800); }
+    }catch(e){ if(btn){ btn.innerHTML='<i class="fas fa-triangle-exclamation"></i> Error al guardar'; setTimeout(()=>btn.innerHTML=orig,2200); } }
+}
+
 async function aeGenerarMensaje(regen){
     const modal = document.getElementById('aeMsgModal');
     const {datos,d,prev,nuevos,adh,mesNombre} = aePanelDatos(aeMesActual);
-    document.getElementById('aeMsgProfe').textContent = AE_NOMBRE[aeProfeActual]||datos.nombre||aeProfeActual;
+    const nombre = AE_NOMBRE[aeProfeActual]||datos.nombre||aeProfeActual;
+    document.getElementById('aeMsgProfe').textContent = nombre;
     document.getElementById('aeMsgMes').textContent = mesNombre||'';
-    // precargar key guardada
     const savedKey = aeGetKey();
     const keyInput = document.getElementById('aeGroqKey');
     if(savedKey && !keyInput.value) keyInput.value = savedKey;
     if(savedKey) document.getElementById('aeKeyStatus').innerHTML='<span style="color:#10b981;">✓ Key guardada</span>';
-
     modal.classList.add('open');
 
     if(!savedKey){
@@ -5264,36 +5294,64 @@ async function aeGenerarMensaje(regen){
     st.innerHTML='<i class="fas fa-spinner fa-spin"></i> Redactando con IA…';
     const txt=document.getElementById('aeMsgTexto'); txt.value='';
 
-    // Comparativa vs mes previo
-    const cmp = (cur,pv)=> pv==null?'sin dato previo':(cur>pv?`subió (venía de ${pv})`:cur<pv?`bajó (venía de ${pv})`:'se mantuvo');
+    // ¿Números provisorios? Solo el último mes cargado y pasado el día 5 se considera "en curso".
+    const esUltimoMes = aeMesActual === (datos.meses.length - 1);
+    const provisional = esUltimoMes && (new Date().getDate() > 5);
+
+    // Continuidad: mensajes anteriores guardados de este profe
+    await aeCargarMsgHist();
+    const hist = (aeMsgHist[aeProfeActual]||[]).filter(m=>m.mes!==datos.meses[aeMesActual]).slice(-2);
+    const prevBloque = hist.length
+        ? `\n\nMENSAJES QUE YA LE ENVIASTE A ${nombre.toUpperCase()} EN MESES ANTERIORES (usalos para dar CONTINUIDAD: si algo que le marcaste mejoró, celebralo; si sigue pendiente, retomalo con naturalidad; NUNCA repitas el mismo mensaje):\n${hist.map(m=>`— ${m.mes}: "${m.texto}"`).join('\n')}`
+        : '';
+
+    const cmp = (cur,pv)=> pv==null?'sin dato del mes anterior':(cur>pv?`viene mejor (venía de ${pv})`:cur<pv?`bajó respecto al mes anterior (venía de ${pv})`:'se mantuvo igual');
     const metricas =
-`Entrenador: ${AE_NOMBRE[aeProfeActual]||aeProfeActual} (sede ${AE_SEDE[aeProfeActual]||datos.sede||'—'})
-Mes: ${mesNombre}
-- Socios activos: ${d.activos} (${cmp(d.activos, prev?prev.activos:null)}) — meta cupo 110
-- Deserción: ${d.desercion}% (${cmp(d.desercion, prev?prev.desercion:null)}) — meta ≤10%
-- Retención real: ${d.retencion}% (${cmp(d.retencion, prev?prev.retencion:null)}) — meta ≥90%
-- Re-evaluaciones: ${d.reeval} (${cmp(d.reeval, prev?prev.reeval:null)}) — meta ≥30% de socios activos
-- Cumplimiento de tareas mensuales: ${d.tarea}% — meta 100%
-- Socios nuevos del mes: ${nuevos} — meta ≥70
-- Adherencia promedio de sus socios: ${adh!=null?adh+'%':'sin dato'}`;
+`Entrenador: ${nombre} (sede ${AE_SEDE[aeProfeActual]||datos.sede||'—'})
+Mes analizado: ${mesNombre}
+👥 Socios activos: ${d.activos} (${cmp(d.activos, prev?prev.activos:null)}) — cupo objetivo 110
+📉 Deserción: ${d.desercion}% (${cmp(d.desercion, prev?prev.desercion:null)}) — objetivo ≤10%
+🤝 Retención real: ${d.retencion}% (${cmp(d.retencion, prev?prev.retencion:null)}) — objetivo ≥90%
+🔄 Re-evaluaciones: ${d.reeval}% (${cmp(d.reeval, prev?prev.reeval:null)}) — objetivo ≥30% de socios activos
+📝 Tareas mensuales: ${d.tarea}% de cumplimiento — objetivo 100%
+📈 Socios nuevos del mes: ${nuevos} — objetivo ≥70
+📊 Adherencia promedio de sus socios: ${adh!=null?adh+'%':'sin dato'}`;
 
-    const sys = `Sos Emanuel, el director y líder de MOVE, un gimnasio boutique de entrenamiento integral con 3 sedes en la Patagonia argentina. Le escribís un WhatsApp personal a uno de tus entrenadores del equipo para acompañarlo en su mes.
+    const estadoNumeros = provisional
+        ? `IMPORTANTE — NÚMEROS EN CURSO: el mes de ${mesNombre} TODAVÍA NO cerró, los números son una tendencia y se van a seguir moviendo. Hablá siempre con expresiones como "hasta el momento", "por ahora", "todavía falta cerrar el mes", "seguramente esto se siga moviendo". NUNCA des un número como conclusión definitiva. NO menciones NADA administrativo (ni fechas de cierre, ni plazos de pago, ni liquidaciones): es una cuestión interna que no va en el mensaje.`
+        : `Los números de ${mesNombre} ya están cerrados, podés hablar de ellos como definitivos, siempre desde el acompañamiento y nunca como un reto.`;
 
-CÓMO ESCRIBÍS (muy importante):
-- Como un verdadero líder cercano, no como un jefe que audita. Hablás de "nosotros" y "el equipo", hacés sentir a la persona parte de MOVE.
-- Arrancás saludándolo por su nombre de pila con calidez y algo humano, no con números.
-- Reconocés y celebrás lo que viene haciendo bien, con detalle concreto (nombrá la métrica puntual que mejoró).
-- Si hay algo por mejorar, lo decís con tacto y desde el acompañamiento, nunca como reto. Enmarcás el desafío como algo que van a lograr juntos.
-- SIEMPRE, sí o sí, le preguntás de forma genuina cómo podés ayudarlo vos o el equipo a llegar a sus objetivos: qué necesita, qué le está costando, en qué le damos una mano. Esto es lo más importante del mensaje.
-- Conectás su laburo con hacia dónde va MOVE, para que sienta que su esfuerzo tiene sentido y que es parte de algo más grande.
-- Tono rioplatense (vos/tenés/sos), cálido, humano, motivador y real. Nada de corporativo ni acartonado.
-- Es un WhatsApp: sin markdown, sin asteriscos, sin títulos. Máximo ~170 palabras.
-- No inventes números: usá SOLO los datos que te paso.
-- Cerrás con una frase corta que sume, que lo deje con ganas y con la sensación de que no está solo.
+    const sys = `Actuás como Emanuel Lezcano, Coordinador Deportivo de MOVE, una cadena de gimnasios premium de entrenamiento personalizado, salud y rendimiento humano, con 3 sedes en la Patagonia argentina. Tenés formación en liderazgo de equipos, coaching, psicología del deporte, RRHH, gestión de gimnasios, customer experience y retención.
 
-CONTEXTO DE MOVE:
-${MOVE_CONTEXT}`;
-    const usr = `Datos reales de este mes de tu entrenador. Escribí el WhatsApp de acompañamiento, cálido y personal, celebrando lo bueno y preguntándole en qué lo podés ayudar a llegar a los objetivos:\n\n${metricas}`;
+QUIÉN SOS: No sos un jefe, sos un líder que desarrolla personas. Trabajás muy cerca de cada profesor, los observás a diario, conocés sus fortalezas y debilidades, los acompañás, los escuchás y les das devoluciones constantes. Nunca señalás errores para criticar: detectás oportunidades de mejora. Tenés una relación cercana con cada uno y el mensaje tiene que transmitir esa cercanía.
+
+QUÉ ES MOVE: MOVE no vende entrenamiento, vende calidad de vida. Cada socio, sin importar su edad o condición, es tratado como un atleta de alto rendimiento. Las evaluaciones, re-evaluaciones, seguimiento, objetivos y mensajes no son tareas administrativas: son herramientas para mejorar la experiencia del socio y, como consecuencia, la retención, la adherencia, la satisfacción y el crecimiento del entrenador.
+
+CADA MENSAJE DEBE GENERAR TRES COSAS: orgullo por el trabajo hecho, reflexión, y motivación para seguir creciendo. Nunca puede sentirse como un reto ni una llamada de atención. Tiene que sentirse como una charla entre dos profesionales que quieren ser mejores.
+
+FILOSOFÍA INNEGOCIABLE:
+- SIEMPRE empezás reconociendo algo positivo, aunque los números vengan flojos. Siempre hay algo bueno para destacar. Nunca arrancás criticando.
+- Los indicadores son una guía para abrir conversación, no para juzgar. Mostralos y después interpretalos (no los repitas sin más).
+- Para corregir NUNCA decís "esto está mal". Usás: "creo que podemos poner un poco más de foco en...", "me gustaría que trabajemos...", "creo que acá hay una oportunidad...", "¿cómo te puedo ayudar?", "¿qué sentís que está pasando?".
+- SIEMPRE acompañás, nunca imponés. Y SIEMPRE cerrás generando conversación con una pregunta genuina (¿cómo te sentís?, ¿en qué podemos ayudarte?, ¿qué necesitás de nosotros?, ¿qué creés que está pasando?).
+
+${estadoNumeros}
+
+ESTRUCTURA del mensaje (WhatsApp, en este orden):
+1) Saludo cálido por su nombre de pila.
+2) Un bloque corto con los indicadores, con emojis (📊 Indicadores${provisional?' hasta el momento':''}: 👥 activos, 📉 deserción, 🤝 retención, 🔄 reevaluaciones, 📝 tareas, 📈 adherencia, socios nuevos). Poné los números que te paso.
+3) Destacá sus fortalezas con detalle concreto (nombrá la métrica puntual que mejoró).
+4) Interpretá los datos (qué cuentan, no solo repetirlos).
+5) Proponé uno o dos focos de mejora, con tacto y desde el acompañamiento.
+6) Explicá por qué esos focos importan para el socio y para el crecimiento del profesional.
+7) Preguntale cómo se siente o cómo lo podés ayudar (esto es lo más importante).
+8) Cerrá con una frase inspiradora y motivadora.
+
+ESTILO: humano, cálido, cercano, profesional, motivador, personalizado. Español rioplatense (vos/tenés/sos). Nunca robótico, ni frío, ni exageradamente formal. Parece un WhatsApp de alguien que realmente conoce a la persona. Podés usar emojis con moderación. Sin markdown ni asteriscos. Extensión aprox. 180-230 palabras. No inventes números: usá SOLO los que te paso.
+
+OBJETIVO: que al terminar de leer, el profesional piense "mi coordinador conoce mi trabajo, reconoce mi esfuerzo, confía en mí y quiere ayudarme a crecer".${prevBloque}`;
+
+    const usr = `Escribí el WhatsApp de seguimiento para este profesional, siguiendo la estructura y la filosofía. Datos del mes:\n\n${metricas}`;
 
     try{
         const resp = await fetch('https://api.groq.com/openai/v1/chat/completions',{
@@ -5302,8 +5360,8 @@ ${MOVE_CONTEXT}`;
             body: JSON.stringify({
                 model: AE_GROQ_MODEL,
                 messages:[{role:'system',content:sys},{role:'user',content:usr}],
-                temperature: regen?1.05:0.85,
-                max_tokens: 700
+                temperature: regen?1.05:0.9,
+                max_tokens: 950
             })
         });
         if(!resp.ok){
