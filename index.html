@@ -5470,7 +5470,7 @@ async function aeDescargarImagen(){
 
     try { await document.fonts.load('700 60px Poppins'); await document.fonts.load('400 24px Poppins'); await document.fonts.ready; } catch(e){}
 
-    const W=1080,H=1440, cv=document.createElement('canvas'); cv.width=W; cv.height=H;
+    const W=1080,H=1980, cv=document.createElement('canvas'); cv.width=W; cv.height=H;
     const x=cv.getContext('2d');
     const BG='#0f1420',CARD='#1a2132',CARD2='#1f293d',ACC='#10b981',WHITE='#fff',MUT='#94a3b8',RED='#ef4444',AMB='#f59e0b';
     const FB=w=>`700 ${w}`, FM=w=>`500 ${w}`, FR=w=>`400 ${w}`, FL=w=>`300 ${w}`;
@@ -5516,14 +5516,14 @@ async function aeDescargarImagen(){
     });
 
     // Objetivos anuales
-    let yb2=yb+3*(ch+gy)+30; txt('Objetivos anuales 2026',60,yb2+30,'700',36,WHITE);
+    let yb2=yb+3*(ch+gy)+22; txt('Objetivos anuales 2026',60,yb2+30,'700',36,WHITE);
     const metas=[
         {l:'Retención Real',v:d.retencion,meta:90,dir:'up',suf:'%'},
         {l:'% Deserción',v:d.desercion,meta:10,dir:'down',suf:'%'},
         {l:'Re-evaluaciones',v:d.reeval,meta:30,dir:'up',suf:'%'},
         {l:'Socios Nuevos',v:nuevos,meta:70,dir:'up',suf:''},
     ];
-    let yy=yb2+64; const barW=W-120;
+    let yy=yb2+58; const barW=W-120;
     metas.forEach(mt=>{
         let pct,ok;
         if(mt.dir==='down'){ ok=mt.v<=mt.meta; pct=mt.v<=mt.meta?100:Math.max(0,Math.min(100,Math.round((1-(mt.v-mt.meta)/(30-mt.meta))*100))); }
@@ -5534,13 +5534,43 @@ async function aeDescargarImagen(){
         if(ok){ txt(vt,W-60,yy+8,'700',28,c,'right'); check(W-60-meas(vt,'700',28)-40,yy-14,26,c); }
         else txt(`${vt}  (${pct}%)`,W-60,yy+8,'700',28,c,'right');
         rr(60,yy+30,barW,16,8,CARD2); if(pct>0) rr(60,yy+30,Math.max(16,barW*pct/100),16,8,c);
-        yy+=92;
+        yy+=84;
     });
 
+    // ── Gráfico evolución mensual (retención vs deserción + altas) ──
+    const GRID='#2a344a';
+    const mm = datos.meses;
+    const retS = datos.objetivos.map(o=>o.retencion||0);
+    const desS = datos.objetivos.map(o=>o.desercion||0);
+    const nueS = datos.objetivos.map((o,i)=>{ const mv=(datos.movimiento&&datos.movimiento[i])||{}; return mv.nuevos!=null?mv.nuevos:(mv.luciaTani||0); });
+    let ycg=yy+14; txt('Evolución mensual',60,ycg+30,'700',36,WHITE);
+    let lx=60, ly=ycg+50;
+    x.fillStyle=ACC; x.beginPath(); x.arc(lx+9,ly+13,9,0,7); x.fill(); txt('Retención',lx+28,ly+18,'500',22,MUT); lx+=210;
+    x.fillStyle=RED; x.beginPath(); x.arc(lx+9,ly+13,9,0,7); x.fill(); txt('Deserción',lx+28,ly+18,'500',22,MUT); lx+=210;
+    x.strokeStyle='#7891aa'; x.lineWidth=3; for(let g=lx;g<lx+34;g+=9){ x.beginPath(); x.moveTo(g,ly+13); x.lineTo(g+4,ly+13); x.stroke(); } txt('Meta ret. 90%',lx+44,ly+18,'500',22,MUT);
+    const px0=110,px1=W-60,py0=ly+54,py1=py0+260;
+    const n=mm.length, sx=i=> n>1? px0+(px1-px0)*i/(n-1) : (px0+px1)/2, sy=v=> py1-(py1-py0)*v/100;
+    x.strokeStyle=GRID; x.lineWidth=2;
+    [0,25,50,75,100].forEach(g=>{ const gy2=sy(g); x.beginPath(); x.moveTo(px0,gy2); x.lineTo(px1,gy2); x.stroke(); txt(String(g),px0-12,gy2+6,'400',18,MUT,'right'); });
+    const ym=sy(90); x.strokeStyle='#7891aa'; x.lineWidth=2; for(let xd=px0;xd<px1;xd+=18){ x.beginPath(); x.moveTo(xd,ym); x.lineTo(xd+9,ym); x.stroke(); }
+    mm.forEach((m,i)=> txt(m,sx(i),py1+30,'500',20,MUT,'center'));
+    function plot(arr,c){
+        x.strokeStyle=c; x.lineWidth=5; x.lineJoin='round'; x.beginPath();
+        arr.forEach((v,i)=>{ const px=sx(i),py=sy(v); i?x.lineTo(px,py):x.moveTo(px,py); }); x.stroke();
+        arr.forEach((v,i)=>{ const px=sx(i),py=sy(v); x.fillStyle=BG; x.beginPath(); x.arc(px,py,8,0,7); x.fill(); x.strokeStyle=c; x.lineWidth=4; x.beginPath(); x.arc(px,py,8,0,7); x.stroke(); });
+    }
+    plot(retS,ACC); plot(desS,RED);
+    retS.forEach((v,i)=> txt(String(Math.round(v)),sx(i),sy(v)-16,'700',19,ACC,'center'));
+    desS.forEach((v,i)=> txt(String(Math.round(v)),sx(i),sy(v)-16,'700',19,RED,'center'));
+    // barras altas
+    let yn=py1+52; txt('Altas del mes (socios nuevos)',60,yn+20,'500',24,MUT);
+    const by0=yn+38, by1=by0+80, maxn=Math.max(...nueS,1), bw=54;
+    nueS.forEach((v,i)=>{ const cx2=sx(i), bh=(by1-by0)*v/maxn; const cbar=v>=35?ACC:v>=15?AMB:'#5a6e8c'; rr(cx2-bw/2,by1-bh,bw,Math.max(3,bh),8,cbar); txt(String(v),cx2,by1-bh-10,'700',21,WHITE,'center'); });
+
     // Footer
-    const yf=H-96; x.fillStyle=CARD2; x.fillRect(60,yf,W-120,3);
-    txt('Cada socio, un atleta. Cada mes, un paso hacia una mejor versión de MOVE.',60,yf+42,'300',24,MUT);
-    txt(new Date().toLocaleDateString('es-AR'),W-60,yf+42,'400',22,MUT,'right');
+    const yf=H-64; x.fillStyle=CARD2; x.fillRect(60,yf,W-120,3);
+    txt('Cada socio, un atleta. Cada mes, un paso hacia una mejor versión de MOVE.',60,yf+38,'300',23,MUT);
+    txt(new Date().toLocaleDateString('es-AR'),W-60,yf+38,'400',22,MUT,'right');
 
     const a=document.createElement('a');
     a.download=`MOVE_${nombre}_${datos.meses[mesIdx]}_2026.png`;
