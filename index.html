@@ -5330,139 +5330,32 @@ function aeCopiarMsg(btn){
 }
 
 // ── Descargar dashboard del entrenador en PDF ──
-function aeDescargarPDF(){
+// PDF = MISMA imagen del dashboard, embebida en una página del tamaño exacto.
+async function aeDescargarPDF(){
     if(!window.jspdf || !window.jspdf.jsPDF){ alert('No se pudo cargar el generador de PDF. Revisá la conexión y reintentá.'); return; }
-    const {jsPDF} = window.jspdf;
+    const cv = await aeBuildDashboardCanvas(aeMesActual);
     const datos = AE_DATA[aeProfeActual] || AE_BELEN;
-    const mesIdx = aeMesActual;
-    const {d,prev,nuevos,nuevosPrev,adh,adhPrev,mesNombre} = aePanelDatos(mesIdx);
     const nombre = AE_NOMBRE[aeProfeActual]||aeProfeActual;
-    const sede = AE_SEDE[aeProfeActual]||datos.sede||'';
-
-    const doc = new jsPDF({unit:'mm', format:'a4'});
-    const W = 210, M = 14;
-    const ACC=[16,185,129], DARK=[17,24,39], GRAY=[107,114,128], RED=[239,68,68], AMB=[245,158,11], LIGHT=[243,244,246];
-    const col = (v)=> v>=80?ACC : v>=50?AMB : RED;
-
-    // Header
-    doc.setFillColor(...DARK); doc.rect(0,0,W,30,'F');
-    doc.setFillColor(...ACC); doc.roundedRect(M,9,12,12,2,2,'F');
-    doc.setTextColor(255,255,255); doc.setFont('helvetica','bold'); doc.setFontSize(15);
-    doc.text('M', M+6, 17.5, {align:'center'});
-    doc.setFontSize(15); doc.text('MOVE · Dashboard de Desempeño', M+17, 14);
-    doc.setFont('helvetica','normal'); doc.setFontSize(10); doc.setTextColor(200,255,230);
-    doc.text(`${nombre}  ·  ${sede}  ·  ${mesNombre} 2026`, M+17, 21);
-    doc.setFontSize(7.5); doc.setTextColor(150,160,175);
-    doc.text(`Generado ${new Date().toLocaleDateString('es-AR')}`, W-M, 21, {align:'right'});
-
-    // Helper: delta text
-    const deltaTxt=(cur,pv,inv)=>{
-        if(pv==null||cur==null) return {t:'sin mes previo', c:GRAY};
-        const diff=Math.round((cur-pv)*10)/10;
-        if(diff===0) return {t:'= igual', c:GRAY};
-        const bueno = inv?diff<0:diff>0;
-        return {t:`${diff>0?'▲ +':'▼ '}${diff} vs mes ant.`, c:bueno?ACC:RED};
-    };
-
-    // KPI cards (grid 2x4)
-    const kpis=[
-        {l:'Socios Activos', v:String(d.activos), c:d.activos>=95?ACC:d.activos>=70?AMB:RED, dl:deltaTxt(d.activos,prev?prev.activos:null,false)},
-        {l:'% Deserción', v:(d.desercion??0)+'%', c:d.desercion<=10?ACC:d.desercion<=20?AMB:RED, dl:deltaTxt(d.desercion,prev?prev.desercion:null,true)},
-        {l:'Retención Real', v:(d.retencion??0)+'%', c:d.retencion>=90?ACC:d.retencion>=75?AMB:RED, dl:deltaTxt(d.retencion,prev?prev.retencion:null,false)},
-        {l:'Re-evaluaciones', v:(d.reeval??0)+'%', c:d.reeval>=30?ACC:d.reeval>=15?AMB:RED, dl:deltaTxt(d.reeval,prev?prev.reeval:null,false)},
-        {l:'Tarea Mensual', v:(d.tarea??0)+'%', c:col(d.tarea), dl:deltaTxt(d.tarea,prev?prev.tarea:null,false)},
-        {l:'Socios Nuevos', v:String(nuevos), c:nuevos>=70?ACC:nuevos>=35?AMB:RED, dl:deltaTxt(nuevos,prev?nuevosPrev:null,false)},
-        {l:'Adherencia Prom.', v:adh!=null?adh+'%':'—', c:adh>=80?ACC:adh>=50?AMB:RED, dl:deltaTxt(adh,adhPrev,false)},
-        {l:'Cupo objetivo', v:'110', c:GRAY, dl:{t:`faltan ${Math.max(0,110-(d.activos||0))}`, c:GRAY}},
-    ];
-    let y=38;
-    doc.setTextColor(...DARK); doc.setFont('helvetica','bold'); doc.setFontSize(11);
-    doc.text('Métricas del mes', M, y); y+=4;
-    const cardW=(W-M*2-12)/4, cardH=22, gap=4;
-    kpis.forEach((k,i)=>{
-        const cx=M+(i%4)*(cardW+gap), cy=y+Math.floor(i/4)*(cardH+gap);
-        doc.setFillColor(...LIGHT); doc.roundedRect(cx,cy,cardW,cardH,2,2,'F');
-        doc.setFillColor(...k.c); doc.rect(cx,cy,1.4,cardH,'F');
-        doc.setTextColor(...k.c); doc.setFont('helvetica','bold'); doc.setFontSize(15);
-        doc.text(k.v, cx+5, cy+9);
-        doc.setTextColor(...GRAY); doc.setFont('helvetica','bold'); doc.setFontSize(6.5);
-        doc.text(k.l.toUpperCase(), cx+5, cy+14);
-        doc.setTextColor(...k.dl.c); doc.setFont('helvetica','normal'); doc.setFontSize(6.5);
-        doc.text(k.dl.t, cx+5, cy+18.5);
-    });
-    y += cardH*2+gap+8;
-
-    // Barras hacia objetivos anuales
-    doc.setTextColor(...DARK); doc.setFont('helvetica','bold'); doc.setFontSize(11);
-    doc.text('Progreso hacia objetivos anuales 2026', M, y); y+=6;
-    const metas=[
-        {l:'Retención Real', v:d.retencion, meta:90, dir:'up', suf:'%', sub:'obj ≥90%'},
-        {l:'% Deserción', v:d.desercion, meta:10, dir:'down', suf:'%', sub:'obj ≤10%'},
-        {l:'Re-evaluaciones', v:d.reeval, meta:30, dir:'up', suf:'%', sub:'obj ≥30% socios activos'},
-        {l:'Socios Nuevos', v:nuevos, meta:70, dir:'up', suf:'', sub:'obj ≥70 liquidados/mes'},
-        {l:'Tarea Mensual', v:d.tarea, meta:100, dir:'up', suf:'%', sub:'obj 100%'},
-    ];
-    const barW=W-M*2-46;
-    metas.forEach(mt=>{
-        let pct, ok;
-        if(mt.dir==='down'){ ok=mt.v<=mt.meta; pct=mt.v<=mt.meta?100:Math.max(0,Math.min(100,Math.round((1-(mt.v-mt.meta)/(30-mt.meta))*100))); }
-        else { ok=mt.v>=mt.meta; pct=Math.max(0,Math.min(100,Math.round(mt.v/mt.meta*100))); }
-        const c = ok?ACC:pct>=60?AMB:RED;
-        doc.setTextColor(...DARK); doc.setFont('helvetica','bold'); doc.setFontSize(8);
-        doc.text(mt.l, M, y);
-        doc.setTextColor(...GRAY); doc.setFont('helvetica','normal'); doc.setFontSize(6.5);
-        doc.text(mt.sub, M+doc.getTextWidth(mt.l)+3, y);
-        doc.setTextColor(...c); doc.setFont('helvetica','bold'); doc.setFontSize(8);
-        doc.text(`${mt.v}${mt.suf} ${ok?'✓':'('+pct+'%)'}`, W-M, y, {align:'right'});
-        // barra
-        doc.setFillColor(...LIGHT); doc.roundedRect(M, y+1.6, barW, 2.6, 1.3, 1.3, 'F');
-        doc.setFillColor(...c); doc.roundedRect(M, y+1.6, barW*pct/100, 2.6, 1.3, 1.3, 'F');
-        y+=9;
-    });
-    y+=4;
-
-    // Tabla comparativa mensual
-    doc.setTextColor(...DARK); doc.setFont('helvetica','bold'); doc.setFontSize(11);
-    doc.text('Evolución mensual', M, y); y+=5;
-    const heads=['Mes','Activos','Deserción','Retención','Re-eval','Nuevos'];
-    const cw=[24,26,30,30,26,0]; cw[5]=W-M*2-cw.slice(0,5).reduce((a,b)=>a+b,0);
-    let x=M;
-    doc.setFillColor(...DARK); doc.rect(M,y,W-M*2,7,'F');
-    doc.setTextColor(255,255,255); doc.setFont('helvetica','bold'); doc.setFontSize(7.5);
-    heads.forEach((h,i)=>{ doc.text(h, x+2, y+4.6); x+=cw[i]; });
-    y+=7;
-    datos.objetivos.forEach((o,i)=>{
-        const mv=(datos.movimiento&&datos.movimiento[i])||{};
-        const nv = mv.nuevos!=null?mv.nuevos:(mv.luciaTani||0);
-        const act=i===mesIdx;
-        if(act){ doc.setFillColor(220,252,231); doc.rect(M,y,W-M*2,6.5,'F'); }
-        else if(i%2){ doc.setFillColor(249,250,251); doc.rect(M,y,W-M*2,6.5,'F'); }
-        x=M; doc.setFont('helvetica', act?'bold':'normal'); doc.setFontSize(7.5);
-        const cells=[
-            {t:datos.meses[i], c:DARK},
-            {t:String(o.activos), c:DARK},
-            {t:o.desercion+'%', c:o.desercion<=10?ACC:o.desercion<=20?AMB:RED},
-            {t:o.retencion+'%', c:o.retencion>=90?ACC:AMB},
-            {t:(o.reeval??0)+'%', c:DARK},
-            {t:String(nv), c:DARK},
-        ];
-        cells.forEach((cell,ci)=>{ doc.setTextColor(...cell.c); doc.text(cell.t, x+2, y+4.4); x+=cw[ci]; });
-        y+=6.5;
-    });
-
-    // Footer
-    y=285;
-    doc.setDrawColor(...LIGHT); doc.line(M,y-4,W-M,y-4);
-    doc.setTextColor(...GRAY); doc.setFont('helvetica','italic'); doc.setFontSize(6.8);
-    doc.text('MOVE 2026 · Homogeneizar calidad en las 3 sedes, mejorar la experiencia y retención del socio, y crecer de forma ordenada y coherente.', M, y, {maxWidth:W-M*2});
-
-    doc.save(`MOVE_${nombre}_${datos.meses[mesIdx]}_2026.pdf`);
+    const {jsPDF} = window.jspdf;
+    const pdf = new jsPDF({unit:'px', format:[cv.width, cv.height], hotfixes:['px_scaling']});
+    pdf.addImage(cv.toDataURL('image/png'), 'PNG', 0, 0, cv.width, cv.height);
+    pdf.save(`MOVE_${nombre}_${datos.meses[aeMesActual]}_2026.pdf`);
 }
 
-// ── Descargar imagen (dashboard vertical para WhatsApp) ──
+// Imagen = mismo dashboard, descargado como PNG.
 async function aeDescargarImagen(){
+    const cv = await aeBuildDashboardCanvas(aeMesActual);
     const datos = AE_DATA[aeProfeActual] || AE_BELEN;
-    const mesIdx = aeMesActual;
+    const nombre = AE_NOMBRE[aeProfeActual]||aeProfeActual;
+    const a=document.createElement('a');
+    a.download=`MOVE_${nombre}_${datos.meses[aeMesActual]}_2026.png`;
+    a.href=cv.toDataURL('image/png'); a.click();
+}
+
+// Arma el dashboard del MES SELECCIONADO para el profe activo. Imagen y PDF usan esto → idénticos.
+async function aeBuildDashboardCanvas(mesIdx){
+    const datos = AE_DATA[aeProfeActual] || AE_BELEN;
+    if(mesIdx==null || mesIdx<0 || mesIdx>=datos.objetivos.length) mesIdx = datos.objetivos.length-1;
     const {d,prev,nuevos,nuevosPrev,adh,adhPrev,mesNombre} = aePanelDatos(mesIdx);
     const nombre = AE_NOMBRE[aeProfeActual]||aeProfeActual;
     const sede = AE_SEDE[aeProfeActual]||datos.sede||'';
@@ -5470,10 +5363,9 @@ async function aeDescargarImagen(){
 
     try { await document.fonts.load('700 60px Poppins'); await document.fonts.load('400 24px Poppins'); await document.fonts.ready; } catch(e){}
 
-    const W=1080,H=1980, cv=document.createElement('canvas'); cv.width=W; cv.height=H;
+    const W=1080,H=2020, cv=document.createElement('canvas'); cv.width=W; cv.height=H;
     const x=cv.getContext('2d');
     const BG='#0f1420',CARD='#1a2132',CARD2='#1f293d',ACC='#10b981',WHITE='#fff',MUT='#94a3b8',RED='#ef4444',AMB='#f59e0b';
-    const FB=w=>`700 ${w}`, FM=w=>`500 ${w}`, FR=w=>`400 ${w}`, FL=w=>`300 ${w}`;
     const font=(s)=>`${s}px Poppins, 'Segoe UI', system-ui, sans-serif`;
     function rr(a,b,c,dd,r,fill){ x.beginPath(); x.moveTo(a+r,b); x.arcTo(a+c,b,a+c,b+dd,r); x.arcTo(a+c,b+dd,a,b+dd,r); x.arcTo(a,b+dd,a,b,r); x.arcTo(a,b,a+c,b,r); x.closePath(); x.fillStyle=fill; x.fill(); }
     function txt(t,px,py,wt,sz,c,al){ x.font=`${wt} ${font(sz)}`; x.fillStyle=c; x.textAlign=al||'left'; x.textBaseline='alphabetic'; x.fillText(t,px,py); }
@@ -5492,8 +5384,7 @@ async function aeDescargarImagen(){
     txt(`${sede}  ·  ${mesNombre} 2026`,W-60,170,'400',27,ACC,'right');
 
     // KPIs
-    let y0=290; txt('Métricas del mes',60,y0+34,'700',40,WHITE);
-    const cval=(v,g,a)=> v>=a?ACC:(v>=g?AMB:RED);
+    let y0=284; txt('Métricas del mes',60,y0+34,'700',40,WHITE);
     function dinfo(cur,pv,inv){ if(pv==null||cur==null) return{t:'sin previo',c:MUT,d:0}; let df=Math.round((cur-pv)*10)/10; if(df===0)return{t:'igual',c:MUT,d:0}; const bu=inv?df<0:df>0; return{t:`${df>0?'+':''}${df} vs ${mesPrevN}`,c:bu?ACC:RED,d:df>0?1:-1}; }
     const kpis=[
         {l:'SOCIOS ACTIVOS',v:String(d.activos),c:d.activos>=95?ACC:d.activos>=70?AMB:RED,dl:dinfo(d.activos,prev?prev.activos:null,false)},
@@ -5503,7 +5394,7 @@ async function aeDescargarImagen(){
         {l:'SOCIOS NUEVOS',v:String(nuevos),c:nuevos>=70?ACC:nuevos>=35?AMB:RED,dl:dinfo(nuevos,prev?nuevosPrev:null,false)},
         {l:'ADHERENCIA PROM.',v:adh!=null?adh+'%':'—',c:adh>=80?ACC:adh>=50?AMB:RED,dl:dinfo(adh,adhPrev,false)},
     ];
-    const cw=(W-120-30)/2, ch=150, gx=30, gy=24, yb=y0+64;
+    const cw=(W-120-30)/2, ch=150, gx=30, gy=24, yb=y0+62;
     kpis.forEach((k,i)=>{
         const cx=60+(i%2)*(cw+gx), cy=yb+Math.floor(i/2)*(ch+gy);
         rr(cx,cy,cw,ch,18,CARD); rr(cx,cy,8,ch,4,k.c);
@@ -5515,8 +5406,23 @@ async function aeDescargarImagen(){
         txt(k.dl.t,rx,cy+128,'400',21,k.dl.c,'right');
     });
 
+    // ── Acumulado del año (YTD hasta el mes seleccionado) ──
+    let rS=0,dS=0,eS=0,alt=0,cN=0;
+    for(let i=0;i<=mesIdx && i<datos.objetivos.length;i++){
+        const o=datos.objetivos[i], mv=(datos.movimiento&&datos.movimiento[i])||{};
+        alt += mv.nuevos!=null?mv.nuevos:(mv.luciaTani||0);
+        if(o.activos>0){ rS+=o.retencion||0; dS+=o.desercion||0; eS+=o.reeval||0; cN++; }
+    }
+    const ytdRet=cN?Math.round(rS/cN):0, ytdDes=cN?Math.round(dS/cN*10)/10:0, ytdRee=cN?Math.round(eS/cN*10)/10:0;
+    let yytd=yb+3*(ch+gy)+2;
+    rr(60,yytd,W-120,86,16,CARD2);
+    txt('ACUMULADO DEL AÑO  ·  ENE–'+datos.meses[mesIdx],86,yytd+30,'700',20,ACC);
+    const chips=[['Retención prom.',ytdRet+'%',ytdRet>=90?ACC:AMB],['Deserción prom.',ytdDes+'%',ytdDes<=10?ACC:AMB],['Re-eval prom.',ytdRee+'%',ytdRee>=30?ACC:AMB],['Altas totales',String(alt),WHITE]];
+    const chW=(W-120)/4;
+    chips.forEach((c,i)=>{ const cx=86+i*chW; txt(c[1],cx,yytd+72,'700',34,c[2]); txt(c[0],cx,yytd+46,'500',18,MUT); });
+
     // Objetivos anuales
-    let yb2=yb+3*(ch+gy)+22; txt('Objetivos anuales 2026',60,yb2+30,'700',36,WHITE);
+    let yb2=yytd+86+26; txt('Objetivos anuales 2026',60,yb2+30,'700',36,WHITE);
     const metas=[
         {l:'Retención Real',v:d.retencion,meta:90,dir:'up',suf:'%'},
         {l:'% Deserción',v:d.desercion,meta:10,dir:'down',suf:'%'},
@@ -5534,7 +5440,7 @@ async function aeDescargarImagen(){
         if(ok){ txt(vt,W-60,yy+8,'700',28,c,'right'); check(W-60-meas(vt,'700',28)-40,yy-14,26,c); }
         else txt(`${vt}  (${pct}%)`,W-60,yy+8,'700',28,c,'right');
         rr(60,yy+30,barW,16,8,CARD2); if(pct>0) rr(60,yy+30,Math.max(16,barW*pct/100),16,8,c);
-        yy+=84;
+        yy+=80;
     });
 
     // ── Gráfico evolución mensual (retención vs deserción + altas) ──
@@ -5543,38 +5449,38 @@ async function aeDescargarImagen(){
     const retS = datos.objetivos.map(o=>o.retencion||0);
     const desS = datos.objetivos.map(o=>o.desercion||0);
     const nueS = datos.objetivos.map((o,i)=>{ const mv=(datos.movimiento&&datos.movimiento[i])||{}; return mv.nuevos!=null?mv.nuevos:(mv.luciaTani||0); });
-    let ycg=yy+14; txt('Evolución mensual',60,ycg+30,'700',36,WHITE);
+    let ycg=yy+10; txt('Evolución mensual',60,ycg+30,'700',36,WHITE);
+    txt('(mes seleccionado resaltado)',352,ycg+30,'400',20,MUT);
     let lx=60, ly=ycg+50;
     x.fillStyle=ACC; x.beginPath(); x.arc(lx+9,ly+13,9,0,7); x.fill(); txt('Retención',lx+28,ly+18,'500',22,MUT); lx+=210;
     x.fillStyle=RED; x.beginPath(); x.arc(lx+9,ly+13,9,0,7); x.fill(); txt('Deserción',lx+28,ly+18,'500',22,MUT); lx+=210;
     x.strokeStyle='#7891aa'; x.lineWidth=3; for(let g=lx;g<lx+34;g+=9){ x.beginPath(); x.moveTo(g,ly+13); x.lineTo(g+4,ly+13); x.stroke(); } txt('Meta ret. 90%',lx+44,ly+18,'500',22,MUT);
-    const px0=110,px1=W-60,py0=ly+54,py1=py0+260;
+    const px0=110,px1=W-60,py0=ly+54,py1=py0+250;
     const n=mm.length, sx=i=> n>1? px0+(px1-px0)*i/(n-1) : (px0+px1)/2, sy=v=> py1-(py1-py0)*v/100;
+    if(mesIdx>=0 && mesIdx<n){ const gx2=sx(mesIdx); x.strokeStyle='rgba(16,185,129,.35)'; x.lineWidth=3; x.beginPath(); x.moveTo(gx2,py0-6); x.lineTo(gx2,py1); x.stroke(); }
     x.strokeStyle=GRID; x.lineWidth=2;
     [0,25,50,75,100].forEach(g=>{ const gy2=sy(g); x.beginPath(); x.moveTo(px0,gy2); x.lineTo(px1,gy2); x.stroke(); txt(String(g),px0-12,gy2+6,'400',18,MUT,'right'); });
     const ym=sy(90); x.strokeStyle='#7891aa'; x.lineWidth=2; for(let xd=px0;xd<px1;xd+=18){ x.beginPath(); x.moveTo(xd,ym); x.lineTo(xd+9,ym); x.stroke(); }
-    mm.forEach((m,i)=> txt(m,sx(i),py1+30,'500',20,MUT,'center'));
+    mm.forEach((m,i)=> txt(m,sx(i),py1+30,i===mesIdx?'700':'500',i===mesIdx?22:20,i===mesIdx?ACC:MUT,'center'));
     function plot(arr,c){
         x.strokeStyle=c; x.lineWidth=5; x.lineJoin='round'; x.beginPath();
         arr.forEach((v,i)=>{ const px=sx(i),py=sy(v); i?x.lineTo(px,py):x.moveTo(px,py); }); x.stroke();
-        arr.forEach((v,i)=>{ const px=sx(i),py=sy(v); x.fillStyle=BG; x.beginPath(); x.arc(px,py,8,0,7); x.fill(); x.strokeStyle=c; x.lineWidth=4; x.beginPath(); x.arc(px,py,8,0,7); x.stroke(); });
+        arr.forEach((v,i)=>{ const px=sx(i),py=sy(v), r=i===mesIdx?12:8; x.fillStyle=BG; x.beginPath(); x.arc(px,py,r,0,7); x.fill(); x.strokeStyle=c; x.lineWidth=i===mesIdx?5:4; x.beginPath(); x.arc(px,py,r,0,7); x.stroke(); });
     }
     plot(retS,ACC); plot(desS,RED);
-    retS.forEach((v,i)=> txt(String(Math.round(v)),sx(i),sy(v)-16,'700',19,ACC,'center'));
-    desS.forEach((v,i)=> txt(String(Math.round(v)),sx(i),sy(v)-16,'700',19,RED,'center'));
+    retS.forEach((v,i)=> txt(String(Math.round(v)),sx(i),sy(v)-18,'700',i===mesIdx?21:19,ACC,'center'));
+    desS.forEach((v,i)=> txt(String(Math.round(v)),sx(i),sy(v)-18,'700',i===mesIdx?21:19,RED,'center'));
     // barras altas
     let yn=py1+52; txt('Altas del mes (socios nuevos)',60,yn+20,'500',24,MUT);
-    const by0=yn+38, by1=by0+80, maxn=Math.max(...nueS,1), bw=54;
-    nueS.forEach((v,i)=>{ const cx2=sx(i), bh=(by1-by0)*v/maxn; const cbar=v>=35?ACC:v>=15?AMB:'#5a6e8c'; rr(cx2-bw/2,by1-bh,bw,Math.max(3,bh),8,cbar); txt(String(v),cx2,by1-bh-10,'700',21,WHITE,'center'); });
+    const by0=yn+38, by1=by0+78, maxn=Math.max(...nueS,1), bw=54;
+    nueS.forEach((v,i)=>{ const cx2=sx(i), bh=(by1-by0)*v/maxn*0.8; const cbar=i===mesIdx?ACC:(v>=35?'#0d9668':v>=15?AMB:'#5a6e8c'); rr(cx2-bw/2,by1-bh,bw,Math.max(3,bh),8,cbar); txt(String(v),cx2,by1-bh-10,'700',i===mesIdx?23:21,i===mesIdx?ACC:WHITE,'center'); });
 
     // Footer
-    const yf=H-64; x.fillStyle=CARD2; x.fillRect(60,yf,W-120,3);
-    txt('Cada socio, un atleta. Cada mes, un paso hacia una mejor versión de MOVE.',60,yf+38,'300',23,MUT);
-    txt(new Date().toLocaleDateString('es-AR'),W-60,yf+38,'400',22,MUT,'right');
+    const yf=H-58; x.fillStyle=CARD2; x.fillRect(60,yf,W-120,3);
+    txt('Cada socio, un atleta. Cada mes, un paso hacia una mejor versión de MOVE.',60,yf+36,'300',23,MUT);
+    txt(new Date().toLocaleDateString('es-AR'),W-60,yf+36,'400',22,MUT,'right');
 
-    const a=document.createElement('a');
-    a.download=`MOVE_${nombre}_${datos.meses[mesIdx]}_2026.png`;
-    a.href=cv.toDataURL('image/png'); a.click();
+    return cv;
 }
 
 // ══════════════════════════════════════════════════
