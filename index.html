@@ -720,6 +720,7 @@ tr:hover td{background:#fafbfc;}
         <div class="section" id="section-estado">
             <div class="alert"><i class="fas fa-info-circle"></i> <span>Semáforo de deserción promedio mensual por profesional. 🟢 &lt;15% · 🟡 15–25% · 🔴 &gt;25%</span></div>
             <div id="estadoCards"></div>
+            <div id="estadoCharts"></div>
         </div>
 
         <!-- ═══ SECTION: 2025 VS 2026 ═══ -->
@@ -2270,9 +2271,96 @@ function renderEstado() {
         html += '</div></div>';
     });
     document.getElementById('estadoCards').innerHTML = html || '<div class="alert">Sin datos disponibles</div>';
+
+    // ── Datos unificados por profe (serie mensual completa) para los gráficos ──
+    const unified = [];
+    if (planData) planData.profes.forEach(p => {
+        unified.push({ nombre: p.nombre.split(' ')[0], sede: getSede(p.nombre),
+            deserc: p.histDeserc26.map(v => +( (v||0)*100 ).toFixed(1)),
+            altas:  p.histAltas26.map(v => v||0) });
+    });
+    bariData.forEach(p => {
+        unified.push({ nombre: p.nombre.split(' ')[0], sede: 'Bariloche',
+            deserc: p.histDeserc.map(v => +( (v||0)*100 ).toFixed(1)),
+            altas:  p.histAltas.map(v => v||0) });
+    });
+    renderEstadoCharts(unified, mesIdx);
 }
 
-// ══ RENDER VS 2025 vs 2026 ══
+// ══ GRÁFICOS Estado del Gym ══
+let estadoUnified=[], estadoSel=new Set(), estadoMetric='deserc', estadoMi=0;
+let egLineChart=null, egBarChart=null, egPieChart=null;
+const ESTADO_PAL=['#10b981','#3b82f6','#f59e0b','#ef4444','#8b5cf6','#ec4899','#f97316','#0ea5e9'];
+
+function renderEstadoCharts(unified, mi){
+    estadoUnified = unified; estadoMi = mi;
+    const cont = document.getElementById('estadoCharts');
+    if(!cont) return;
+    if(!unified.length || !window.Chart){ cont.innerHTML=''; return; }
+    if(!estadoSel.size) unified.slice(0,3).forEach(p=>estadoSel.add(p.nombre));
+
+    const metricBtns = [['deserc','Deserción'],['altas','Altas']].map(([k,l])=>
+        `<button onclick="estadoSetMetric('${k}')" data-mk="${k}" style="border:none;cursor:pointer;font-family:inherit;font-size:.78rem;font-weight:600;padding:6px 14px;border-radius:8px;${estadoMetric===k?'background:var(--accent);color:#fff;':'background:var(--bg);color:var(--muted);'}">${l}</button>`).join('');
+    const checks = unified.map((p,i)=>
+        `<label style="display:inline-flex;align-items:center;gap:6px;font-size:.78rem;cursor:pointer;background:var(--bg);padding:5px 10px;border-radius:8px;"><input type="checkbox" ${estadoSel.has(p.nombre)?'checked':''} onchange="estadoToggleProfe('${p.nombre}')" style="accent-color:${ESTADO_PAL[i%8]};"><span style="width:10px;height:10px;border-radius:50%;background:${ESTADO_PAL[i%8]};display:inline-block;"></span>${p.nombre} <span style="color:var(--muted);font-size:.68rem;">${p.sede}</span></label>`).join('');
+
+    cont.innerHTML = `
+      <div class="estado-sede-card" style="margin-top:18px;">
+        <div class="estado-sede-title"><i class="fas fa-chart-line"></i> Comparativa entre profesores</div>
+        <div style="display:flex;gap:6px;margin:4px 0 12px;flex-wrap:wrap;">${metricBtns}</div>
+        <div style="display:flex;gap:8px;flex-wrap:wrap;margin-bottom:14px;">${checks}</div>
+        <div style="height:320px;position:relative;"><canvas id="egLine"></canvas></div>
+      </div>
+      <div style="display:grid;grid-template-columns:repeat(auto-fit,minmax(320px,1fr));gap:16px;margin-top:16px;">
+        <div class="estado-sede-card"><div class="estado-sede-title"><i class="fas fa-chart-column"></i> Deserción ${MESES[mi]} por profe</div><div style="height:300px;position:relative;"><canvas id="egBar"></canvas></div></div>
+        <div class="estado-sede-card"><div class="estado-sede-title"><i class="fas fa-chart-pie"></i> Participación de altas ${MESES[mi]}</div><div style="height:300px;position:relative;"><canvas id="egPie"></canvas></div></div>
+      </div>`;
+    estadoDrawLine(); estadoDrawBar(); estadoDrawPie();
+}
+
+function estadoToggleProfe(n){ if(estadoSel.has(n)) estadoSel.delete(n); else estadoSel.add(n); estadoDrawLine(); }
+function estadoSetMetric(m){ estadoMetric=m; document.querySelectorAll('[data-mk]').forEach(b=>{ const on=b.getAttribute('data-mk')===m; b.style.background=on?'var(--accent)':'var(--bg)'; b.style.color=on?'#fff':'var(--muted)'; }); estadoDrawLine(); }
+
+function estadoGridColor(){ return getComputedStyle(document.body).getPropertyValue('--border')||'rgba(120,130,150,.2)'; }
+
+function estadoDrawLine(){
+    const cv=document.getElementById('egLine'); if(!cv||!window.Chart) return;
+    if(egLineChart) egLineChart.destroy();
+    const labels = MESES.slice(0, estadoMi+1);
+    const isDes = estadoMetric==='deserc';
+    const datasets = estadoUnified.filter(p=>estadoSel.has(p.nombre)).map(p=>{
+        const idx = estadoUnified.indexOf(p), col = ESTADO_PAL[idx%8];
+        const arr = (isDes?p.deserc:p.altas).slice(0, estadoMi+1);
+        return { label:p.nombre, data:arr, borderColor:col, backgroundColor:col+'22', tension:.3, borderWidth:3, pointRadius:4, pointHoverRadius:6, fill:false };
+    });
+    egLineChart = new Chart(cv, { type:'line', data:{labels, datasets},
+        options:{ responsive:true, maintainAspectRatio:false,
+            plugins:{ legend:{labels:{usePointStyle:true, boxWidth:8, font:{size:12}}},
+                tooltip:{callbacks:{label:c=>`${c.dataset.label}: ${c.parsed.y}${isDes?'%':''}`}}},
+            scales:{ y:{ beginAtZero:true, ticks:{callback:v=>isDes?v+'%':v}, grid:{color:'rgba(120,130,150,.15)'} },
+                x:{ grid:{display:false} } } } });
+}
+
+function estadoDrawBar(){
+    const cv=document.getElementById('egBar'); if(!cv||!window.Chart) return;
+    if(egBarChart) egBarChart.destroy();
+    const rows = estadoUnified.map(p=>({n:p.nombre, v:p.deserc[estadoMi]||0})).sort((a,b)=>a.v-b.v);
+    const cols = rows.map(r=> r.v<15?'#10b981':r.v<25?'#f59e0b':'#ef4444');
+    egBarChart = new Chart(cv, { type:'bar',
+        data:{ labels:rows.map(r=>r.n), datasets:[{ data:rows.map(r=>r.v), backgroundColor:cols, borderRadius:6 }] },
+        options:{ responsive:true, maintainAspectRatio:false, plugins:{legend:{display:false}, tooltip:{callbacks:{label:c=>c.parsed.y+'% deserción'}}},
+            scales:{ y:{beginAtZero:true, ticks:{callback:v=>v+'%'}, grid:{color:'rgba(120,130,150,.15)'}}, x:{grid:{display:false}} } } });
+}
+
+function estadoDrawPie(){
+    const cv=document.getElementById('egPie'); if(!cv||!window.Chart) return;
+    if(egPieChart) egPieChart.destroy();
+    const rows = estadoUnified.map((p,i)=>({n:p.nombre, v:p.altas[estadoMi]||0, c:ESTADO_PAL[i%8]})).filter(r=>r.v>0);
+    egPieChart = new Chart(cv, { type:'doughnut',
+        data:{ labels:rows.map(r=>r.n), datasets:[{ data:rows.map(r=>r.v), backgroundColor:rows.map(r=>r.c), borderWidth:2, borderColor:getComputedStyle(document.body).getPropertyValue('--card')||'#fff' }] },
+        options:{ responsive:true, maintainAspectRatio:false, plugins:{ legend:{position:'right', labels:{usePointStyle:true, boxWidth:8, font:{size:11}}},
+            tooltip:{callbacks:{label:c=>{ const t=c.dataset.data.reduce((a,b)=>a+b,0); return `${c.label}: ${c.parsed} altas (${Math.round(c.parsed/t*100)}%)`; }}} } } });
+}
 function renderVersus() {
     const el = document.getElementById('versusCards');
     if (!planData) { el.innerHTML = '<div class="alert">Sin datos disponibles</div>'; return; }
