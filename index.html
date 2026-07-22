@@ -2184,6 +2184,8 @@ function renderEstado() {
         for (let i = MESES.length - 1; i >= 0; i--) {
             if (planData.profes.some(p => (p.histAltas26[i]||0) > 5)) { mesIdx = i; break; }
         }
+        // No pasar del mes calendario actual (evita meses futuros con altas pre-cargadas)
+        mesIdx = Math.min(mesIdx, new Date().getMonth());
         planData.profes.forEach(p => {
             const sede = getSede(p.nombre);
             const des  = (p.histDeserc26[mesIdx]  || 0) * 100;
@@ -2204,6 +2206,7 @@ function renderEstado() {
         for (let i = MESES.length - 1; i >= 0; i--) {
             if (bariData.some(p => (p.histAltas[i]||0) > 3)) { bMesIdx = i; break; }
         }
+        bMesIdx = Math.min(bMesIdx, new Date().getMonth());
     }
     bariData.forEach(p => {
         const des  = (p.histDeserc[bMesIdx]  || 0) * 100;
