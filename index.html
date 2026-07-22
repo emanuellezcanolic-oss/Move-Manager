@@ -721,6 +721,7 @@ tr:hover td{background:#fafbfc;}
             <div class="alert"><i class="fas fa-info-circle"></i> <span>Semáforo de deserción promedio mensual por profesional. 🟢 &lt;15% · 🟡 15–25% · 🔴 &gt;25%</span></div>
             <div id="estadoCards"></div>
             <div id="estadoCharts"></div>
+            <div id="estadoStats"></div>
         </div>
 
         <!-- ═══ SECTION: 2025 VS 2026 ═══ -->
@@ -2316,6 +2317,155 @@ function renderEstadoCharts(unified, mi){
         <div class="estado-sede-card"><div class="estado-sede-title"><i class="fas fa-chart-pie"></i> Participación de altas ${MESES[mi]}</div><div style="height:300px;position:relative;"><canvas id="egPie"></canvas></div></div>
       </div>`;
     estadoDrawLine(); estadoDrawBar(); estadoDrawPie();
+    renderEstadoStats();
+}
+
+// ══ ANÁLISIS ESTADÍSTICO (interactivo) ══
+let statMetric='deserc', statProfe=null, statTrendChart=null;
+function statLabel(){ return statMetric==='deserc'?'Deserción':statMetric==='ret'?'Retención':'Altas'; }
+function statUnit(){ return statMetric==='altas'?'':'%'; }
+function statSerie(p){
+    const d=p.deserc.slice(0,estadoMi+1);
+    if(statMetric==='deserc') return d;
+    if(statMetric==='ret') return d.map(v=>+(100-v).toFixed(1));
+    return p.altas.slice(0,estadoMi+1);
+}
+function statLinReg(ys){
+    const n=ys.length; if(n<2) return {slope:0,intercept:ys[0]||0,r2:0};
+    let sx=0,sy=0,sxy=0,sxx=0,syy=0;
+    ys.forEach((y,x)=>{sx+=x;sy+=y;sxy+=x*y;sxx+=x*x;syy+=y*y;});
+    const denom=(n*sxx-sx*sx)||1;
+    const slope=(n*sxy-sx*sy)/denom;
+    const intercept=(sy-slope*sx)/n;
+    const rd=Math.sqrt((n*sxx-sx*sx)*(n*syy-sy*sy))||1;
+    const r=(n*sxy-sx*sy)/rd;
+    return {slope,intercept,r2:r*r};
+}
+function statMeanStd(a){ const n=a.length; if(!n) return {m:0,sd:0}; const m=a.reduce((x,y)=>x+y,0)/n; const sd=Math.sqrt(a.reduce((x,y)=>x+(y-m)*(y-m),0)/n); return {m,sd}; }
+
+function renderEstadoStats(){
+    const cont=document.getElementById('estadoStats'); if(!cont) return;
+    const U=estadoUnified;
+    if(!U.length || !window.Chart){ cont.innerHTML=''; return; }
+    if(!statProfe || !U.some(p=>p.nombre===statProfe)) statProfe=U[0].nombre;
+
+    const metricBtns=[['deserc','Deserción'],['ret','Retención'],['altas','Altas']].map(([k,l])=>
+        `<button onclick="statSetMetric('${k}')" data-sk="${k}" style="border:none;cursor:pointer;font-family:inherit;font-size:.78rem;font-weight:600;padding:6px 14px;border-radius:8px;${statMetric===k?'background:var(--accent);color:#fff;':'background:var(--bg);color:var(--muted);'}">${l}</button>`).join('');
+    const profeBtns=U.map(p=>
+        `<button onclick="statSetProfe('${p.nombre}')" data-sp="${p.nombre}" style="border:none;cursor:pointer;font-family:inherit;font-size:.74rem;font-weight:600;padding:5px 11px;border-radius:8px;${statProfe===p.nombre?'background:#3b82f6;color:#fff;':'background:var(--bg);color:var(--muted);'}">${p.nombre}</button>`).join('');
+
+    cont.innerHTML=`
+      <div class="estado-sede-card" style="margin-top:18px;border-left:3px solid #3b82f6;">
+        <div class="estado-sede-title"><i class="fas fa-square-root-variable"></i> Análisis estadístico</div>
+        <div style="display:flex;gap:6px;margin:2px 0 14px;flex-wrap:wrap;">${metricBtns}</div>
+
+        <div style="font-size:.72rem;font-weight:700;text-transform:uppercase;letter-spacing:.5px;color:var(--muted);margin-bottom:8px;"><i class="fas fa-arrow-trend-up" style="margin-right:5px;color:#3b82f6;"></i>Tendencia y proyección</div>
+        <div style="display:flex;gap:5px;flex-wrap:wrap;margin-bottom:10px;">${profeBtns}</div>
+        <div style="height:280px;position:relative;"><canvas id="statTrend"></canvas></div>
+        <div id="statTrendConc" style="margin-top:10px;font-size:.82rem;"></div>
+      </div>
+
+      <div style="display:grid;grid-template-columns:repeat(auto-fit,minmax(320px,1fr));gap:16px;margin-top:16px;">
+        <div class="estado-sede-card">
+          <div class="estado-sede-title"><i class="fas fa-crosshairs"></i> Outliers del equipo (z-score)</div>
+          <div id="statOutliers"></div>
+        </div>
+        <div class="estado-sede-card">
+          <div class="estado-sede-title"><i class="fas fa-arrows-left-right-to-line"></i> Homogeneidad entre profes</div>
+          <div id="statHomog"></div>
+        </div>
+      </div>
+      <div style="font-size:.68rem;color:var(--muted);margin-top:10px;padding:0 4px;"><i class="fas fa-circle-info"></i> Regresión lineal por mínimos cuadrados sobre ENE–${MESES[estadoMi]}. Las conclusiones se generan solas según los números.</div>`;
+
+    statDrawTrend(); statRenderOutliers(); statRenderHomog();
+}
+
+function statSetMetric(m){ statMetric=m; document.querySelectorAll('[data-sk]').forEach(b=>{const on=b.getAttribute('data-sk')===m; b.style.background=on?'var(--accent)':'var(--bg)'; b.style.color=on?'#fff':'var(--muted)';}); statDrawTrend(); statRenderOutliers(); statRenderHomog(); }
+function statSetProfe(n){ statProfe=n; document.querySelectorAll('[data-sp]').forEach(b=>{const on=b.getAttribute('data-sp')===n; b.style.background=on?'#3b82f6':'var(--bg)'; b.style.color=on?'#fff':'var(--muted)';}); statDrawTrend(); }
+
+function statDrawTrend(){
+    const cv=document.getElementById('statTrend'); if(!cv||!window.Chart) return;
+    if(statTrendChart) statTrendChart.destroy();
+    const p=estadoUnified.find(x=>x.nombre===statProfe); if(!p) return;
+    const ys=statSerie(p); const n=ys.length;
+    const {slope,intercept,r2}=statLinReg(ys);
+    const labels=MESES.slice(0,n).concat(['→ '+(MESES[n]||'próx')]);
+    const regLine=labels.map((_,i)=>+(intercept+slope*i).toFixed(1));
+    const realData=ys.concat([null]);
+    const proj=+(intercept+slope*n).toFixed(1);
+    statTrendChart=new Chart(cv,{type:'line',
+        data:{labels,datasets:[
+            {label:statLabel()+' real',data:realData,borderColor:'#3b82f6',backgroundColor:'#3b82f6',borderWidth:3,pointRadius:4,tension:.3,spanGaps:false},
+            {label:'Tendencia',data:regLine,borderColor:'#94a3b8',borderDash:[6,5],borderWidth:2,pointRadius:0},
+            {label:'Proyección',data:labels.map((_,i)=>i===n?proj:null),borderColor:'#f59e0b',backgroundColor:'#f59e0b',pointRadius:6,pointStyle:'rectRot',showLine:false}
+        ]},
+        options:{responsive:true,maintainAspectRatio:false,
+            plugins:{legend:{labels:{usePointStyle:true,boxWidth:8,font:{size:11}}},
+                tooltip:{callbacks:{label:c=>c.parsed.y==null?'':`${c.dataset.label}: ${c.parsed.y}${statUnit()}`}}},
+            scales:{y:{beginAtZero:true,ticks:{callback:v=>v+statUnit()},grid:{color:'rgba(120,130,150,.15)'}},x:{grid:{display:false}}}}});
+
+    // Conclusión automática
+    const dir = Math.abs(slope)<0.15 ? 'estable' : slope>0 ? 'en aumento' : 'a la baja';
+    const bueno = statMetric==='deserc' ? slope<0 : slope>0;
+    const col = Math.abs(slope)<0.15 ? 'var(--muted)' : bueno ? '#10b981' : '#ef4444';
+    let txt = `<b>${statProfe}</b>: ${statLabel().toLowerCase()} <b style="color:${col}">${dir}</b> (${slope>0?'+':''}${slope.toFixed(2)} ${statUnit()||'altas'}/mes, R²=${r2.toFixed(2)}). Proyección ${MESES[n]||'próximo mes'}: <b style="color:${col}">${proj}${statUnit()}</b>.`;
+    if(statMetric==='deserc'){
+        const {m}=statMeanStd(ys.filter(v=>v>0));
+        const anual=Math.round((1-Math.pow(1-m/100,12))*100);
+        txt += ` Su deserción mensual promedio (${m.toFixed(1)}%) anualiza a <b style="color:${anual<=30?'#10b981':'#ef4444'}">${anual}%</b> (objetivo ≤30%).`;
+    }
+    if(r2<0.3 && Math.abs(slope)>=0.15) txt += ` <span style="color:var(--muted)">La tendencia es débil (mucha dispersión), tomala con pinzas.</span>`;
+    document.getElementById('statTrendConc').innerHTML=txt;
+}
+
+function statRenderOutliers(){
+    const el=document.getElementById('statOutliers'); if(!el) return;
+    const vals=estadoUnified.map(p=>{ const s=statSerie(p); return {n:p.nombre, sede:p.sede, v:s[s.length-1]||0}; });
+    const {m,sd}=statMeanStd(vals.map(v=>v.v));
+    const worseHigh = statMetric!=='ret'; // deserción/altas: más alto = peor (para deserción). Para altas alto=mejor
+    const rows=vals.map(v=>({...v, z: sd?(v.v-m)/sd:0})).sort((a,b)=> (statMetric==='deserc'? b.v-a.v : b.v-a.v));
+    const html=rows.map(r=>{
+        const out=Math.abs(r.z)>=1.5;
+        let malo;
+        if(statMetric==='deserc') malo=r.z>0; else malo=r.z<0; // deserción alta=malo; retención/altas baja=malo
+        const col = !out ? 'var(--muted)' : malo ? '#ef4444' : '#10b981';
+        return `<div style="display:flex;justify-content:space-between;align-items:center;padding:6px 0;border-bottom:1px solid var(--border);font-size:.82rem;">
+            <span>${out?'<i class="fas fa-triangle-exclamation" style="color:'+col+';margin-right:5px;"></i>':'<span style="display:inline-block;width:19px"></span>'}${r.n} <span style="color:var(--muted);font-size:.7rem;">${r.sede}</span></span>
+            <span><b>${r.v}${statUnit()}</b> <span style="color:${col};font-size:.74rem;font-weight:700;">z=${r.z>=0?'+':''}${r.z.toFixed(1)}</span></span></div>`;
+    }).join('');
+    // conclusión
+    const outs=rows.filter(r=>Math.abs(r.z)>=1.5);
+    let conc;
+    if(!outs.length){ conc=`Equipo parejo: nadie se aparta más de 1.5σ de la media (${m.toFixed(1)}${statUnit()}). Buena señal de consistencia.`; }
+    else{
+        const peor = statMetric==='deserc' ? outs.filter(r=>r.z>0) : outs.filter(r=>r.z<0);
+        const mejor = statMetric==='deserc' ? outs.filter(r=>r.z<0) : outs.filter(r=>r.z>0);
+        const parts=[];
+        if(peor.length) parts.push(`<b style="color:#ef4444">${peor.map(r=>r.n).join(', ')}</b> a acompañar (se despega negativamente)`);
+        if(mejor.length) parts.push(`<b style="color:#10b981">${mejor.map(r=>r.n).join(', ')}</b> como referente`);
+        conc=`Media del equipo ${m.toFixed(1)}${statUnit()}. ${parts.join(' · ')}.`;
+    }
+    el.innerHTML=html+`<div style="margin-top:10px;font-size:.8rem;line-height:1.4;">${conc}</div>`;
+}
+
+function statRenderHomog(){
+    const el=document.getElementById('statHomog'); if(!el) return;
+    const vals=estadoUnified.map(p=>{ const s=statSerie(p); return s[s.length-1]||0; });
+    const {m,sd}=statMeanStd(vals);
+    const cv = m? sd/Math.abs(m)*100 : 0;
+    const min=Math.min(...vals), max=Math.max(...vals);
+    let nivel,col,msg;
+    if(cv<15){ nivel='Alta homogeneidad'; col='#10b981'; msg='La calidad es muy pareja entre profes — el servicio está estandarizado.'; }
+    else if(cv<30){ nivel='Homogeneidad media'; col='#f59e0b'; msg='Hay variación moderada entre profes; se puede emparejar.'; }
+    else { nivel='Baja homogeneidad'; col='#ef4444'; msg='Mucha dispersión entre profes: la calidad todavía no es homogénea (objetivo institucional de MOVE).'; }
+    el.innerHTML=`
+        <div style="display:flex;align-items:baseline;gap:8px;margin:4px 0 10px;">
+            <span style="font-size:2rem;font-weight:800;color:${col};font-family:monospace;">${cv.toFixed(0)}%</span>
+            <span style="font-size:.8rem;color:${col};font-weight:700;">${nivel}</span>
+        </div>
+        <div style="font-size:.76rem;color:var(--muted);margin-bottom:10px;">Coeficiente de variación de ${statLabel().toLowerCase()} (${MESES[estadoMi]}). Media ${m.toFixed(1)}${statUnit()}, rango ${min}${statUnit()}–${max}${statUnit()}.</div>
+        <div style="height:8px;background:var(--border);border-radius:4px;overflow:hidden;margin-bottom:10px;"><div style="height:100%;width:${Math.min(100,cv)}%;background:${col};"></div></div>
+        <div style="font-size:.82rem;line-height:1.4;">${msg}</div>`;
 }
 
 function estadoToggleProfe(n){ if(estadoSel.has(n)) estadoSel.delete(n); else estadoSel.add(n); estadoDrawLine(); }
