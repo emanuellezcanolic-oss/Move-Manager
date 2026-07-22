@@ -2375,6 +2375,12 @@ function renderEstadoStats(){
           <div id="statHomog"></div>
         </div>
       </div>
+      <div class="estado-sede-card" style="margin-top:16px;border-left:3px solid #8b5cf6;">
+        <div class="estado-sede-title"><i class="fas fa-hourglass-half"></i> Re-evaluaciones → Deserción: ¿impacto inmediato o con retraso?</div>
+        <div style="font-size:.78rem;color:var(--muted);margin-bottom:12px;">Mide si reevaluar socios reduce las bajas en el mismo mes o recién 1-2 meses después. Correlación con retraso, juntando los 8 profes para tener más muestra.</div>
+        <div id="lagBox"><button class="aud-btn-save" onclick="aeLagAnalysis(this)" style="font-size:.82rem;padding:9px 18px;"><i class="fas fa-play"></i> Analizar</button></div>
+      </div>
+
       <div style="font-size:.68rem;color:var(--muted);margin-top:10px;padding:0 4px;"><i class="fas fa-circle-info"></i> Regresión lineal por mínimos cuadrados sobre ENE–${MESES[estadoMi]}. Las conclusiones se generan solas según los números.</div>`;
 
     statDrawTrend(); statRenderOutliers(); statRenderHomog();
@@ -2466,6 +2472,70 @@ function statRenderHomog(){
         <div style="font-size:.76rem;color:var(--muted);margin-bottom:10px;">Coeficiente de variación de ${statLabel().toLowerCase()} (${MESES[estadoMi]}). Media ${m.toFixed(1)}${statUnit()}, rango ${min}${statUnit()}–${max}${statUnit()}.</div>
         <div style="height:8px;background:var(--border);border-radius:4px;overflow:hidden;margin-bottom:10px;"><div style="height:100%;width:${Math.min(100,cv)}%;background:${col};"></div></div>
         <div style="font-size:.82rem;line-height:1.4;">${msg}</div>`;
+}
+
+// ── Análisis de retraso: re-evaluaciones vs deserción ──
+function statPearson(xs,ys){
+    const n=xs.length; if(n<3) return null;
+    let sx=0,sy=0,sxy=0,sxx=0,syy=0;
+    for(let i=0;i<n;i++){ sx+=xs[i]; sy+=ys[i]; sxy+=xs[i]*ys[i]; sxx+=xs[i]*xs[i]; syy+=ys[i]*ys[i]; }
+    const d=Math.sqrt((n*sxx-sx*sx)*(n*syy-sy*sy));
+    return d? (n*sxy-sx*sy)/d : null;
+}
+let statLagChart=null;
+async function aeLagAnalysis(btn){
+    const box=document.getElementById('lagBox');
+    btn.disabled=true; btn.innerHTML='<i class="fas fa-spinner fa-spin"></i> Cargando datos de los profes…';
+    const ids=Object.keys(AE_FALLBACK);
+    await Promise.all(ids.map(id=> (aeLiveCargado&&aeLiveCargado[id]) ? Promise.resolve() : aeLoadLive(id).catch(()=>{}) ));
+
+    const lags=[0,1,2,3];
+    const res=lags.map(lag=>{
+        const X=[],Y=[];
+        ids.forEach(id=>{
+            const d=AE_DATA[id]; if(!d||!d.objetivos) return;
+            const o=d.objetivos;
+            for(let m=0;m+lag<o.length;m++){
+                if(!o[m]||!o[m+lag]) continue;
+                if((o[m].activos||0)>0 && (o[m+lag].activos||0)>0 && o[m].reeval!=null && o[m+lag].desercion!=null){
+                    X.push(o[m].reeval); Y.push(o[m+lag].desercion);
+                }
+            }
+        });
+        return {lag, r:statPearson(X,Y), n:X.length};
+    }).filter(r=>r.r!=null);
+
+    if(!res.length){ box.innerHTML='<div style="font-size:.85rem;color:var(--muted)">No hay suficientes datos para el análisis todavía.</div>'; return; }
+
+    // lag con r más negativo (mayor efecto de reducir deserción)
+    const best=res.reduce((a,b)=> b.r<a.r?b:a);
+    const lagTxt=l=> l===0?'mismo mes':l===1?'1 mes después':`${l} meses después`;
+    let conc;
+    if(best.r<=-0.3){
+        const imm = best.lag===0;
+        conc=`El efecto más fuerte aparece <b style="color:#8b5cf6">${lagTxt(best.lag)}</b> (r=${best.r.toFixed(2)}): a más re-evaluaciones, menos deserción ${imm?'ya en el mismo mes — impacto inmediato.':'con retraso — reevaluar hoy se nota en las bajas de '+(best.lag===1?'el mes siguiente.':'los meses siguientes.')} Conviene reevaluar de forma sostenida, no esperar a que suba la deserción.`;
+    } else if(best.r<=-0.15){
+        conc=`Se insinúa una relación (r=${best.r.toFixed(2)} ${lagTxt(best.lag)}): las re-evaluaciones tienden a bajar la deserción, pero el efecto es débil con los datos de hasta ahora.`;
+    } else {
+        conc=`Con los datos actuales no se ve una relación clara entre re-evaluaciones y deserción. Hacen falta más meses de historia para confirmarlo.`;
+    }
+    const nMin=Math.min(...res.map(r=>r.n));
+    const caveat = nMin<15 ? `<div style="font-size:.7rem;color:var(--muted);margin-top:8px;"><i class="fas fa-triangle-exclamation"></i> Muestra chica (${nMin}–${Math.max(...res.map(r=>r.n))} pares por retraso, ~7 meses): tomalo como una señal, no como prueba definitiva.</div>` : '';
+
+    box.innerHTML=`<div style="height:260px;position:relative;"><canvas id="statLag"></canvas></div>
+        <div style="margin-top:12px;font-size:.85rem;line-height:1.45;">${conc}</div>${caveat}`;
+
+    const cv=document.getElementById('statLag');
+    if(statLagChart) statLagChart.destroy();
+    const cols=res.map(r=> r.r<0?'#10b981':'#ef4444');
+    statLagChart=new Chart(cv,{type:'bar',
+        data:{labels:res.map(r=>r.lag===0?'Mismo mes':`+${r.lag} mes${r.lag>1?'es':''}`),
+            datasets:[{data:res.map(r=>+r.r.toFixed(2)),backgroundColor:cols,borderRadius:6}]},
+        options:{responsive:true,maintainAspectRatio:false,
+            plugins:{legend:{display:false},
+                title:{display:true,text:'Correlación re-evaluaciones vs deserción (negativo = reevaluar reduce bajas)',font:{size:11},color:'#94a3b8'},
+                tooltip:{callbacks:{label:c=>{const r=res[c.dataIndex]; return `r=${c.parsed.y} (n=${r.n} pares)`;}}}},
+            scales:{y:{min:-1,max:1,ticks:{stepSize:0.5},grid:{color:'rgba(120,130,150,.15)'},title:{display:true,text:'r de Pearson',font:{size:10}}},x:{grid:{display:false}}}}});
 }
 
 function estadoToggleProfe(n){ if(estadoSel.has(n)) estadoSel.delete(n); else estadoSel.add(n); estadoDrawLine(); }
