@@ -1379,7 +1379,7 @@ tr:hover td{background:#fafbfc;}
                 <div class="card">
                     <div class="card-title"><i class="fas fa-arrow-trend-up"></i>Movimiento mensual</div>
                     <div class="tw"><table>
-                        <thead><tr><th>Mes</th><th>Renueva</th><th>Lucía/Tani</th><th>Liberado</th><th>Vacac.</th><th>Deriv.</th><th>Baja</th></tr></thead>
+                        <thead><tr><th>Mes</th><th>Renueva</th><th id="aeMovRecepHead">Lucía/Tani</th><th>Liberado</th><th>Vacac.</th><th>Deriv.</th><th>Baja</th></tr></thead>
                         <tbody id="aeMovimiento"></tbody>
                     </table></div>
                 </div>
@@ -5195,6 +5195,13 @@ const AE_MES_COLS = [11,12,13,14,16,17,18,19,21,22,23,24];
 
 // Recepcionistas (socios nuevos): Bariloche KEILA/RUBEN · Puelo ARA/AZUL · Bolsón LUCIA/TANI
 const AE_RECEP = new Set(['LUCIA','TANI','RUBEN','KEILA','ARA','AZUL']);
+// Cada sede cuenta SOLO sus propios recepcionistas (evita contar, ej., KEILA de Bari en planillas de Puelo)
+const AE_RECEP_SEDE = {
+    'El Bolsón':  new Set(['LUCIA','TANI']),
+    'Lago Puelo': new Set(['ARA','AZUL']),
+    'Bariloche':  new Set(['KEILA','RUBEN']),
+};
+const AE_RECEP_LABEL = {'El Bolsón':'Lucía/Tani', 'Lago Puelo':'Ara/Azul', 'Bariloche':'Keila/Rubén'};
 
 // Metas anuales MOVE 2026 (para barras de progreso del panel ejecutivo)
 const AE_METAS_2026 = {
@@ -5262,6 +5269,7 @@ async function aeLoadLive(id){
 
     // ── Objetivos: fila datos = 13 + m*6, puntos en fila+4 col10 ──
     const objetivos=[], movimiento=[], tareas=[];
+    const RECEP = AE_RECEP_SEDE[AE_SEDE[id]] || AE_RECEP;   // solo los recepcionistas de la sede de este profe
     for(let m=0;m<12;m++){
         const dr=13+m*6, pr=dr+4;
         const drow=obj[dr]||[], prow=obj[pr]||[];
@@ -5282,9 +5290,9 @@ async function aeLoadLive(id){
             if(!/^\d/.test((r[2]||'').trim())) continue;
             const v=(r[col]||'').trim().toUpperCase();
             if(!v) continue;
-            if(v==='NUEVO'){ cnt.renueva++; cnt.nuevos++; }
+            if(v==='NUEVO'){ cnt.renueva++; }
             else if(v.startsWith('RENUEVA')) cnt.renueva++;
-            else if(AE_RECEP.has(v)){ cnt.luciaTani++; cnt.nuevos++; }
+            else if(RECEP.has(v)){ cnt.luciaTani++; cnt.nuevos++; }
             else if(v==='LIBERADO') cnt.liberado++;
             else if(v==='VACACIONES') cnt.vacaciones++;
             else if(v.startsWith('DERIV')) cnt.deriv++;
@@ -5449,6 +5457,8 @@ function aeRender(mesIdx){
     }).join('');
 
     // Tabla movimiento
+    const _recepHead = document.getElementById('aeMovRecepHead');
+    if(_recepHead) _recepHead.textContent = AE_RECEP_LABEL[AE_SEDE[aeProfeActual]] || 'Recep.';
     document.getElementById('aeMovimiento').innerHTML = datos.movimiento.map((m,i)=>
         `<tr style="${i===mesIdx?'background:rgba(16,185,129,.06);':''}">
             <td style="font-weight:${i===mesIdx?700:400}">${datos.meses[i]}</td>
