@@ -1293,6 +1293,13 @@ tr:hover td{background:#fafbfc;}
                 </details>
 
                 <div id="aeMsgStatus" style="font-size:.8rem;color:var(--muted);margin-bottom:8px;display:none;"></div>
+
+                <div style="margin-bottom:10px;">
+                    <label style="font-size:.72rem;font-weight:600;color:var(--muted);display:block;margin-bottom:5px;"><i class="fas fa-bullseye" style="margin-right:5px;color:var(--accent);"></i>¿En qué querés que se enfoque? (opcional)</label>
+                    <textarea id="aeMsgFocus" rows="2" placeholder="Ej: felicitarlo por la retención y pedirle que agende más re-evaluaciones para agosto…" style="width:100%;background:var(--bg);border:1px solid var(--border);border-radius:8px;padding:9px 11px;font-size:.8rem;color:var(--text);line-height:1.4;font-family:inherit;resize:vertical;"></textarea>
+                    <div style="font-size:.66rem;color:var(--muted);margin-top:4px;">Lo que escribas acá guía el mensaje; la IA lo combina con los datos reales del mes. Si lo dejás vacío, redacta con el enfoque general.</div>
+                </div>
+
                 <textarea id="aeMsgTexto" rows="12" style="width:100%;background:var(--bg);border:1px solid var(--border);border-radius:8px;padding:12px;font-size:.82rem;color:var(--text);line-height:1.5;font-family:inherit;resize:vertical;"></textarea>
 
                 <div class="aud-modal-actions">
@@ -5658,11 +5665,11 @@ ESTRUCTURA del mensaje (WhatsApp, en este orden):
 7) Preguntale cómo se siente o cómo lo podés ayudar (esto es lo más importante).
 8) Cerrá con una frase inspiradora y motivadora.
 
-ESTILO: humano, cálido, cercano, profesional, motivador, personalizado. Español rioplatense (vos/tenés/sos). Nunca robótico, ni frío, ni exageradamente formal. Parece un WhatsApp de alguien que realmente conoce a la persona. Podés usar emojis con moderación. Sin markdown ni asteriscos. Extensión aprox. 180-230 palabras. No inventes números: usá SOLO los que te paso.
+ESTILO: español argentino (vos/tenés/sos) pero con registro FORMAL y profesional: redacción cuidada, prolija y respetuosa, como un coordinador serio que valora a su equipo. Cálido y cercano, pero sin caer en lo demasiado coloquial, sin jerga ni modismos excesivos ni lunfardo. Es un WhatsApp, pero bien escrito y formal. Emojis solo en el bloque de indicadores, nada más. Sin markdown ni asteriscos. Extensión aprox. 180-230 palabras. No inventes números: usá SOLO los que te paso.
 
 OBJETIVO: que al terminar de leer, el profesional piense "mi coordinador conoce mi trabajo, reconoce mi esfuerzo, confía en mí y quiere ayudarme a crecer".${prevBloque}`;
 
-    const usr = `Escribí el WhatsApp de seguimiento para este profesional, siguiendo la estructura y la filosofía. Datos del mes:\n\n${metricas}`;
+    const usr = `Escribí el WhatsApp de seguimiento para ${nombre}, siguiendo la estructura y la filosofía.${(()=>{const foco=(document.getElementById('aeMsgFocus').value||'').trim(); return foco?`\n\nENFOQUE ESPECÍFICO QUE PIDIÓ EMANUEL PARA ESTE MENSAJE (es prioritario: tiene que ser el eje del mensaje, integralo con naturalidad sin dejar de seguir la estructura y la filosofía): "${foco}"`:'';})()}\n\nDatos del mes:\n\n${metricas}`;
 
     try{
         const resp = await fetch('https://api.groq.com/openai/v1/chat/completions',{
