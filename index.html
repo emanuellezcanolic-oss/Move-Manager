@@ -1470,6 +1470,8 @@ tr:hover td{background:#fafbfc;}
                     </table></div>
                 </div>
 
+                <div id="recepCharts"></div>
+
                 <div style="border-top:2px solid var(--border);margin:8px 0 18px;"></div>
                 <div style="font-size:.82rem;font-weight:700;color:var(--muted);text-transform:uppercase;letter-spacing:.6px;margin-bottom:12px;">
                     <i class="fas fa-magnifying-glass-chart" style="margin-right:5px;"></i>Detalle por recepcionista
@@ -5141,6 +5143,143 @@ function recepRenderLog(){
             <td>${delta}</td>
         </tr>`;
     }).join('');
+    recepRenderCharts();
+}
+
+// ══ GRÁFICOS ANÁLISIS DE VENTAS (Ventas Recepción) ══
+let recepTrendMetric='ventas', recepCompMetric='ventas', recepCompSel=null;
+let recepChTrend=null, recepChComp=null, recepChAporte=null;
+const RECEP_PAL=['#10b981','#3b82f6','#f59e0b','#ef4444','#8b5cf6','#ec4899','#f97316','#0ea5e9'];
+
+function recepLogCombinado(){
+    const map={};
+    recepLeerLog().forEach(e=>{ if(e&&e.fecha) map[e.fecha]=e; });
+    (recepServerLog||[]).forEach(e=>{ if(e&&e.fecha) map[e.fecha]={...e, auto:true}; });
+    return Object.values(map).sort((a,b)=>(a.ts||0)-(b.ts||0));
+}
+function recepDiaDeMes(e){
+    // día del mes DENTRO del mes medido; snapshots de cierre (fecha en el mes siguiente) => día 31
+    const p=(e.fecha||'').split('/'); if(p.length<2) return null;
+    const dia=parseInt(p[0],10), mesFecha=parseInt(p[1],10);
+    const mesMed=RECEP_MESES_FULL.indexOf(e.mes)+1;
+    if(mesMed>0 && mesFecha!==mesMed) return 31;
+    return isNaN(dia)?null:dia;
+}
+
+function recepRenderCharts(){
+    const cont=document.getElementById('recepCharts'); if(!cont||!window.Chart) return;
+    const log=recepLogCombinado();
+    const meses=[...new Set(log.map(e=>e.mes))];
+    const tmBtns=[['ventas','Ventas'],['avance','Avance %'],['puntaje','Puntaje']].map(([k,l])=>
+        `<button onclick="recepSetTrend('${k}')" data-tm="${k}" style="border:none;cursor:pointer;font-family:inherit;font-size:.78rem;font-weight:600;padding:6px 14px;border-radius:8px;${recepTrendMetric===k?'background:var(--accent);color:#fff;':'background:var(--bg);color:var(--muted);'}">${l}</button>`).join('');
+
+    // recepcionistas (para comparativa) desde recepAllData
+    const recs=(recepAllData||[]).map(x=>({name:x.cfg.name, sede:x.cfg.sede, datos:x.datos}));
+    if(!recepCompSel) recepCompSel=new Set(recs.map(r=>r.name));
+    const cmBtns=[['ventas','Ventas'],['planes3m','Planes 3m'],['mensajes','Mensajes'],['puntaje','Puntaje']].map(([k,l])=>
+        `<button onclick="recepSetComp('${k}')" data-cm="${k}" style="border:none;cursor:pointer;font-family:inherit;font-size:.78rem;font-weight:600;padding:6px 14px;border-radius:8px;${recepCompMetric===k?'background:#3b82f6;color:#fff;':'background:var(--bg);color:var(--muted);'}">${l}</button>`).join('');
+    const recChecks=recs.map((r,i)=>
+        `<label style="display:inline-flex;align-items:center;gap:6px;font-size:.78rem;cursor:pointer;background:var(--bg);padding:5px 10px;border-radius:8px;"><input type="checkbox" ${recepCompSel.has(r.name)?'checked':''} onchange="recepToggleComp('${r.name}')" style="accent-color:${RECEP_PAL[i%8]};"><span style="width:10px;height:10px;border-radius:50%;background:${RECEP_PAL[i%8]};display:inline-block;"></span>${r.name} <span style="color:var(--muted);font-size:.68rem;">${r.sede}</span></label>`).join('');
+
+    cont.innerHTML=`
+      <div class="card" style="margin-bottom:16px;border-left:3px solid var(--accent);">
+        <div class="card-title"><i class="fas fa-chart-line"></i> Tendencia del mes vs meses anteriores</div>
+        <div style="font-size:.74rem;color:var(--muted);margin-bottom:10px;">Cada línea es un mes, superpuestos por día del mes. Sirve para ver si vas mejor o peor que el mes pasado al mismo punto.</div>
+        <div style="display:flex;gap:6px;margin-bottom:12px;flex-wrap:wrap;">${tmBtns}</div>
+        <div style="height:300px;position:relative;"><canvas id="recepTrendCanvas"></canvas></div>
+        <div id="recepProy" style="margin-top:12px;font-size:.84rem;"></div>
+      </div>
+
+      <div class="card" style="margin-bottom:16px;border-left:3px solid #3b82f6;">
+        <div class="card-title"><i class="fas fa-users"></i> Comparativa entre recepcionistas</div>
+        <div style="display:flex;gap:6px;margin:2px 0 10px;flex-wrap:wrap;">${cmBtns}</div>
+        <div style="display:flex;gap:8px;flex-wrap:wrap;margin-bottom:12px;">${recChecks}</div>
+        <div style="height:300px;position:relative;"><canvas id="recepCompCanvas"></canvas></div>
+      </div>
+
+      <div class="card" style="margin-bottom:16px;">
+        <div class="card-title"><i class="fas fa-chart-pie"></i> Aporte de cada recepcionista a las ventas del mes</div>
+        <div style="height:280px;position:relative;"><canvas id="recepAporteCanvas"></canvas></div>
+      </div>`;
+
+    recepDrawTrend(log, meses); recepDrawComp(recs); recepDrawAporte(recs);
+}
+
+function recepSetTrend(m){ recepTrendMetric=m; document.querySelectorAll('[data-tm]').forEach(b=>{const on=b.getAttribute('data-tm')===m; b.style.background=on?'var(--accent)':'var(--bg)'; b.style.color=on?'#fff':'var(--muted)';}); const log=recepLogCombinado(); recepDrawTrend(log,[...new Set(log.map(e=>e.mes))]); }
+function recepSetComp(m){ recepCompMetric=m; document.querySelectorAll('[data-cm]').forEach(b=>{const on=b.getAttribute('data-cm')===m; b.style.background=on?'#3b82f6':'var(--bg)'; b.style.color=on?'#fff':'var(--muted)';}); recepDrawComp((recepAllData||[]).map(x=>({name:x.cfg.name,sede:x.cfg.sede,datos:x.datos}))); }
+function recepToggleComp(n){ if(recepCompSel.has(n)) recepCompSel.delete(n); else recepCompSel.add(n); recepDrawComp((recepAllData||[]).map(x=>({name:x.cfg.name,sede:x.cfg.sede,datos:x.datos}))); }
+
+function recepMetricVal(e){ return recepTrendMetric==='ventas'?e.ventasAcum : recepTrendMetric==='avance'?e.avance : e.puntProm; }
+function recepDrawTrend(log, meses){
+    const cv=document.getElementById('recepTrendCanvas'); if(!cv||!window.Chart) return;
+    if(recepChTrend) recepChTrend.destroy();
+    const datasets=meses.map((mes,i)=>{
+        const pts=log.filter(e=>e.mes===mes).map(e=>({x:recepDiaDeMes(e), y:recepMetricVal(e)})).filter(p=>p.x!=null && p.y!=null).sort((a,b)=>a.x-b.x);
+        const col=RECEP_PAL[i%8];
+        return {label:mes, data:pts, borderColor:col, backgroundColor:col, tension:.3, borderWidth:3, pointRadius:4};
+    }).filter(d=>d.data.length);
+    const unit = recepTrendMetric==='avance'?'%':'';
+    recepChTrend=new Chart(cv,{type:'line',data:{datasets},
+        options:{responsive:true,maintainAspectRatio:false,parsing:false,
+            plugins:{legend:{labels:{usePointStyle:true,boxWidth:8,font:{size:12}}},
+                tooltip:{callbacks:{title:c=>`Día ${c[0].parsed.x} del mes`,label:c=>`${c.dataset.label}: ${c.parsed.y}${unit}`}}},
+            scales:{x:{type:'linear',min:1,max:31,title:{display:true,text:'Día del mes',font:{size:11}},ticks:{stepSize:5},grid:{color:'rgba(120,130,150,.12)'}},
+                y:{beginAtZero:true,ticks:{callback:v=>v+unit},grid:{color:'rgba(120,130,150,.15)'}}}}});
+
+    // Proyección de cierre (solo para métrica ventas)
+    const proy=document.getElementById('recepProy');
+    if(recepTrendMetric!=='ventas'){ proy.innerHTML=''; return; }
+    if(meses.length){
+        const mesAct=meses[meses.length-1];
+        const rowsAct=log.filter(e=>e.mes===mesAct).map(e=>({d:recepDiaDeMes(e),v:e.ventasAcum})).filter(p=>p.d!=null&&p.v!=null).sort((a,b)=>a.d-b.d);
+        if(rowsAct.length){
+            const ult=rowsAct[rowsAct.length-1];
+            const diasMes=new Date(2026,(RECEP_MESES_FULL.indexOf(mesAct)+1),0).getDate();
+            const ritmo=ult.v/ult.d;
+            const proyeccion=Math.round(ritmo*diasMes);
+            let cmp='';
+            if(meses.length>1){
+                const mesPrev=meses[meses.length-2];
+                const prevMax=Math.max(...log.filter(e=>e.mes===mesPrev).map(e=>e.ventasAcum||0));
+                const dif=proyeccion-prevMax;
+                cmp=` ${mesPrev} cerró en ${prevMax} → proyección de ${mesAct} <b style="color:${dif>=0?'#10b981':'#ef4444'}">${dif>=0?'+':''}${dif}</b> (${dif>=0?'mejor':'peor'}).`;
+            }
+            proy.innerHTML=`<i class="fas fa-gauge-high" style="color:var(--accent);margin-right:5px;"></i>Al día ${ult.d} van <b>${ult.v}</b> ventas (ritmo ${ritmo.toFixed(1)}/día). A este ritmo, <b>${mesAct}</b> cierra en <b style="color:var(--accent)">~${proyeccion}</b> ventas.${cmp}`;
+        } else proy.innerHTML='';
+    }
+}
+
+function recepCompMonthsAll(recs){
+    // meses con algún dato entre los recepcionistas seleccionados
+    const idxs=[];
+    RECEP_MESES.forEach((m,i)=>{ if(recs.some(r=>r.datos&&r.datos[i]&&(r.datos[i].ventas>0||r.datos[i].mensajes>0||r.datos[i].puntaje>0))) idxs.push(i); });
+    return idxs;
+}
+function recepDrawComp(recs){
+    const cv=document.getElementById('recepCompCanvas'); if(!cv||!window.Chart) return;
+    if(recepChComp) recepChComp.destroy();
+    const idxs=recepCompMonthsAll(recs);
+    const labels=idxs.map(i=>RECEP_MESES[i]);
+    const datasets=recs.filter(r=>recepCompSel.has(r.name)).map(r=>{
+        const gi=recs.indexOf(r), col=RECEP_PAL[gi%8];
+        const data=idxs.map(i=>{ const d=r.datos&&r.datos[i]; return d&&d[recepCompMetric]!=null?d[recepCompMetric]:null; });
+        return {label:r.name, data, borderColor:col, backgroundColor:col, tension:.3, borderWidth:3, pointRadius:4, spanGaps:true};
+    });
+    recepChComp=new Chart(cv,{type:'line',data:{labels,datasets},
+        options:{responsive:true,maintainAspectRatio:false,
+            plugins:{legend:{labels:{usePointStyle:true,boxWidth:8,font:{size:12}}}},
+            scales:{y:{beginAtZero:true,grid:{color:'rgba(120,130,150,.15)'}},x:{grid:{display:false}}}}});
+}
+
+function recepDrawAporte(recs){
+    const cv=document.getElementById('recepAporteCanvas'); if(!cv||!window.Chart) return;
+    if(recepChAporte) recepChAporte.destroy();
+    const mi=recepTeamMesIdx();
+    const rows=recs.map((r,i)=>({n:r.name, v:(r.datos&&r.datos[mi]&&r.datos[mi].ventas)||0, c:RECEP_PAL[i%8]})).filter(x=>x.v>0);
+    recepChAporte=new Chart(cv,{type:'doughnut',
+        data:{labels:rows.map(r=>r.n),datasets:[{data:rows.map(r=>r.v),backgroundColor:rows.map(r=>r.c),borderWidth:2,borderColor:getComputedStyle(document.body).getPropertyValue('--card')||'#fff'}]},
+        options:{responsive:true,maintainAspectRatio:false,plugins:{legend:{position:'right',labels:{usePointStyle:true,boxWidth:8,font:{size:11}}},
+            tooltip:{callbacks:{label:c=>{const t=c.dataset.data.reduce((a,b)=>a+b,0); return `${c.label}: ${c.parsed} ventas (${Math.round(c.parsed/t*100)}%)`;}}}}}});
 }
 
 // ══════════════════════════════════════════════════════════
