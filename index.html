@@ -4115,6 +4115,41 @@ function audFinalizarDia(){
     document.getElementById('audHistorial').scrollIntoView({behavior:'smooth'});
 }
 
+// Estados de corrección de cada anotación (los carga el auditor al verificar)
+const AUD_ESTADOS = [
+    {k:'pendiente', label:'Pendiente',                          color:'#94a3b8', icon:'⏳'},
+    {k:'corregido', label:'Corregido (verificado)',            color:'#10b981', icon:'✅'},
+    {k:'parcial',   label:'Corregido parcial',                  color:'#3b82f6', icon:'🔵'},
+    {k:'falso',     label:'Dijo que corrigió pero NO lo hizo',  color:'#ef4444', icon:'❌'},
+    {k:'omitido',   label:'Pasado por alto / omitido',          color:'#f59e0b', icon:'⏭️'},
+    {k:'na',        label:'No corresponde / baja',              color:'#64748b', icon:'🚫'},
+];
+function audEstadoMeta(k){ return AUD_ESTADOS.find(e=>e.k===k) || AUD_ESTADOS[0]; }
+function audEstadoSelect(auditId, socio, field, cur){
+    const m = audEstadoMeta(cur||'pendiente');
+    return `<select data-aud="${auditId}" data-socio="${encodeURIComponent(socio)}" data-field="${field}" onchange="audSetEstado(this)" onclick="event.stopPropagation()"
+        style="font-family:inherit;font-size:.66rem;border:1px solid ${m.color};color:${m.color};font-weight:700;border-radius:6px;padding:2px 4px;background:var(--card);cursor:pointer;max-width:190px;">
+        ${AUD_ESTADOS.map(e=>`<option value="${e.k}" ${(cur||'pendiente')===e.k?'selected':''}>${e.icon} ${e.label}</option>`).join('')}
+    </select>`;
+}
+function audSetEstado(sel){
+    const id=sel.dataset.aud, socio=decodeURIComponent(sel.dataset.socio), field=sel.dataset.field, val=sel.value;
+    const a=(audHistorial||[]).find(x=>x.id===id); if(!a) return;
+    const d=(a.detalleSocios||[]).find(x=>x.nombre===socio); if(!d) return;
+    d.estados = d.estados || {};
+    d.estados[field] = val;
+    const m=audEstadoMeta(val);
+    sel.style.borderColor=m.color; sel.style.color=m.color;
+    audGuardarHistorial();
+}
+// Fila de anotación con su selector de estado
+function audAnotacion(auditId, socio, field, etiqueta, texto, cur){
+    return `<div style="display:flex;justify-content:space-between;align-items:flex-start;gap:8px;flex-wrap:wrap;margin-top:4px;padding:4px 0;border-top:1px dashed var(--border);">
+        <div style="flex:1;min-width:180px;font-size:.74rem;color:var(--muted);line-height:1.4;"><span style="color:var(--accent);font-weight:600;">${etiqueta}:</span> ${texto}</div>
+        ${audEstadoSelect(auditId, socio, field, cur)}
+    </div>`;
+}
+
 function audRenderHistorial(){
     document.getElementById('audCount').textContent=`(${audHistorial.length})`;
     const list=document.getElementById('audAuditList');
@@ -4132,11 +4167,11 @@ function audRenderHistorial(){
                     <span style="font-weight:700;font-size:.88rem;">${semD} ${d.nombre}</span>
                     <div class="aud-chips">${dChips}</div>
                 </div>
-                ${d.hallazgos?`<div style="font-size:.76rem;color:var(--muted);margin-top:4px;line-height:1.4;"><i class="fas fa-circle-info" style="color:var(--accent);margin-right:3px;font-size:.7rem;"></i>${d.hallazgos}</div>`:''}
+                ${d.hallazgos?audAnotacion(a.id,d.nombre,'hallazgos','Hallazgos',d.hallazgos,(d.estados||{}).hallazgos):''}
                 ${d.rpe?`<div style="font-size:.72rem;color:var(--muted);margin-top:3px;"><i class="fas fa-gauge-high" style="color:#f59e0b;margin-right:3px;font-size:.65rem;"></i><span style="color:#f59e0b;font-weight:600;">RPE:</span> ${d.rpe}</div>`:''}
                 ${Object.keys(d.obs||{}).filter(k=>d.obs[k]).map(k=>{
                     const sec=AUD_SECTIONS.find(s=>s.key===k);
-                    return sec&&d.obs[k]?`<div style="font-size:.7rem;color:var(--muted);margin-top:3px;"><span style="color:var(--accent);font-weight:600;">${sec.label.split(' ')[0]}:</span> ${d.obs[k]}</div>`:'';
+                    return sec&&d.obs[k]?audAnotacion(a.id,d.nombre,'obs_'+k,sec.label.split(' ')[0],d.obs[k],(d.estados||{})['obs_'+k]):'';
                 }).join('')}
             </div>`;
         }).join(''):'';
@@ -4372,6 +4407,31 @@ function audInformeGenerar(){
         if(topW.length) H += `<div style="font-size:.8rem;"><b>Palabras frecuentes:</b> ${topW.map(w=>`${infEsc(w[0])} <span class="inf-muted">(${w[1]})</span>`).join(' · ')}</div>`;
     } else {
         H += `<p class="inf-muted" style="font-size:.82rem;">Todavía no hay anotaciones cargadas en las auditorías de este filtro.</p>`;
+    }
+
+    // ── Cumplimiento de correcciones (estados que carga el auditor) ──
+    const estCount = Object.fromEntries(AUD_ESTADOS.map(e=>[e.k,0]));
+    let totAnot=0;
+    selOrden.forEach(a=>{(a.detalleSocios||[]).forEach(d=>{
+        const est=d.estados||{};
+        const campos=[];
+        if(d.hallazgos && d.hallazgos.trim()) campos.push('hallazgos');
+        Object.keys(d.obs||{}).forEach(k=>{ if(d.obs[k] && d.obs[k].trim()) campos.push('obs_'+k); });
+        campos.forEach(f=>{ totAnot++; const v=est[f]||'pendiente'; if(estCount[v]!=null) estCount[v]++; });
+    });});
+    H += `<h2><i class="fas fa-clipboard-check"></i> Cumplimiento de correcciones</h2>`;
+    if(totAnot){
+        const pct=n=>Math.round(n/totAnot*100);
+        H += `<div style="margin-bottom:6px;">`;
+        AUD_ESTADOS.forEach(e=>{ if(estCount[e.k]>0) H += `<div class="stat-card" style="display:inline-block;min-width:120px;margin:0 8px 8px 0;background:#fff;border:1px solid #e2e8f0;border-left:3px solid ${e.color};border-radius:10px;padding:10px 12px;vertical-align:top;">
+            <div style="font-size:1.3rem;font-weight:800;color:${e.color};font-family:monospace;">${estCount[e.k]} <span style="font-size:.8rem;">(${pct(estCount[e.k])}%)</span></div>
+            <div style="font-size:.6rem;font-weight:700;text-transform:uppercase;color:#64748b;margin-top:3px;">${e.icon} ${e.label}</div></div>`; });
+        H += `</div>`;
+        const resueltas=estCount.corregido+estCount.parcial;
+        const alerta=estCount.falso;
+        H += `<div style="font-size:.82rem;margin-bottom:12px;">✅ <b>${pct(resueltas)}%</b> resuelto (corregido/parcial) · ${alerta>0?`<span style="color:#ef4444;font-weight:700;">❌ ${alerta} marcada(s) como corregidas sin estarlo</span> · `:''}⏳ ${estCount.pendiente} pendiente(s) · ⏭️ ${estCount.omitido} omitida(s)</div>`;
+    } else {
+        H += `<p class="inf-muted" style="font-size:.82rem;">Sin anotaciones para verificar en este filtro.</p>`;
     }
 
     // Guardar datos para los gráficos
