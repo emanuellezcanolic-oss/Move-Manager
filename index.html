@@ -1210,6 +1210,10 @@ tr:hover td{background:#fafbfc;}
                         style="padding:8px 18px;font-size:.82rem;font-weight:700;border:none;background:none;cursor:pointer;color:var(--muted);border-bottom:2px solid transparent;margin-bottom:-2px;font-family:inherit;">
                         <i class="fas fa-chart-bar" style="margin-right:5px;"></i>Dashboard
                     </button>
+                    <button id="audTabInforme" onclick="audSwitchTab('informe')"
+                        style="padding:8px 18px;font-size:.82rem;font-weight:700;border:none;background:none;cursor:pointer;color:var(--muted);border-bottom:2px solid transparent;margin-bottom:-2px;font-family:inherit;">
+                        <i class="fas fa-file-lines" style="margin-right:5px;"></i>Informe
+                    </button>
                     <div style="flex:1;display:flex;justify-content:flex-end;align-items:center;padding-bottom:6px;gap:6px;">
                         <div id="audSyncStatus" style="min-height:18px;"></div>
                         <button onclick="audExportar()" title="Backup del historial"
@@ -1233,6 +1237,34 @@ tr:hover td{background:#fafbfc;}
                 <!-- Contenido dashboard -->
                 <div id="audTabContentDashboard" style="display:none;">
                     <div id="audDashboard"></div>
+                </div>
+                <!-- Contenido informe -->
+                <div id="audTabContentInforme" style="display:none;">
+                    <div class="card" style="margin-bottom:16px;">
+                        <div class="card-title"><i class="fas fa-sliders" style="color:var(--accent);"></i> Armá tu informe</div>
+                        <div style="margin:6px 0 12px;">
+                            <div style="font-size:.68rem;font-weight:700;text-transform:uppercase;letter-spacing:.6px;color:var(--muted);margin-bottom:6px;">Profesionales</div>
+                            <div id="audInfProfes" style="display:flex;flex-wrap:wrap;gap:6px;"></div>
+                            <div style="margin-top:6px;">
+                                <button class="tab" style="font-size:.68rem;padding:3px 10px;" onclick="audInfTodos(true)">Todos</button>
+                                <button class="tab" style="font-size:.68rem;padding:3px 10px;" onclick="audInfTodos(false)">Ninguno</button>
+                            </div>
+                        </div>
+                        <div style="display:flex;flex-wrap:wrap;gap:16px;align-items:flex-end;">
+                            <div>
+                                <div style="font-size:.68rem;font-weight:700;text-transform:uppercase;letter-spacing:.6px;color:var(--muted);margin-bottom:4px;">Desde</div>
+                                <input type="date" id="audInfDesde" style="padding:7px 10px;border:1px solid var(--border);border-radius:8px;font-family:inherit;font-size:.82rem;background:var(--card);color:var(--text);">
+                            </div>
+                            <div>
+                                <div style="font-size:.68rem;font-weight:700;text-transform:uppercase;letter-spacing:.6px;color:var(--muted);margin-bottom:4px;">Hasta</div>
+                                <input type="date" id="audInfHasta" style="padding:7px 10px;border:1px solid var(--border);border-radius:8px;font-family:inherit;font-size:.82rem;background:var(--card);color:var(--text);">
+                            </div>
+                            <button class="aud-btn-save" onclick="audInformeGenerar()" style="display:flex;align-items:center;gap:6px;"><i class="fas fa-gears"></i> Generar informe</button>
+                            <button class="btn-refresh" onclick="audInformePDF()" style="background:#ef4444;"><i class="fas fa-file-pdf"></i> Descargar PDF</button>
+                        </div>
+                    </div>
+                    <div id="audInformeStatus" style="font-size:.8rem;color:var(--muted);margin-bottom:10px;"></div>
+                    <div id="audInformeBody" class="informe-doc"></div>
                 </div>
             </div>
         </div><!-- /section-auditoria -->
@@ -4168,16 +4200,131 @@ function audRenderHistorial(){
 }
 
 function audSwitchTab(tab){
-    const isHist = tab==='historial';
-    document.getElementById('audTabContentHistorial').style.display=isHist?'block':'none';
-    document.getElementById('audTabContentDashboard').style.display=isHist?'none':'block';
-    document.getElementById('audTabHistorial').style.cssText+=isHist
-        ?';color:var(--accent);border-bottom:2px solid var(--accent);'
-        :';color:var(--muted);border-bottom:2px solid transparent;';
-    document.getElementById('audTabDashboard').style.cssText+=isHist
-        ?';color:var(--muted);border-bottom:2px solid transparent;'
-        :';color:var(--accent);border-bottom:2px solid var(--accent);';
-    if(!isHist) audRenderDashboard();
+    const tabs = {historial:'audTabContentHistorial', dashboard:'audTabContentDashboard', informe:'audTabContentInforme'};
+    const btns = {historial:'audTabHistorial', dashboard:'audTabDashboard', informe:'audTabInforme'};
+    Object.entries(tabs).forEach(([k,cid])=>{ const el=document.getElementById(cid); if(el) el.style.display = (k===tab)?'block':'none'; });
+    Object.entries(btns).forEach(([k,bid])=>{ const b=document.getElementById(bid); if(!b) return;
+        const on = k===tab;
+        b.style.cssText += on ? ';color:var(--accent);border-bottom:2px solid var(--accent);' : ';color:var(--muted);border-bottom:2px solid transparent;';
+    });
+    if(tab==='dashboard') audRenderDashboard();
+    if(tab==='informe') audInformeInit();
+}
+
+// ── INFORME DE AUDITORÍAS (por profesional + rango de fechas) ──
+let audInfInit = false;
+function audInformeInit(){
+    // Checkboxes de profes agrupados por sede
+    const cont = document.getElementById('audInfProfes');
+    const sedes = [...new Set(AUD_TRAINERS.map(t=>t.sede))];
+    cont.innerHTML = sedes.map(sede=>`
+        <div style="display:flex;flex-direction:column;gap:4px;">
+            <div style="font-size:.6rem;font-weight:700;color:var(--muted);text-transform:uppercase;letter-spacing:.5px;">${sede}</div>
+            ${AUD_TRAINERS.filter(t=>t.sede===sede).map(t=>`
+                <label style="display:flex;align-items:center;gap:5px;font-size:.8rem;cursor:pointer;background:var(--bg);border:1px solid var(--border);border-radius:7px;padding:4px 9px;">
+                    <input type="checkbox" class="audInfChk" value="${t.name}" checked> ${t.name}
+                </label>`).join('')}
+        </div>`).join('');
+    if(!audInfInit){
+        // Rango por defecto: del más viejo al más nuevo del historial
+        const fechas = (audHistorial||[]).map(a=>audInfParse(a.date)).filter(Boolean).sort((a,b)=>a-b);
+        if(fechas.length){
+            const iso = d => d.toISOString().slice(0,10);
+            document.getElementById('audInfDesde').value = iso(fechas[0]);
+            document.getElementById('audInfHasta').value = iso(fechas[fechas.length-1]);
+        }
+        audInfInit = true;
+    }
+}
+function audInfTodos(v){ document.querySelectorAll('.audInfChk').forEach(c=>c.checked=v); }
+function audInfParse(s){ const p=String(s||'').split('/'); if(p.length<3) return null; const d=new Date(+p[2],+p[1]-1,+p[0]); return isNaN(d)?null:d; }
+function audInfChip(v){ const c=v==='verde'?'inf-g':v==='amarillo'?'inf-y':v==='rojo'?'inf-r':'inf-b'; return c; }
+
+function audInformeGenerar(){
+    const profes = [...document.querySelectorAll('.audInfChk:checked')].map(c=>c.value);
+    const dDesde = document.getElementById('audInfDesde').value ? new Date(document.getElementById('audInfDesde').value+'T00:00:00') : null;
+    const dHasta = document.getElementById('audInfHasta').value ? new Date(document.getElementById('audInfHasta').value+'T23:59:59') : null;
+    const body = document.getElementById('audInformeBody');
+    if(!profes.length){ document.getElementById('audInformeStatus').textContent='Elegí al menos un profesional.'; body.innerHTML=''; return; }
+
+    // Filtrar
+    const sel = (audHistorial||[]).filter(a=>{
+        if(!profes.includes(a.profe)) return false;
+        const f = audInfParse(a.date);
+        if(dDesde && (!f || f<dDesde)) return false;
+        if(dHasta && (!f || f>dHasta)) return false;
+        return true;
+    });
+    const fmtRango = (dDesde?dDesde.toLocaleDateString('es-AR'):'inicio') + ' → ' + (dHasta?dHasta.toLocaleDateString('es-AR'):'hoy');
+    document.getElementById('audInformeStatus').innerHTML = `<i class="fas fa-circle-check" style="color:var(--accent);"></i> ${sel.length} auditoría(s) · ${profes.length} profesional(es) · ${fmtRango}`;
+
+    let H = `<h1>Informe de Auditorías — MOVE</h1>
+        <div class="inf-meta">Profesionales: ${profes.map(infEsc).join(', ')} · Rango: ${fmtRango} · Generado ${new Date().toLocaleDateString('es-AR')}</div>`;
+
+    if(!sel.length){ body.innerHTML = H + '<p class="inf-muted">No hay auditorías para ese filtro.</p>'; return; }
+
+    // Agrupar por profesional
+    profes.forEach(profe=>{
+        const auds = sel.filter(a=>a.profe===profe).sort((a,b)=>(audInfParse(b.date)||0)-(audInfParse(a.date)||0));
+        if(!auds.length) return;
+        // Métricas agregadas
+        let totSoc=0, cV=0,cA=0,cR=0, vencTot=0;
+        auds.forEach(a=>{
+            totSoc += (a.detalleSocios||[]).length;
+            vencTot += a.planesVencidos||0;
+            (a.detalleSocios||[]).forEach(d=>{ Object.values(d.semaforos||{}).forEach(v=>{ if(v==='verde')cV++; else if(v==='amarillo')cA++; else if(v==='rojo')cR++; }); });
+        });
+        H += `<div class="inf-sede"><h2><i class="fas fa-user-tie"></i> ${infEsc(profe)}</h2>`;
+        H += `<table><thead><tr><th>Auditorías</th><th>Socios auditados</th><th>🟢 Verde</th><th>🟡 Amarillo</th><th>🔴 Rojo</th><th>Planes vencidos</th></tr></thead>
+            <tbody><tr>
+                <td><b>${auds.length}</b></td><td><b>${totSoc}</b></td>
+                <td style="color:#10b981;font-weight:700;">${cV}</td>
+                <td style="color:#f59e0b;font-weight:700;">${cA}</td>
+                <td style="color:#ef4444;font-weight:700;">${cR}</td>
+                <td>${vencTot}</td>
+            </tr></tbody></table>`;
+
+        // Detalle por auditoría (fecha) con métricas + anotaciones
+        auds.forEach(a=>{
+            H += `<h3>${infEsc(a.date)} — ${a.planesAuditados||(a.detalleSocios||[]).length} plan(es) · ${a.conEvaluacion}/${a.totalActivos} con eval · ${a.conObjetivo}/${a.totalActivos} con objetivo · ${a.planesVencidos||0} vencidos</h3>`;
+            const socs = a.detalleSocios||[];
+            if(!socs.length){ H += '<p class="inf-muted" style="font-size:.8rem;">Sin detalle por socio.</p>'; return; }
+            let rows='';
+            socs.forEach(d=>{
+                const chips = AUD_SECTIONS.map(s=>`<span class="${audInfChip((d.semaforos||{})[s.key])}">${s.label.split(' ')[0]}</span>`).join(' ');
+                // Anotaciones: hallazgos + observaciones por sección
+                const notas = [];
+                if(d.hallazgos && d.hallazgos.trim()) notas.push('<b>Hallazgos:</b> '+infEsc(d.hallazgos));
+                Object.keys(d.obs||{}).forEach(k=>{ if(d.obs[k] && d.obs[k].trim()){ const sec=AUD_SECTIONS.find(s=>s.key===k); notas.push('<b>'+(sec?sec.label.split(' ')[0]:k)+':</b> '+infEsc(d.obs[k])); } });
+                rows += `<tr>
+                    <td style="white-space:nowrap;"><b>${infEsc(d.nombre)}</b></td>
+                    <td class="inf-chips">${chips}</td>
+                    <td style="font-size:.8rem;">${notas.length?notas.join('<br>'):'<span class="inf-muted">—</span>'}</td>
+                </tr>`;
+            });
+            H += `<table><thead><tr><th>Socio</th><th>Semáforos</th><th>Anotaciones</th></tr></thead><tbody>${rows}</tbody></table>`;
+        });
+        H += `</div>`;
+    });
+
+    body.innerHTML = H;
+    body.setAttribute('contenteditable','false');
+}
+
+function audInformePDF(){
+    const body = document.getElementById('audInformeBody');
+    if(!body.innerHTML.trim()){ alert('Generá el informe primero.'); return; }
+    const css = `body{font-family:Calibri,Arial,sans-serif;color:#1e293b;line-height:1.5;max-width:900px;margin:0 auto;padding:24px;}
+        h1{font-size:20pt;color:#0f172a;} h2{font-size:14pt;border-bottom:2px solid #10b981;padding-bottom:4px;margin-top:22px;} h3{font-size:11pt;color:#334155;margin:14px 0 6px;}
+        .inf-meta{color:#64748b;font-size:10pt;margin-bottom:14px;}
+        table{width:100%;border-collapse:collapse;margin:6px 0 12px;font-size:9.5pt;} th,td{border:1px solid #cbd5e1;padding:5px 7px;text-align:left;vertical-align:top;} th{background:#f1f5f9;}
+        .inf-chips span,.inf-g,.inf-y,.inf-r,.inf-b{font-size:7.5pt;padding:1px 6px;border-radius:8px;margin-right:2px;display:inline-block;}
+        .inf-g{background:#dcfce7;color:#166534;}.inf-y{background:#fef9c3;color:#854d0e;}.inf-r{background:#fee2e2;color:#991b1b;}.inf-b{background:#e0e7ff;color:#3730a3;}.inf-muted{color:#94a3b8;}`;
+    const w = window.open('', '_blank');
+    if(!w){ alert('El navegador bloqueó la ventana. Permití las ventanas emergentes para descargar el PDF.'); return; }
+    w.document.write(`<!DOCTYPE html><html><head><meta charset="utf-8"><title>Informe Auditorías MOVE</title><style>${css}</style></head><body>${body.innerHTML}</body></html>`);
+    w.document.close();
+    setTimeout(()=>{ w.focus(); w.print(); }, 400);
 }
 
 function audBorrar(id){
