@@ -4213,6 +4213,21 @@ function audSwitchTab(tab){
 
 // ── INFORME DE AUDITORÍAS (por profesional + rango de fechas) ──
 let audInfInit = false;
+let audInfChartData = null;
+function audInformeRenderCharts(){
+    if(!audInfChartData) return;
+    const d=audInfChartData;
+    try{ if(document.getElementById('audChSem')) stackedBar('audChSem', d.sem.labels, [
+        {label:'Verde',data:d.sem.v,backgroundColor:'#10b981'},
+        {label:'Amarillo',data:d.sem.a,backgroundColor:'#f59e0b'},
+        {label:'Rojo',data:d.sem.r,backgroundColor:'#ef4444'}
+    ]); }catch(e){}
+    try{ if(document.getElementById('audChSec')) stackedBar('audChSec', d.sec.labels, [
+        {label:'Amarillo',data:d.sec.amar,backgroundColor:'#f59e0b'},
+        {label:'Rojo',data:d.sec.rojo,backgroundColor:'#ef4444'}
+    ]); }catch(e){}
+    try{ if(d.profe && document.getElementById('audChProfe')) bar('audChProfe', d.profe.labels, [{l:'% Verde',d:d.profe.pct,c:'#10b981'}]); }catch(e){}
+}
 function audInformeInit(){
     // Checkboxes de profes agrupados por sede
     const cont = document.getElementById('audInfProfes');
@@ -4263,6 +4278,109 @@ function audInformeGenerar(){
 
     if(!sel.length){ body.innerHTML = H + '<p class="inf-muted">No hay auditorías para ese filtro.</p>'; return; }
 
+    // ── Métricas, gráficos y tendencias ──
+    const selOrden = sel.slice().sort((a,b)=>(audInfParse(a.date)||0)-(audInfParse(b.date)||0));
+    let gV=0,gA=0,gR=0, gSoc=0, gVenc=0;
+    const porFecha = {}; // date -> {v,a,r}
+    const porSec = Object.fromEntries(AUD_SECTIONS.map(s=>[s.key,{a:0,r:0,v:0}]));
+    const porProfe = {}; // profe -> {v,a,r}
+    const anotaciones = [];
+    selOrden.forEach(a=>{
+        gVenc += a.planesVencidos||0;
+        const fk = a.date;
+        porFecha[fk] = porFecha[fk] || {v:0,a:0,r:0};
+        porProfe[a.profe] = porProfe[a.profe] || {v:0,a:0,r:0};
+        (a.detalleSocios||[]).forEach(d=>{
+            gSoc++;
+            AUD_SECTIONS.forEach(s=>{
+                const val=(d.semaforos||{})[s.key];
+                if(val==='verde'){gV++;porFecha[fk].v++;porProfe[a.profe].v++;porSec[s.key].v++;}
+                else if(val==='amarillo'){gA++;porFecha[fk].a++;porProfe[a.profe].a++;porSec[s.key].a++;}
+                else if(val==='rojo'){gR++;porFecha[fk].r++;porProfe[a.profe].r++;porSec[s.key].r++;}
+            });
+            if(d.hallazgos && d.hallazgos.trim()) anotaciones.push(d.hallazgos);
+            Object.values(d.obs||{}).forEach(o=>{ if(o&&o.trim()) anotaciones.push(o); });
+        });
+    });
+    const gTot = gV+gA+gR || 1;
+    const pctV = Math.round(gV/gTot*100), pctR = Math.round(gR/gTot*100);
+    // KPIs
+    const kc=(l,v,c,sub)=>`<div class="stat-card" style="background:#fff;border:1px solid #e2e8f0;border-radius:10px;padding:12px 14px;border-left:3px solid ${c};display:inline-block;min-width:130px;margin:0 8px 8px 0;vertical-align:top;">
+        <div style="font-size:1.4rem;font-weight:800;color:${c};font-family:monospace;">${v}</div>
+        <div style="font-size:.6rem;font-weight:700;text-transform:uppercase;letter-spacing:.5px;color:#64748b;margin-top:3px;">${l}</div>${sub?`<div style="font-size:.66rem;color:#94a3b8;margin-top:2px;">${sub}</div>`:''}</div>`;
+    H += `<h2><i class="fas fa-gauge"></i> Métricas del período</h2><div>`;
+    H += kc('Auditorías', selOrden.length, '#6366f1');
+    H += kc('Socios auditados', gSoc, '#0ea5e9', (selOrden.length?('prom. '+(gSoc/selOrden.length).toFixed(1)+'/auditoría'):''));
+    H += kc('% Verde', pctV+'%', pctV>=70?'#10b981':pctV>=50?'#f59e0b':'#ef4444', 'cumplimiento');
+    H += kc('% Rojo', pctR+'%', pctR<=10?'#10b981':pctR<=25?'#f59e0b':'#ef4444', 'foco de mejora');
+    H += kc('Planes vencidos', gVenc, gVenc>0?'#ef4444':'#10b981');
+    H += `</div>`;
+
+    // Tendencia (primera mitad vs segunda mitad)
+    let tendTxt='';
+    if(selOrden.length>=2){
+        const mid=Math.floor(selOrden.length/2);
+        const half=arr=>{let v=0,a=0,r=0;arr.forEach(x=>{(x.detalleSocios||[]).forEach(d=>AUD_SECTIONS.forEach(s=>{const val=(d.semaforos||{})[s.key];if(val==='verde')v++;else if(val==='amarillo')a++;else if(val==='rojo')r++;}));});const t=v+a+r||1;return{pv:Math.round(v/t*100),pr:Math.round(r/t*100)};};
+        const h1=half(selOrden.slice(0,mid)), h2=half(selOrden.slice(mid));
+        const dRojo=h2.pr-h1.pr, dVerde=h2.pv-h1.pv;
+        const mejora = dVerde>2 || dRojo<-2;
+        const empeora = dRojo>2 || dVerde<-2;
+        const col=mejora?'#10b981':empeora?'#ef4444':'#64748b';
+        const txt=mejora?'📈 Mejorando':empeora?'📉 Empeorando':'➡️ Estable';
+        tendTxt = `<div style="font-size:.85rem;margin:6px 0 14px;padding:8px 12px;border-left:3px solid ${col};background:#f8fafc;border-radius:0 6px 6px 0;">
+            <b style="color:${col};">${txt}.</b> Verde pasó de ${h1.pv}% a ${h2.pv}% y rojo de ${h1.pr}% a ${h2.pr}% (primera vs segunda mitad del período).</div>`;
+    }
+    H += tendTxt;
+
+    // Gráficos
+    const multi = Object.keys(porProfe).length>1;
+    H += `<h2><i class="fas fa-chart-line"></i> Gráficos</h2>
+        <div style="display:grid;grid-template-columns:${multi?'1fr 1fr':'1fr 1fr'};gap:14px;">
+            <div class="card"><div class="card-title" style="font-size:.8rem;">Evolución de semáforos por fecha</div><canvas id="audChSem" height="150"></canvas></div>
+            <div class="card"><div class="card-title" style="font-size:.8rem;">Dónde se falla más (por sección)</div><canvas id="audChSec" height="150"></canvas></div>
+            ${multi?'<div class="card" style="grid-column:1/-1;"><div class="card-title" style="font-size:.8rem;">% Verde por profesional</div><canvas id="audChProfe" height="90"></canvas></div>':''}
+        </div>`;
+
+    // Tendencia en anotaciones (temas recurrentes)
+    const TEMAS=[
+        {t:'Evaluación / carga en APP', kw:['evaluac','eval','cargar','app','planilla','excel','carga']},
+        {t:'RPE / esfuerzo', kw:['rpe','esfuerzo']},
+        {t:'Plan vencido / vigencia', kw:['vencid','vigencia','renov','venc']},
+        {t:'Objetivo del socio', kw:['objetivo','meta']},
+        {t:'Técnica / ejercicios', kw:['ejercic','tecnica','polea','mancuerna','bloque','serie','repetic','peso','postura','movil']},
+        {t:'Seguimiento / contacto', kw:['seguimiento','acompan','contacto','mensaje','llamar','whatsapp']},
+    ];
+    const nrm=s=>s.toLowerCase().normalize('NFD').replace(/[̀-ͯ]/g,'');
+    const temaCount = TEMAS.map(tm=>({t:tm.t, n:anotaciones.filter(x=>{const q=nrm(x);return tm.kw.some(k=>q.includes(k));}).length})).filter(x=>x.n>0).sort((a,b)=>b.n-a.n);
+    // palabras frecuentes
+    const STOP=new Set('de la el los las un una y o a en que con por para se su sus del al es son no lo le les mas más este esta ese esa como ya si sin sobre entre cada muy the'.split(' '));
+    const freq={};
+    anotaciones.forEach(x=>nrm(x).replace(/[^a-z0-9ñ ]/g,' ').split(/\s+/).forEach(w=>{ if(w.length>3 && !STOP.has(w)) freq[w]=(freq[w]||0)+1; }));
+    const topW=Object.entries(freq).sort((a,b)=>b[1]-a[1]).slice(0,10);
+    H += `<h2><i class="fas fa-comment-dots"></i> Tendencia en las anotaciones <span class="inf-muted" style="font-size:.7rem;font-weight:400;">(${anotaciones.length} notas)</span></h2>`;
+    if(anotaciones.length){
+        if(temaCount.length){
+            H += `<div style="font-size:.82rem;margin-bottom:8px;"><b>Temas más repetidos:</b></div>`;
+            const maxN=temaCount[0].n;
+            H += `<div style="display:flex;flex-direction:column;gap:5px;margin-bottom:12px;">`+temaCount.map(x=>`
+                <div style="display:flex;align-items:center;gap:8px;font-size:.8rem;">
+                    <span style="min-width:190px;">${x.t}</span>
+                    <div style="flex:1;height:14px;background:#f1f5f9;border-radius:7px;overflow:hidden;"><div style="height:100%;width:${Math.round(x.n/maxN*100)}%;background:var(--accent);border-radius:7px;"></div></div>
+                    <b style="min-width:24px;text-align:right;">${x.n}</b>
+                </div>`).join('')+`</div>`;
+        }
+        if(topW.length) H += `<div style="font-size:.8rem;"><b>Palabras frecuentes:</b> ${topW.map(w=>`${infEsc(w[0])} <span class="inf-muted">(${w[1]})</span>`).join(' · ')}</div>`;
+    } else {
+        H += `<p class="inf-muted" style="font-size:.82rem;">Todavía no hay anotaciones cargadas en las auditorías de este filtro.</p>`;
+    }
+
+    // Guardar datos para los gráficos
+    audInfChartData = {
+        sem:{labels:Object.keys(porFecha), v:Object.values(porFecha).map(x=>x.v), a:Object.values(porFecha).map(x=>x.a), r:Object.values(porFecha).map(x=>x.r)},
+        sec:{labels:AUD_SECTIONS.map(s=>s.label.split(' ')[0]), amar:AUD_SECTIONS.map(s=>porSec[s.key].a), rojo:AUD_SECTIONS.map(s=>porSec[s.key].r)},
+        profe: multi?{labels:Object.keys(porProfe), pct:Object.values(porProfe).map(x=>{const t=x.v+x.a+x.r||1;return Math.round(x.v/t*100);})}:null
+    };
+
     // Agrupar por profesional
     profes.forEach(profe=>{
         const auds = sel.filter(a=>a.profe===profe).sort((a,b)=>(audInfParse(b.date)||0)-(audInfParse(a.date)||0));
@@ -4309,11 +4427,19 @@ function audInformeGenerar(){
 
     body.innerHTML = H;
     body.setAttribute('contenteditable','false');
+    audInformeRenderCharts();
 }
 
 function audInformePDF(){
     const body = document.getElementById('audInformeBody');
     if(!body.innerHTML.trim()){ alert('Generá el informe primero.'); return; }
+    // Rasterizar los canvas (gráficos) a imagen para que salgan en el PDF
+    const clone = body.cloneNode(true);
+    const origCanvas = body.querySelectorAll('canvas');
+    clone.querySelectorAll('canvas').forEach((c,i)=>{
+        try{ const img=document.createElement('img'); img.src=origCanvas[i].toDataURL('image/png'); img.style.maxWidth='100%'; c.replaceWith(img); }catch(e){ c.remove(); }
+    });
+    const cloneHTML = clone.innerHTML;
     const css = `body{font-family:Calibri,Arial,sans-serif;color:#1e293b;line-height:1.5;max-width:900px;margin:0 auto;padding:24px;}
         h1{font-size:20pt;color:#0f172a;} h2{font-size:14pt;border-bottom:2px solid #10b981;padding-bottom:4px;margin-top:22px;} h3{font-size:11pt;color:#334155;margin:14px 0 6px;}
         .inf-meta{color:#64748b;font-size:10pt;margin-bottom:14px;}
@@ -4322,7 +4448,7 @@ function audInformePDF(){
         .inf-g{background:#dcfce7;color:#166534;}.inf-y{background:#fef9c3;color:#854d0e;}.inf-r{background:#fee2e2;color:#991b1b;}.inf-b{background:#e0e7ff;color:#3730a3;}.inf-muted{color:#94a3b8;}`;
     const w = window.open('', '_blank');
     if(!w){ alert('El navegador bloqueó la ventana. Permití las ventanas emergentes para descargar el PDF.'); return; }
-    w.document.write(`<!DOCTYPE html><html><head><meta charset="utf-8"><title>Informe Auditorías MOVE</title><style>${css}</style></head><body>${body.innerHTML}</body></html>`);
+    w.document.write(`<!DOCTYPE html><html><head><meta charset="utf-8"><title>Informe Auditorías MOVE</title><style>${css} img{max-width:100%;height:auto;} .card{border:1px solid #e2e8f0;border-radius:8px;padding:8px;margin-bottom:8px;} .stat-card{border:1px solid #e2e8f0;}</style></head><body>${cloneHTML}</body></html>`);
     w.document.close();
     setTimeout(()=>{ w.focus(); w.print(); }, 400);
 }
