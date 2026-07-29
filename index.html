@@ -5816,10 +5816,20 @@ function aeParseActivosCierre(res){
     return best;
 }
 
-// Lee el padrón real (Activos al cierre de mes) probando variantes del nombre de la pestaña.
-// Devuelve 12 valores; si ninguna variante da datos, todos null (el informe mostrará "—", nunca inventa).
+// Lee el padrón real (Activos al cierre de mes). La pestaña "Resumen Anual" tiene gid 328722414
+// en todas las planillas (copias del mismo template), así que leemos por gid con export CSV
+// (el mismo método confiable que "Planilla 2026"). Fallback por nombre si el gid cambiara.
+function aeExportCSVGid(sid, gid){
+    const url=`https://docs.google.com/spreadsheets/d/${sid}/export?format=csv&gid=${gid}&t=${Date.now()}`;
+    return fetch(url,{cache:'no-store'}).then(r=>r.text()).then(aeParseCSV);
+}
 async function aeReadActivosCierre(sid){
-    for(const name of ['Resumen Anual','Resumen','Resumen anual','RESUMEN ANUAL','Resumen 2026']){
+    try{
+        const r=await aeExportCSVGid(sid, 328722414);
+        const parsed=aeParseActivosCierre(r);
+        if(parsed.some(v=>v!=null)) return parsed;
+    }catch(e){}
+    for(const name of ['Resumen Anual','Resumen','Resumen anual','RESUMEN ANUAL']){
         try{
             const r=await aeGvizCSV(sid,name);
             const parsed=aeParseActivosCierre(r);
