@@ -1433,6 +1433,9 @@ tr:hover td{background:#fafbfc;}
                 </div>
                 <div id="recepTeamStatus" style="font-size:.8rem;color:var(--muted);margin-bottom:10px;"></div>
 
+                <!-- Alerta de servicios duplicados (mismo socio, mismo servicio, mismo mes) -->
+                <div id="recepDupAlert" style="margin-bottom:14px;"></div>
+
                 <!-- KPIs equipo -->
                 <div id="recepTeamKpis" style="display:grid;grid-template-columns:repeat(auto-fill,minmax(140px,1fr));gap:10px;margin-bottom:16px;"></div>
 
@@ -5040,6 +5043,7 @@ function recepRenderTeam(){
     if(!recepAllData) return;
     const mi = recepTeamMesIdx();
     document.getElementById('recepTeamMes').textContent = RECEP_MESES_FULL[mi] + ' 2026';
+    recepCheckDuplicados(mi);
     const pr = recepPerRecep(mi);
     const conD = pr.filter(p=>!p.sinDatos);
 
@@ -5095,6 +5099,47 @@ function recepRenderTeam(){
         if(any){ mesesLbl.push(m); serie.push(tot); }
     });
     try { line('recepChartTrend', mesesLbl, [{l:'Ventas equipo', d:serie, c:'#10b981'}]); } catch(e){}
+}
+
+// ── Alerta: mismo socio con el mismo servicio dos veces en el mes ──
+async function recepCheckDuplicados(mi){
+    const cont=document.getElementById('recepDupAlert'); if(!cont) return;
+    const mesFull=RECEP_MESES_FULL[mi];
+    cont.innerHTML=`<div style="font-size:.76rem;color:var(--muted);"><i class="fas fa-spinner fa-spin"></i> Revisando servicios duplicados de ${mesFull}…</div>`;
+    const normM=s=>s.normalize('NFD').replace(/[̀-ͯ]/g,'').toLowerCase().replace(/,/g,' ').split(/\s+/).filter(Boolean).sort().join(' ');
+    const normS=s=>s.normalize('NFD').replace(/[̀-ͯ]/g,'').toLowerCase().split(/\s+/).filter(Boolean).join(' ');
+    const dups=[], noLeidas=[];
+    await Promise.all(RECEP_CONFIG.map(async r=>{
+        try{
+            const url=`https://docs.google.com/spreadsheets/d/${r.sheetId}/gviz/tq?tqx=out:csv&sheet=${encodeURIComponent('Planilla '+mesFull)}&t=${Date.now()}`;
+            const resp=await fetch(url,{cache:'no-store'}); if(!resp.ok) throw 0;
+            const rows=aeParseCSV(await resp.text()); if(!rows.length) throw 0;
+            const hdr=rows[0].map(h=>String(h||'').toLowerCase());
+            const ci=hdr.findIndex(h=>h.includes('apellido'));
+            const si=hdr.findIndex(h=>h.includes('servicios vendidos'));
+            if(ci<0||si<0){ noLeidas.push(r.name); return; }
+            const IGNORAR=new Set(['averiguadores','averiguador','servicios vendidos']); // no son servicios contratados
+            const map={};
+            for(let i=1;i<rows.length;i++){ const row=rows[i]; if(!row) continue; const m=String(row[ci]||'').trim(), sv=String(row[si]||'').trim(); if(!m||!sv) continue;
+                const svN=normS(sv); if(IGNORAR.has(svN)) continue;
+                const mN=normM(m); if(mN.split(' ').filter(Boolean).length<2) continue; // nombre incompleto: no confiable para comparar
+                const k=mN+'|'+svN; (map[k]=map[k]||{nombre:m,serv:sv,n:0}).n++; }
+            Object.values(map).forEach(x=>{ if(x.n>1) dups.push({recep:r.name, sede:r.sede, nombre:x.nombre, serv:x.serv, n:x.n}); });
+        }catch(e){ noLeidas.push(r.name); }
+    }));
+    const notaNL = noLeidas.length?`<div style="font-size:.68rem;color:#94a3b8;margin-top:6px;">No se pudo leer la planilla de ${mesFull} de: ${noLeidas.join(', ')} (¿pestaña con otro nombre o sin cargar?).</div>`:'';
+    if(dups.length){
+        dups.sort((a,b)=>a.recep.localeCompare(b.recep));
+        cont.innerHTML=`<div style="background:#fef2f2;border:1px solid #fca5a5;border-left:4px solid #ef4444;border-radius:10px;padding:12px 14px;">
+            <div style="font-weight:800;color:#b91c1c;font-size:.9rem;margin-bottom:6px;"><i class="fas fa-triangle-exclamation"></i> Servicios repetidos en ${mesFull} — ${dups.length} caso(s) a revisar</div>
+            <div style="font-size:.74rem;color:#7f1d1d;margin-bottom:8px;">Un socio no puede tener el mismo servicio dos veces en el mismo mes. Revisá estas cargas en la planilla:</div>
+            <div class="tw"><table style="font-size:.78rem;"><thead><tr><th>Recepcionista</th><th>Sede</th><th>Socio</th><th>Servicio repetido</th><th>Veces</th></tr></thead><tbody>
+            ${dups.map(d=>`<tr><td><b>${d.recep}</b></td><td>${d.sede}</td><td>${d.nombre.replace(/</g,'&lt;')}</td><td>${d.serv.replace(/</g,'&lt;')}</td><td style="text-align:center;font-weight:700;color:#ef4444;">${d.n}</td></tr>`).join('')}
+            </tbody></table></div>${notaNL}</div>`;
+    } else {
+        cont.innerHTML=`<div style="background:#f0fdf4;border:1px solid #bbf7d0;border-left:4px solid #10b981;border-radius:10px;padding:10px 14px;font-size:.8rem;color:#166534;">
+            <i class="fas fa-circle-check"></i> <b>Sin servicios duplicados en ${mesFull}.</b> Ningún socio tiene el mismo servicio cargado dos veces.${notaNL}</div>`;
+    }
 }
 
 // ── Registro automático de avance (snapshot cada 5 días) ──
