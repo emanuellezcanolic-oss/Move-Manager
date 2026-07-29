@@ -5789,20 +5789,44 @@ function aeParseActivosCierre(res){
     const out=new Array(12).fill(null);
     if(!res||!res.length) return out;
     const MES=['ENE','FEB','MAR','ABR','MAY','JUN','JUL','AGO','SEP','OCT','NOV','DIC'];
-    let dataRow=-1;
-    for(let i=0;i<res.length;i++){ if((res[i]||[]).some(c=>(c||'').toString().toLowerCase().includes('activos al cierre'))){ dataRow=i; break; } }
-    if(dataRow<0) return out;
-    // header de meses más cercano por arriba de la fila de datos
-    let colMes=null;
-    for(let i=dataRow;i>=0 && i>dataRow-45;i--){
-        const r=res[i]||[]; const idx={};
-        r.forEach((c,ci)=>{ const mi=MES.indexOf((c||'').toString().trim().toUpperCase()); if(mi>=0 && idx[mi]==null) idx[mi]=ci; });
-        if(Object.keys(idx).length>=6){ colMes=idx; break; }
+    // Candidatos: filas cuyo label ES "Activos al cierre de mes" (corto). Excluye el glosario (texto largo con ':').
+    const cand=[];
+    for(let i=0;i<res.length;i++){
+        const r=res[i]||[];
+        for(let ci=0;ci<r.length;ci++){
+            const t=(r[ci]||'').toString().trim().toLowerCase();
+            if(t.startsWith('activos al cierre') && t.length<35){ cand.push(i); break; }
+        }
     }
-    if(!colMes) return out;
-    const r=res[dataRow];
-    for(let m=0;m<12;m++){ if(colMes[m]!=null){ const n=aeNum(r[colMes[m]]); out[m]=n; } }
-    return out;
+    if(!cand.length) return out;
+    // Para cada candidato: buscar el header de meses más cercano por arriba y parsear; quedarse con el que más valores da.
+    let best=out, bestCount=-1;
+    cand.forEach(dataRow=>{
+        let colMes=null;
+        for(let i=dataRow;i>=0 && i>dataRow-60;i--){
+            const r=res[i]||[]; const idx={};
+            r.forEach((c,ci)=>{ const mi=MES.indexOf((c||'').toString().trim().toUpperCase()); if(mi>=0 && idx[mi]==null) idx[mi]=ci; });
+            if(Object.keys(idx).length>=6){ colMes=idx; break; }
+        }
+        if(!colMes) return;
+        const r=res[dataRow]; const vals=new Array(12).fill(null); let cnt=0;
+        for(let m=0;m<12;m++){ if(colMes[m]!=null){ const n=aeNum(r[colMes[m]]); vals[m]=n; if(n!=null) cnt++; } }
+        if(cnt>bestCount){ bestCount=cnt; best=vals; }
+    });
+    return best;
+}
+
+// Lee el padrón real (Activos al cierre de mes) probando variantes del nombre de la pestaña.
+// Devuelve 12 valores; si ninguna variante da datos, todos null (el informe mostrará "—", nunca inventa).
+async function aeReadActivosCierre(sid){
+    for(const name of ['Resumen Anual','Resumen','Resumen anual','RESUMEN ANUAL','Resumen 2026']){
+        try{
+            const r=await aeGvizCSV(sid,name);
+            const parsed=aeParseActivosCierre(r);
+            if(parsed.some(v=>v!=null)) return parsed;
+        }catch(e){}
+    }
+    return new Array(12).fill(null);
 }
 
 // Construye el objeto datos (mismo shape que el hardcodeado) leyendo las pestañas
@@ -5810,13 +5834,12 @@ async function aeLoadLive(id){
     const sid=AE_SHEETS[id];
     if(!sid) throw new Error('sin sheetId');
     const base=AE_FALLBACK[id];
-    const [obj, plan, tar, res] = await Promise.all([
+    const [obj, plan, tar, activosCierreFull] = await Promise.all([
         aeGvizCSV(sid,'Objetivos'),
         aeExportCSV(sid),                 // Planilla 2026 vía export (layout estable, socios fila6+)
         aeGvizCSV(sid,'Tareas Mensuales'),
-        aeGvizCSV(sid,'Resumen Anual').catch(()=>[])   // padrón real (Activos al cierre de mes)
+        aeReadActivosCierre(sid)          // padrón real (Activos al cierre de mes)
     ]);
-    const activosCierreFull = aeParseActivosCierre(res);
 
     // ── Objetivos: fila datos = 13 + m*6, puntos en fila+4 col10 ──
     const objetivos=[], movimiento=[], tareas=[];
@@ -6530,7 +6553,7 @@ async function informeGenerar(){
 
     H += `<h2><i class="fas fa-users"></i> Panorama de socios — crecimiento vs mes anterior</h2>`;
     H += `<div class="inf-muted" style="font-size:.78rem;margin-bottom:6px;">Socios activos hoy (padrón real en el gym) comparados con el padrón al cierre de <b>${gMesNombre}</b> (último mes completo; el mes en curso todavía se está cargando).</div>`;
-    let totCur=0, totPrev=0, panRows='';
+    let totCur=0, totPrev=0, totAllPrev=true, panRows='';
     INF_SEDES_ORDER.forEach(sede=>{
         const ids = INF_PROFE_IDS.filter(id=>INF_SEDE[id]===sede);
         const cur = liveHay[sede] ? liveSede[sede] : null;
@@ -6541,7 +6564,8 @@ async function informeGenerar(){
         } else {
             ids.forEach(id=>{ const d=AE_DATA[id]; const v=d&&d.activosCierre&&d.activosCierre[gMi]; if(v!=null&&v>0){ prev+=v; hayPrev=true; } });
         }
-        if(cur!=null) totCur+=cur; if(hayPrev) totPrev+=prev;
+        if(cur!=null){ totCur+=cur; if(!hayPrev) totAllPrev=false; }
+        if(hayPrev) totPrev+=prev;
         const diff = (cur!=null&&hayPrev) ? cur-prev : null;
         const pct = (diff!=null && prev>0) ? Math.round(diff/prev*100) : null;
         const col = diff==null?'#94a3b8':diff>0?'#10b981':diff<0?'#ef4444':'#64748b';
@@ -6554,14 +6578,14 @@ async function informeGenerar(){
             <td style="color:${col};font-weight:700;">${pct==null?'<span class="inf-muted">—</span>':((pct>=0?'+':'')+pct+'%')}</td>
         </tr>`;
     });
-    const tDiff = totPrev>0 ? totCur-totPrev : null;
-    const tPct = totPrev>0 ? Math.round((totCur-totPrev)/totPrev*100) : null;
+    const tDiff = (totAllPrev && totPrev>0) ? totCur-totPrev : null;
+    const tPct = (totAllPrev && totPrev>0) ? Math.round((totCur-totPrev)/totPrev*100) : null;
     const tCol = tDiff==null?'#64748b':tDiff>0?'#10b981':tDiff<0?'#ef4444':'#64748b';
     H += `<table>
         <thead><tr><th>Sede</th><th>Socios activos (hoy)</th><th>Padrón al cierre ${gMesNombre}</th><th>Crecimiento</th><th>%</th></tr></thead>
         <tbody>${panRows}</tbody>
         <tfoot><tr style="font-weight:700;background:#eef2ff;">
-            <td>TOTAL MOVE</td><td>${totCur||'—'}</td><td>${totPrev||'—'}</td>
+            <td>TOTAL MOVE</td><td>${totCur||'—'}</td><td>${(totAllPrev&&totPrev>0)?totPrev:'—'}</td>
             <td style="color:${tCol};">${tDiff==null?'—':(tDiff>=0?'+':'')+tDiff}</td>
             <td style="color:${tCol};">${tPct==null?'—':(tPct>=0?'+':'')+tPct+'%'}</td>
         </tr></tfoot>
