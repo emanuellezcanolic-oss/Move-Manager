@@ -5816,39 +5816,15 @@ function aeParseActivosCierre(res){
     return best;
 }
 
-// Lee el padrón real (Activos al cierre de mes). La pestaña "Resumen Anual" tiene gid 328722414
-// en todas las planillas (copias del mismo template), así que leemos por gid con export CSV
-// (el mismo método confiable que "Planilla 2026"). Fallback por nombre si el gid cambiara.
-function aeExportCSVGid(sid, gid){
-    const url=`https://docs.google.com/spreadsheets/d/${sid}/export?format=csv&gid=${gid}&t=${Date.now()}`;
-    return fetch(url,{cache:'no-store'}).then(r=>r.text()).then(aeParseCSV);
-}
-async function aeReadActivosCierre(sid){
-    try{
-        const r=await aeExportCSVGid(sid, 328722414);
-        const parsed=aeParseActivosCierre(r);
-        if(parsed.some(v=>v!=null)) return parsed;
-    }catch(e){}
-    for(const name of ['Resumen Anual','Resumen','Resumen anual','RESUMEN ANUAL']){
-        try{
-            const r=await aeGvizCSV(sid,name);
-            const parsed=aeParseActivosCierre(r);
-            if(parsed.some(v=>v!=null)) return parsed;
-        }catch(e){}
-    }
-    return new Array(12).fill(null);
-}
-
 // Construye el objeto datos (mismo shape que el hardcodeado) leyendo las pestañas
 async function aeLoadLive(id){
     const sid=AE_SHEETS[id];
     if(!sid) throw new Error('sin sheetId');
     const base=AE_FALLBACK[id];
-    const [obj, plan, tar, activosCierreFull] = await Promise.all([
+    const [obj, plan, tar] = await Promise.all([
         aeGvizCSV(sid,'Objetivos'),
         aeExportCSV(sid),                 // Planilla 2026 vía export (layout estable, socios fila6+)
-        aeGvizCSV(sid,'Tareas Mensuales'),
-        aeReadActivosCierre(sid)          // padrón real (Activos al cierre de mes)
+        aeGvizCSV(sid,'Tareas Mensuales')
     ]);
 
     // ── Objetivos: fila datos = 13 + m*6, puntos en fila+4 col10 ──
@@ -5940,8 +5916,7 @@ async function aeLoadLive(id){
         objetivos: objetivos.slice(0,n),
         movimiento: movimiento.slice(0,n),
         adherencia: adherencia.slice(0,n),
-        tareas: tareas.slice(0,n),
-        activosCierre: activosCierreFull.slice(0,n)   // padrón real al cierre de cada mes
+        tareas: tareas.slice(0,n)
     };
     AE_DATA[id]=datos;
     aeLiveCargado[id]=true;
@@ -6483,6 +6458,16 @@ async function informeGenerar(){
         }
     }));
 
+    // 1a) Padrón real al cierre (Activos al cierre de mes) de Bolsón/Puelo, leído con el MISMO
+    //     método que Bariloche (mismo template, Resumen gid 328722414). Bariloche ya lo trae en bariData.
+    const infPadron = {};   // id -> [12] activos al cierre
+    await Promise.allSettled(INF_PROFE_IDS.filter(id=>INF_SEDE[id]!=='Bariloche').map(async id=>{
+        try{
+            const d = await loadBariProfe({id:AE_SHEETS[id], gid:'328722414', nombre:id});
+            if(d && d.histActivosCierre) infPadron[id] = d.histActivosCierre;
+        }catch(e){}
+    }));
+
     // 1b) Planillas generales (altas 2025/2026, deserción) — para Estado y 2025 vs 2026
     try { if(!planData){ await cargarTodo(); } } catch(e){}
 
@@ -6572,7 +6557,7 @@ async function informeGenerar(){
         if(sede==='Bariloche'){
             (bariData||[]).forEach(p=>{ const v=p.histActivosCierre&&p.histActivosCierre[gMi]; if(v!=null&&v>0){ prev+=v; hayPrev=true; } });
         } else {
-            ids.forEach(id=>{ const d=AE_DATA[id]; const v=d&&d.activosCierre&&d.activosCierre[gMi]; if(v!=null&&v>0){ prev+=v; hayPrev=true; } });
+            ids.forEach(id=>{ const arr=infPadron[id]; const v=arr&&arr[gMi]; if(v!=null&&v>0){ prev+=v; hayPrev=true; } });
         }
         if(cur!=null){ totCur+=cur; if(!hayPrev) totAllPrev=false; }
         if(hayPrev) totPrev+=prev;
