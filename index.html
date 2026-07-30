@@ -6458,16 +6458,6 @@ async function informeGenerar(){
         }
     }));
 
-    // 1a) Padrón real al cierre (Activos al cierre de mes) de Bolsón/Puelo, leído con el MISMO
-    //     método que Bariloche (mismo template, Resumen gid 328722414). Bariloche ya lo trae en bariData.
-    const infPadron = {};   // id -> [12] activos al cierre
-    await Promise.allSettled(INF_PROFE_IDS.filter(id=>INF_SEDE[id]!=='Bariloche').map(async id=>{
-        try{
-            const d = await loadBariProfe({id:AE_SHEETS[id], gid:'328722414', nombre:id});
-            if(d && d.histActivosCierre) infPadron[id] = d.histActivosCierre;
-        }catch(e){}
-    }));
-
     // 1b) Planillas generales (altas 2025/2026, deserción) — para Estado y 2025 vs 2026
     try { if(!planData){ await cargarTodo(); } } catch(e){}
 
@@ -6553,11 +6543,20 @@ async function informeGenerar(){
         const ids = INF_PROFE_IDS.filter(id=>INF_SEDE[id]===sede);
         const cur = liveHay[sede] ? liveSede[sede] : null;
         let prev=0, hayPrev=false;
-        // Baseline = PADRÓN REAL al cierre del mes anterior (fila "Activos al cierre de mes"), no los liquidados
+        // Baseline al cierre del mes anterior, tomado de planData/bariData (histAltas26/histAltas):
+        // es la MISMA fuente que ya usan y validan Estado del Gym, las páginas de sede y el gráfico
+        // "Altas <Sede> — 2026" (verificado: Bariloche cierre Junio = 244, coincide con ese gráfico).
+        // NO se usa la fila "Activos al cierre de mes" del Resumen: se probó y da valores imposibles
+        // (incluye negativos, y no coincide con el padrón real ni con ningún otro dato de la app).
         if(sede==='Bariloche'){
-            (bariData||[]).forEach(p=>{ const v=p.histActivosCierre&&p.histActivosCierre[gMi]; if(v!=null&&v>0){ prev+=v; hayPrev=true; } });
+            (bariData||[]).forEach(p=>{ const v=p.histAltas&&p.histAltas[gMi]; if(v!=null&&v>0){ prev+=v; hayPrev=true; } });
         } else {
-            ids.forEach(id=>{ const arr=infPadron[id]; const v=arr&&arr[gMi]; if(v!=null&&v>0){ prev+=v; hayPrev=true; } });
+            const INF_LIVE_NAME = {belen:'Belu', fer:'Fer', enzo:'Enzo', javi:'Javi', agus:'Agus'};
+            ids.forEach(id=>{
+                const p=(planData&&planData.profes||[]).find(x=>x.nombre===INF_LIVE_NAME[id]);
+                const v=p&&p.histAltas26&&p.histAltas26[gMi];
+                if(v!=null&&v>0){ prev+=v; hayPrev=true; }
+            });
         }
         if(cur!=null){ totCur+=cur; if(!hayPrev) totAllPrev=false; }
         if(hayPrev) totPrev+=prev;
