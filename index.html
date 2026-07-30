@@ -1597,7 +1597,7 @@ tr:hover td{background:#fafbfc;}
             <div class="card" style="margin-bottom:16px;">
                 <div class="card-title"><i class="fas fa-calendar-days"></i> Detalle por mes</div>
                 <div class="tw"><table>
-                    <thead><tr><th>Mes</th><th>Respuestas</th><th>NPS</th><th>Promotores</th><th>Pasivos</th><th>Detractores</th></tr></thead>
+                    <thead><tr id="encMTablaMesHead"><th>Mes</th><th>Respuestas</th><th>NPS</th><th>Promotores</th><th>Pasivos</th><th>Detractores</th></tr></thead>
                     <tbody id="encMTablaMes"></tbody>
                 </table></div>
             </div>
@@ -1606,7 +1606,7 @@ tr:hover td{background:#fafbfc;}
             <div class="card" style="margin-bottom:16px;">
                 <div class="card-title"><i class="fas fa-user-group"></i> Comparativa por profesional</div>
                 <div class="tw"><table>
-                    <thead><tr><th>Profesional</th><th>Sede</th><th>Respuestas</th><th>NPS</th></tr></thead>
+                    <thead><tr id="encMTablaProfeHead"><th>Profesional</th><th>Sede</th><th>Respuestas</th><th>NPS</th></tr></thead>
                     <tbody id="encMTablaProfe"></tbody>
                 </table></div>
             </div>
@@ -6965,30 +6965,60 @@ function encMRender(){
     }
     document.getElementById('encMKpis').innerHTML = kpis;
 
-    // Tabla por mes
+    // Tabla por mes — columnas según el tipo de encuesta
+    // Bienvenida mide NPS; la de bajas NO tiene esa pregunta, así que mostramos los motivos (lo que sí mide).
+    const headEl = document.getElementById('encMTablaMesHead');
+    if(headEl) headEl.innerHTML = esBienv
+        ? '<th>Mes</th><th>Respuestas</th><th>NPS</th><th>Promotores</th><th>Pasivos</th><th>Detractores</th>'
+        : '<th>Mes</th><th>Bajas</th><th>Motivo principal</th><th>2º motivo</th><th>3º motivo</th>';
+    const nCols = esBienv ? 6 : 5;
     let tb='';
     keys.forEach(k=>{
-        const g=byMonth[k]; const ns=g.rows.map(r=>r.nps).filter(n=>n!=null);
-        const nps=ns.length?calcNPS(ns):null;
-        const prom=ns.filter(n=>n>=9).length, pas=ns.filter(n=>n>=7&&n<=8).length, det=ns.filter(n=>n<=6).length;
-        const npsCol=nps==null?'#94a3b8':nps>=50?'#10b981':nps>=30?'#3b82f6':nps>=0?'#f59e0b':'#ef4444';
-        tb+=`<tr>
-            <td><b>${g.lbl}</b></td>
-            <td>${g.rows.length}</td>
-            <td>${nps==null?'—':`<span style="color:${npsCol};font-weight:700;">${nps}</span>`}</td>
-            <td>${ns.length?prom:'—'}</td>
-            <td>${ns.length?pas:'—'}</td>
-            <td>${ns.length?det:'—'}</td>
-        </tr>`;
+        const g=byMonth[k];
+        if(esBienv){
+            const ns=g.rows.map(r=>r.nps).filter(n=>n!=null);
+            const nps=ns.length?calcNPS(ns):null;
+            const prom=ns.filter(n=>n>=9).length, pas=ns.filter(n=>n>=7&&n<=8).length, det=ns.filter(n=>n<=6).length;
+            const npsCol=nps==null?'#94a3b8':nps>=50?'#10b981':nps>=30?'#3b82f6':nps>=0?'#f59e0b':'#ef4444';
+            tb+=`<tr>
+                <td><b>${g.lbl}</b></td>
+                <td>${g.rows.length}</td>
+                <td>${nps==null?'—':`<span style="color:${npsCol};font-weight:700;">${nps}</span>`}</td>
+                <td>${ns.length?prom:'—'}</td>
+                <td>${ns.length?pas:'—'}</td>
+                <td>${ns.length?det:'—'}</td>
+            </tr>`;
+        } else {
+            const cnt={};
+            g.rows.forEach(r=>{ const m=(r.motivo||'').trim(); if(m) cnt[m]=(cnt[m]||0)+1; });
+            const top=Object.entries(cnt).sort((a,b)=>b[1]-a[1]).slice(0,3);
+            const cel=i=> top[i] ? `${top[i][0]} <span style="color:var(--muted);font-size:.75rem;">(${top[i][1]})</span>` : '—';
+            tb+=`<tr>
+                <td><b>${g.lbl}</b></td>
+                <td><b>${g.rows.length}</b></td>
+                <td>${cel(0)}</td>
+                <td>${cel(1)}</td>
+                <td>${cel(2)}</td>
+            </tr>`;
+        }
     });
-    document.getElementById('encMTablaMes').innerHTML = tb || '<tr><td colspan="6" style="text-align:center;color:var(--muted);padding:18px;">Sin datos para este filtro</td></tr>';
+    document.getElementById('encMTablaMes').innerHTML = tb || `<tr><td colspan="${nCols}" style="text-align:center;color:var(--muted);padding:18px;">Sin datos para este filtro</td></tr>`;
 
     // Tabla comparativa por profesional (dentro de sede+tipo, ignora filtro de profe)
     const scopeProfe = encMScopeRows(true);
     const byProfe={};
     scopeProfe.forEach(r=>{ (byProfe[r.profe]=byProfe[r.profe]||{sede:r.sede,rows:[]}).rows.push(r); });
-    const pArr = Object.entries(byProfe).map(([p,o])=>{ const ns=o.rows.map(r=>r.nps).filter(n=>n!=null); return {p, sede:o.sede, n:o.rows.length, nps:ns.length?calcNPS(ns):null}; });
-    pArr.sort((a,b)=>(b.nps==null?-999:b.nps)-(a.nps==null?-999:a.nps));
+    const pArr = Object.entries(byProfe).map(([p,o])=>{
+        const ns=o.rows.map(r=>r.nps).filter(n=>n!=null);
+        const cnt={}; o.rows.forEach(r=>{ const m=(r.motivo||'').trim(); if(m) cnt[m]=(cnt[m]||0)+1; });
+        const top=Object.entries(cnt).sort((a,b)=>b[1]-a[1])[0];
+        return {p, sede:o.sede, n:o.rows.length, nps:ns.length?calcNPS(ns):null, motivo: top?`${top[0]} <span style="color:var(--muted);font-size:.75rem;">(${top[1]})</span>`:'—'};
+    });
+    pArr.sort((a,b)=> esBienv ? ((b.nps==null?-999:b.nps)-(a.nps==null?-999:a.nps)) : (b.n-a.n));
+    const headP=document.getElementById('encMTablaProfeHead');
+    if(headP) headP.innerHTML = esBienv
+        ? '<th>Profesional</th><th>Sede</th><th>Respuestas</th><th>NPS</th>'
+        : '<th>Profesional</th><th>Sede</th><th>Bajas</th><th>Motivo principal</th>';
     let pb='';
     pArr.forEach(x=>{
         const npsCol=x.nps==null?'#94a3b8':x.nps>=50?'#10b981':x.nps>=30?'#3b82f6':x.nps>=0?'#f59e0b':'#ef4444';
@@ -6996,7 +7026,7 @@ function encMRender(){
         const meta=encProfeMeta(x.p); const inact=meta&&!meta.activo;
         pb+=`<tr style="cursor:pointer;${sel?'background:#eef2ff;':''}${inact?'opacity:.65;':''}" onclick="encMSetProfe('${x.p.replace(/'/g,"\\'")}')">
             <td><b>${x.p}</b>${meta&&meta.kine?' <span style="font-size:.6rem;color:#6366f1;font-weight:700;">KINE</span>':''}${inact?' <span style="font-size:.6rem;color:#94a3b8;font-weight:700;">INACTIVO</span>':''}</td><td>${x.sede}</td><td>${x.n}</td>
-            <td>${esBienv?`<span style="color:${npsCol};font-weight:700;">${x.nps==null?'—':x.nps}</span>`:'—'}</td>
+            <td>${esBienv?`<span style="color:${npsCol};font-weight:700;">${x.nps==null?'—':x.nps}</span>`:x.motivo}</td>
         </tr>`;
     });
     document.getElementById('encMTablaProfe').innerHTML = pb || '<tr><td colspan="4" style="text-align:center;color:var(--muted);padding:18px;">Sin datos</td></tr>';
