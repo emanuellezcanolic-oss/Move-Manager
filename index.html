@@ -6320,7 +6320,26 @@ async function aeBuildDashboardCanvas(mesIdx){
 
     try { await document.fonts.load('700 60px Poppins'); await document.fonts.load('400 24px Poppins'); await document.fonts.ready; } catch(e){}
 
-    const W=1080,H=2020, cv=document.createElement('canvas'); cv.width=W; cv.height=H;
+    // Datos históricos de la propia página (altas 2025 vs 2026) para el gráfico comparativo
+    if(sede!=='Bariloche' && !planData){ try{ await cargarTodo(); }catch(e){} }
+    if(sede==='Bariloche' && (!bariData || !bariData.length)){ try{ await loadBariloche(); }catch(e){} }
+    const hist = (function(){
+        const idBP={belen:'belu',fer:'fer',enzo:'enzo',javi:'javi',agus:'agus'};
+        const t=idBP[aeProfeActual];
+        if(t && planData && planData.profes){
+            const p=planData.profes.find(pp=>String(pp.nombre||'').toLowerCase().startsWith(t));
+            if(p) return {a25:p.histAltas25||[], a26:p.histAltas26||[], hay25:true};
+        }
+        const idB={camila:'camila',carla:'carla',estefania:'estef'};
+        const tb=idB[aeProfeActual];
+        if(tb && bariData && bariData.length){
+            const p=bariData.find(pp=>String(pp.nombre||'').toLowerCase().startsWith(tb));
+            if(p) return {a25:[], a26:p.histAltas||[], hay25:false};
+        }
+        return {a25:[], a26:[], hay25:false};
+    })();
+
+    const W=1080,H=2200, cv=document.createElement('canvas'); cv.width=W; cv.height=H;
     const x=cv.getContext('2d');
     const BG='#0f1420',CARD='#1a2132',CARD2='#1f293d',ACC='#10b981',WHITE='#fff',MUT='#94a3b8',RED='#ef4444',AMB='#f59e0b';
     const font=(s)=>`${s}px Poppins, 'Segoe UI', system-ui, sans-serif`;
@@ -6401,36 +6420,97 @@ async function aeBuildDashboardCanvas(mesIdx){
     });
 
     // ── Gráfico evolución mensual (retención vs deserción + altas) ──
+    // ══ GRÁFICO 1 — Evolución de retención y deserción ══
     const GRID='#2a344a';
     const mm = datos.meses;
     const retS = datos.objetivos.map(o=>o.retencion||0);
     const desS = datos.objetivos.map(o=>o.desercion||0);
-    const nueS = datos.objetivos.map((o,i)=>{ const mv=(datos.movimiento&&datos.movimiento[i])||{}; return mv.nuevos!=null?mv.nuevos:(mv.luciaTani||0); });
-    let ycg=yy+10; txt('Evolución mensual',60,ycg+30,'700',36,WHITE);
-    txt('(mes seleccionado resaltado)',352,ycg+30,'400',20,MUT);
-    let lx=60, ly=ycg+50;
-    x.fillStyle=ACC; x.beginPath(); x.arc(lx+9,ly+13,9,0,7); x.fill(); txt('Retención',lx+28,ly+18,'500',22,MUT); lx+=210;
-    x.fillStyle=RED; x.beginPath(); x.arc(lx+9,ly+13,9,0,7); x.fill(); txt('Deserción',lx+28,ly+18,'500',22,MUT); lx+=210;
-    x.strokeStyle='#7891aa'; x.lineWidth=3; for(let g=lx;g<lx+34;g+=9){ x.beginPath(); x.moveTo(g,ly+13); x.lineTo(g+4,ly+13); x.stroke(); } txt('Meta ret. 90%',lx+44,ly+18,'500',22,MUT);
-    const px0=110,px1=W-60,py0=ly+54,py1=py0+250;
-    const n=mm.length, sx=i=> n>1? px0+(px1-px0)*i/(n-1) : (px0+px1)/2, sy=v=> py1-(py1-py0)*v/100;
-    if(mesIdx>=0 && mesIdx<n){ const gx2=sx(mesIdx); x.strokeStyle='rgba(16,185,129,.35)'; x.lineWidth=3; x.beginPath(); x.moveTo(gx2,py0-6); x.lineTo(gx2,py1); x.stroke(); }
+
+    let ycg=yy+6;
+    rr(60,ycg,W-120,382,18,'#151c2b');
+    txt('Evolución de retención y deserción',86,ycg+42,'700',32,WHITE);
+    let lx=86, ly=ycg+62;
+    x.fillStyle=ACC; x.beginPath(); x.arc(lx+8,ly+12,8,0,7); x.fill(); txt('Retención',lx+24,ly+18,'500',20,MUT); lx+=180;
+    x.fillStyle=RED; x.beginPath(); x.arc(lx+8,ly+12,8,0,7); x.fill(); txt('Deserción',lx+24,ly+18,'500',20,MUT); lx+=180;
+    x.strokeStyle='#7891aa'; x.lineWidth=3; for(let g=lx;g<lx+30;g+=9){ x.beginPath(); x.moveTo(g,ly+12); x.lineTo(g+4,ly+12); x.stroke(); } txt('Meta ret. 90%',lx+40,ly+18,'500',20,MUT);
+
+    const px0=136,px1=W-90,py0=ly+50,py1=py0+230;
+    const n=mm.length, sx=i=> n>1? px0+(px1-px0)*i/(n-1) : (px0+px1)/2, sy=v=> py1-(py1-py0)*Math.max(0,Math.min(100,v))/100;
+    if(mesIdx>=0 && mesIdx<n){ const gx2=sx(mesIdx); x.strokeStyle='rgba(16,185,129,.30)'; x.lineWidth=28; x.beginPath(); x.moveTo(gx2,py0-8); x.lineTo(gx2,py1); x.stroke(); }
     x.strokeStyle=GRID; x.lineWidth=2;
-    [0,25,50,75,100].forEach(g=>{ const gy2=sy(g); x.beginPath(); x.moveTo(px0,gy2); x.lineTo(px1,gy2); x.stroke(); txt(String(g),px0-12,gy2+6,'400',18,MUT,'right'); });
+    [0,25,50,75,100].forEach(g=>{ const gy2=sy(g); x.beginPath(); x.moveTo(px0,gy2); x.lineTo(px1,gy2); x.stroke(); txt(g+'%',px0-14,gy2+6,'400',17,MUT,'right'); });
     const ym=sy(90); x.strokeStyle='#7891aa'; x.lineWidth=2; for(let xd=px0;xd<px1;xd+=18){ x.beginPath(); x.moveTo(xd,ym); x.lineTo(xd+9,ym); x.stroke(); }
-    mm.forEach((m,i)=> txt(m,sx(i),py1+30,i===mesIdx?'700':'500',i===mesIdx?22:20,i===mesIdx?ACC:MUT,'center'));
-    function plot(arr,c){
+    mm.forEach((m,i)=> txt(m,sx(i),py1+30,i===mesIdx?'700':'500',i===mesIdx?21:19,i===mesIdx?ACC:MUT,'center'));
+    function plot(arr,c,fill){
+        // área suave bajo la curva
+        x.beginPath(); arr.forEach((v,i)=>{ const px=sx(i),py=sy(v); i?x.lineTo(px,py):x.moveTo(px,py); });
+        x.lineTo(sx(arr.length-1),py1); x.lineTo(sx(0),py1); x.closePath(); x.fillStyle=fill; x.fill();
         x.strokeStyle=c; x.lineWidth=5; x.lineJoin='round'; x.beginPath();
         arr.forEach((v,i)=>{ const px=sx(i),py=sy(v); i?x.lineTo(px,py):x.moveTo(px,py); }); x.stroke();
-        arr.forEach((v,i)=>{ const px=sx(i),py=sy(v), r=i===mesIdx?12:8; x.fillStyle=BG; x.beginPath(); x.arc(px,py,r,0,7); x.fill(); x.strokeStyle=c; x.lineWidth=i===mesIdx?5:4; x.beginPath(); x.arc(px,py,r,0,7); x.stroke(); });
+        arr.forEach((v,i)=>{ const px=sx(i),py=sy(v), r=i===mesIdx?11:7; x.fillStyle=BG; x.beginPath(); x.arc(px,py,r,0,7); x.fill(); x.strokeStyle=c; x.lineWidth=i===mesIdx?5:4; x.beginPath(); x.arc(px,py,r,0,7); x.stroke(); });
     }
-    plot(retS,ACC); plot(desS,RED);
-    retS.forEach((v,i)=> txt(String(Math.round(v)),sx(i),sy(v)-18,'700',i===mesIdx?21:19,ACC,'center'));
-    desS.forEach((v,i)=> txt(String(Math.round(v)),sx(i),sy(v)-18,'700',i===mesIdx?21:19,RED,'center'));
-    // barras altas
-    let yn=py1+52; txt('Altas del mes (socios nuevos)',60,yn+20,'500',24,MUT);
-    const by0=yn+38, by1=by0+78, maxn=Math.max(...nueS,1), bw=54;
-    nueS.forEach((v,i)=>{ const cx2=sx(i), bh=(by1-by0)*v/maxn*0.8; const cbar=i===mesIdx?ACC:(v>=35?'#0d9668':v>=15?AMB:'#5a6e8c'); rr(cx2-bw/2,by1-bh,bw,Math.max(3,bh),8,cbar); txt(String(v),cx2,by1-bh-10,'700',i===mesIdx?23:21,i===mesIdx?ACC:WHITE,'center'); });
+    plot(retS,ACC,'rgba(16,185,129,.10)'); plot(desS,RED,'rgba(239,68,68,.10)');
+    // etiquetas: arriba del punto, salvo que se salga del área (ahí van abajo)
+    function lbl(arr,c,prefUp){
+        arr.forEach((v,i)=>{
+            const py=sy(v); let ly2 = prefUp ? py-17 : py+28;
+            if(prefUp && ly2 < py0+14) ly2 = py+28;
+            if(!prefUp && ly2 > py1-2) ly2 = py-17;
+            txt(String(Math.round(v)),sx(i),ly2,'700',i===mesIdx?20:18,c,'center');
+        });
+    }
+    lbl(retS,ACC,true); lbl(desS,RED,false);
+
+    // ══ GRÁFICO 2 — Ingresos históricos: 2025 vs 2026 ══
+    const yh=ycg+382+22;
+    rr(60,yh,W-120,352,18,'#151c2b');
+    txt('Ingresos históricos  ·  altas por mes',86,yh+42,'700',32,WHITE);
+
+    const a26=hist.a26||[], a25=hist.a25||[];
+    const hasta = Math.min(mesIdx, 11);
+    const t26 = a26.slice(0,hasta+1).reduce((s,v)=>s+(v||0),0);
+    const t25 = a25.slice(0,hasta+1).reduce((s,v)=>s+(v||0),0);
+    if(hist.hay25 && t25>0){
+        const dif=t26-t25, pct=Math.round(dif/t25*100), cc=dif>=0?ACC:RED;
+        const rt=`${t26} vs ${t25}`;
+        txt(rt,W-86,yh+38,'700',26,WHITE,'right');
+        txt(`acum. ENE–${mm[hasta]||''}   ${dif>=0?'+':''}${pct}%`,W-86,yh+64,'600',19,cc,'right');
+    } else if(t26>0){
+        txt(`${t26} altas`,W-86,yh+38,'700',26,WHITE,'right');
+        txt(`acum. ENE–${mm[hasta]||''}`,W-86,yh+64,'600',19,MUT,'right');
+    }
+
+    let hx=86, hy=yh+72;
+    if(hist.hay25){ rr(hx,hy+4,16,16,4,'#94a3b8'); txt('2025',hx+26,hy+18,'500',20,MUT); hx+=120; }
+    rr(hx,hy+4,16,16,4,ACC); txt('2026',hx+26,hy+18,'500',20,MUT);
+    if(!hist.hay25) txt('Sede nueva en 2026 — sin base de comparación 2025',hx+110,hy+18,'400',18,'#6b7c94');
+
+    const hb0=hy+46, hb1=hb0+186;
+    const serieMax=Math.max(1,...a26.slice(0,12).map(v=>v||0),...(hist.hay25?a25.slice(0,12).map(v=>v||0):[0]));
+    const nb=Math.max(1,Math.min(12,Math.max(a26.length,a25.length,mm.length)));
+    const slot=(px1-px0)/nb;
+    x.strokeStyle=GRID; x.lineWidth=2; x.beginPath(); x.moveTo(px0,hb1); x.lineTo(px1,hb1); x.stroke();
+    if(!a26.some(v=>v>0) && !a25.some(v=>v>0)){
+        txt('Sin datos históricos disponibles',W/2,hb0+100,'500',24,MUT,'center');
+    } else {
+        for(let i=0;i<nb;i++){
+            const cxm=px0+slot*(i+0.5);
+            const v26=a26[i]||0, v25=hist.hay25?(a25[i]||0):0;
+            const bw2 = hist.hay25 ? Math.min(26,slot*0.34) : Math.min(46,slot*0.6);
+            const gap  = hist.hay25 ? 3 : 0;
+            if(hist.hay25){
+                const h25=(hb1-hb0)*v25/serieMax;
+                if(v25>0){ rr(cxm-bw2-gap, hb1-h25, bw2, Math.max(3,h25), 5, '#5a6e8c'); txt(String(v25),cxm-bw2/2-gap,hb1-h25-9,'600',15,'#8b9cb5','center'); }
+                const h26=(hb1-hb0)*v26/serieMax;
+                if(v26>0){ rr(cxm+gap, hb1-h26, bw2, Math.max(3,h26), 5, i===mesIdx?ACC:'#0d9668'); txt(String(v26),cxm+bw2/2+gap,hb1-h26-9,'700',16,i===mesIdx?ACC:WHITE,'center'); }
+            } else {
+                const h26=(hb1-hb0)*v26/serieMax;
+                if(v26>0){ rr(cxm-bw2/2, hb1-h26, bw2, Math.max(3,h26), 6, i===mesIdx?ACC:'#0d9668'); txt(String(v26),cxm,hb1-h26-9,'700',16,i===mesIdx?ACC:WHITE,'center'); }
+            }
+            const lb=(mm[i]||['ENE','FEB','MAR','ABR','MAY','JUN','JUL','AGO','SEP','OCT','NOV','DIC'][i]||'');
+            txt(lb,cxm,hb1+26,i===mesIdx?'700':'500',i===mesIdx?18:16,i===mesIdx?ACC:MUT,'center');
+        }
+    }
 
     // Footer
     const yf=H-58; x.fillStyle=CARD2; x.fillRect(60,yf,W-120,3);
