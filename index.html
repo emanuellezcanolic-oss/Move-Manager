@@ -2230,33 +2230,18 @@ function renderBariMesKpis(m) {
 }
 
 // ══ RENDER ESTADO DEL GYM ══
-function renderEstado() {
-    const SEDES_ORDER = ['El Bolsón','Lago Puelo','Bariloche'];
-    const bySedeMap = {};
-
-    // Detect current month: last idx where any profe has altas26 > 5
+// Construye, para cada profesional, las métricas mensuales de "Estado del Gym"
+// (activos hoy, altas del mes, altas del mes anterior, % deserción y su promedio YTD).
+// Única fuente de verdad: la usan tanto la página nativa (renderEstado) como el
+// Informe (Resumen General), para que ambas muestren siempre el mismo número.
+function estGymBuild(){
     let mesIdx = 0;
     if (planData) {
         for (let i = MESES.length - 1; i >= 0; i--) {
             if (planData.profes.some(p => (p.histAltas26[i]||0) > 5)) { mesIdx = i; break; }
         }
-        // No pasar del mes calendario actual (evita meses futuros con altas pre-cargadas)
         mesIdx = Math.min(mesIdx, new Date().getMonth());
-        planData.profes.forEach(p => {
-            const sede = getSede(p.nombre);
-            const des  = (p.histDeserc26[mesIdx]  || 0) * 100;
-            const desP = mesIdx > 0 ? (p.histDeserc26[mesIdx-1] || 0) * 100 : null;
-            const alt  = p.histAltas26[mesIdx] || 0;
-            const alt25= p.histAltas25[mesIdx] || 0;
-            const ytdArr = p.histDeserc26.slice(0, mesIdx+1).filter(v=>v>0);
-            const ytd  = ytdArr.length ? ytdArr.reduce((a,b)=>a+b,0)/ytdArr.length*100 : 0;
-            if (!bySedeMap[sede]) bySedeMap[sede] = [];
-            bySedeMap[sede].push({ nombre: p.nombre.split(' ')[0], activos: p.activos,
-                des, desP, alt, alt25, ytd, sede });
-        });
     }
-
-    // Bariloche: prefer mesIdx from planData; fallback to local detection with threshold >3
     let bMesIdx = mesIdx;
     if (!planData) {
         for (let i = MESES.length - 1; i >= 0; i--) {
@@ -2264,16 +2249,35 @@ function renderEstado() {
         }
         bMesIdx = Math.min(bMesIdx, new Date().getMonth());
     }
+    const list = [];
+    if (planData) planData.profes.forEach(p => {
+        const sede = getSede(p.nombre);
+        const des  = (p.histDeserc26[mesIdx]  || 0) * 100;
+        const desP = mesIdx > 0 ? (p.histDeserc26[mesIdx-1] || 0) * 100 : null;
+        const alt  = p.histAltas26[mesIdx] || 0;
+        const altPrev = mesIdx > 0 ? (p.histAltas26[mesIdx-1] || 0) : null;
+        const alt25= p.histAltas25[mesIdx] || 0;
+        const ytdArr = p.histDeserc26.slice(0, mesIdx+1).filter(v=>v>0);
+        const ytd  = ytdArr.length ? ytdArr.reduce((a,b)=>a+b,0)/ytdArr.length*100 : 0;
+        list.push({ nombre: p.nombre.split(' ')[0], activos: p.activos, des, desP, alt, altPrev, alt25, ytd, sede });
+    });
     bariData.forEach(p => {
         const des  = (p.histDeserc[bMesIdx]  || 0) * 100;
         const desP = bMesIdx > 0 ? (p.histDeserc[bMesIdx-1] || 0) * 100 : null;
         const alt  = p.histAltas[bMesIdx] || 0;
+        const altPrev = bMesIdx > 0 ? (p.histAltas[bMesIdx-1] || 0) : null;
         const ytdArr = p.histDeserc.slice(0, bMesIdx+1).filter(v=>v>0);
         const ytd  = ytdArr.length ? ytdArr.reduce((a,b)=>a+b,0)/ytdArr.length*100 : 0;
-        if (!bySedeMap['Bariloche']) bySedeMap['Bariloche'] = [];
-        bySedeMap['Bariloche'].push({ nombre: p.nombre.split(' ')[0], activos: p.activos,
-            des, desP, alt, alt25: 0, ytd, sede: 'Bariloche' });
+        list.push({ nombre: p.nombre.split(' ')[0], activos: p.activos, des, desP, alt, altPrev, alt25: 0, ytd, sede: 'Bariloche' });
     });
+    return { mesIdx, bMesIdx, list };
+}
+
+function renderEstado() {
+    const SEDES_ORDER = ['El Bolsón','Lago Puelo','Bariloche'];
+    const { mesIdx, bMesIdx, list } = estGymBuild();
+    const bySedeMap = {};
+    list.forEach(p => { (bySedeMap[p.sede] = bySedeMap[p.sede] || []).push(p); });
 
     const sem = d => d < 15 ? {color:'#10b981',label:'Bajo control'} :
                      d < 25 ? {color:'#f59e0b',label:'Moderada'} :
@@ -2298,6 +2302,28 @@ function renderEstado() {
             const col  = diff >= 0 ? '#10b981' : '#ef4444';
             vs25 = `<div class="estado-vs2025"><i class="fas fa-exchange-alt"></i> vs 2025: <strong style="color:${col}">${diff>=0?'+':''}${diff} altas (${pct>=0?'+':''}${pct}%)</strong></div>`;
         }
+        // ── Lectura estadística: comparativa vs cierre del mes anterior + altas necesarias para sostener el número ──
+        const activos = p.activos||0;
+        const yaRenovaron = p.alt||0;
+        const faltanRenovar = Math.max(0, activos - yaRenovaron);
+        let cmpTxt = '';
+        if (p.altPrev != null && p.altPrev > 0) {
+            const diff = activos - p.altPrev;
+            const pct  = Math.round(diff / p.altPrev * 100);
+            const col  = diff >= 0 ? '#10b981' : '#ef4444';
+            cmpTxt = `<div>vs cierre <b>${MESES[mi-1]}</b> (${p.altPrev}): <b style="color:${col}">${diff>=0?'+':''}${diff}</b> <span style="color:${col}">(${pct>=0?'+':''}${pct}%)</span> — compara el padrón de hoy con el cierre del mes anterior.</div>`;
+        }
+        let necesitaTxt = '';
+        if (p.ytd > 0 && activos > 0) {
+            const necesita = Math.ceil(activos * (p.ytd/100));
+            necesitaTxt = `<div>Con <b>${p.ytd.toFixed(0)}%</b> de baja promedio (YTD), necesita sumar <b>~${necesita}</b> alta${necesita===1?'':'s'} para sostener ${activos} socios el próximo mes.</div>`;
+        }
+        const statInfo = `<div class="estado-stat-info" style="margin-top:8px;padding-top:7px;border-top:1px dashed var(--border);font-size:.66rem;line-height:1.6;color:var(--muted);">
+            <div><b style="color:var(--text)">${activos}</b> activos hoy = socios entrenando ahora (techo aprox. del mes si no entran altas nuevas).</div>
+            <div><b style="color:var(--text)">${yaRenovaron}</b> de esos ya renovaron/pagaron este mes${faltanRenovar>0?`; <b style="color:#f59e0b">${faltanRenovar}</b> todavía tienen que renovar estos días`:''}.</div>
+            ${cmpTxt}
+            ${necesitaTxt}
+        </div>`;
         return `<div class="estado-card2">
           <div class="estado-card2-header">
             <div class="estado-dot" style="background:${s.color};box-shadow:0 0 8px ${s.color}88"></div>
@@ -2313,6 +2339,7 @@ function renderEstado() {
             ${tendHTML}
           </div>
           ${vs25}
+          ${statInfo}
         </div>`;
     };
 
@@ -6588,14 +6615,21 @@ async function informeGenerar(){
 
     // ── ESTADO DEL GYM: semáforo de deserción por profesional ──
     const infSem = d => d<15 ? {c:'#10b981',cls:'inf-g',lbl:'Bajo control'} : d<25 ? {c:'#f59e0b',cls:'inf-y',lbl:'Moderada'} : {c:'#ef4444',cls:'inf-r',lbl:'Crítica'};
+    const eg = estGymBuild();   // misma fuente/cálculo que la página nativa Estado del Gym
+    const INF_LIVE_NAME = {belen:'Belu', fer:'Fer', enzo:'Enzo', javi:'Javi', agus:'Agus', camila:'Camila', carla:'Carla', estefania:'Estefanía'};
     H += `<h2><i class="fas fa-traffic-light"></i> Estado del Gym — Semáforo de deserción por profesional</h2>`;
     H += `<div class="inf-muted" style="font-size:.78rem;margin-bottom:6px;">Deserción del cierre de <b>${gMesNombre}</b> · 🟢 &lt;15% · 🟡 15–25% · 🔴 &gt;25% · tendencia vs mes previo.</div>`;
+    H += `<div class="inf-muted" style="font-size:.68rem;line-height:1.6;margin-bottom:10px;background:#f8fafc;border-radius:6px;padding:6px 10px;">
+        <b>Cómo se lee:</b> <i>Socios (activos liq.)</i> = socios ya renovados/pagados este mes (suele ser menor al padrón real, ver nota más arriba).
+        <i>Vs cierre ant.</i> compara el padrón de hoy con el padrón al cierre del mes anterior.
+        <i>Necesita altas</i> = cuántos socios nuevos hacen falta este mes para sostener el número actual de activos, dado el % de baja promedio del año (activos × %baja, redondeado hacia arriba).
+    </div>`;
     INF_SEDES_ORDER.forEach(sede=>{
         const ids = INF_PROFE_IDS.filter(id=>INF_SEDE[id]===sede);
         let rows='';
         ids.forEach(id=>{
             const p=infProfe[id];
-            if(!p.o){ rows+=`<tr><td><b>${p.nombre}</b></td><td colspan="4" class="inf-muted">sin datos</td></tr>`; return; }
+            if(!p.o){ rows+=`<tr><td><b>${p.nombre}</b></td><td colspan="6" class="inf-muted">sin datos</td></tr>`; return; }
             const des=p.o.desercion; const sem=infSem(des);
             let tend='<span class="inf-muted">—</span>';
             if(p.oPrev && p.oPrev.desercion!=null){
@@ -6603,15 +6637,31 @@ async function informeGenerar(){
                 if(Math.abs(diff)>=0.5){ const tc=diff>0?'#ef4444':'#10b981'; tend=`<span style="color:${tc};font-weight:700;">${diff>0?'↑':'↓'} ${Math.abs(diff).toFixed(1)}%</span> <span class="inf-muted" style="font-size:.7rem;">vs ${p.mesPrev}</span>`; }
                 else tend='<span class="inf-muted">estable</span>';
             }
+            // Comparativa vs cierre mes anterior + altas necesarias (misma fuente que la página nativa)
+            const eItem = eg.list.find(x=>x.nombre===INF_LIVE_NAME[id] && x.sede===sede);
+            let cmpCell = '<span class="inf-muted">—</span>', necesitaCell = '<span class="inf-muted">—</span>';
+            if(eItem){
+                if(eItem.altPrev!=null && eItem.altPrev>0){
+                    const diff = eItem.activos - eItem.altPrev;
+                    const pct = Math.round(diff/eItem.altPrev*100);
+                    const col = diff>=0?'#10b981':'#ef4444';
+                    cmpCell = `<span style="color:${col};font-weight:700;">${diff>=0?'+':''}${diff} (${pct>=0?'+':''}${pct}%)</span>`;
+                }
+                if(eItem.ytd>0 && eItem.activos>0){
+                    necesitaCell = '~'+Math.ceil(eItem.activos*(eItem.ytd/100));
+                }
+            }
             rows+=`<tr>
                 <td><b>${p.nombre}</b></td>
                 <td><span class="${sem.cls}">● ${sem.lbl}</span></td>
                 <td style="color:${sem.c};font-weight:700;">${des.toFixed(1)}%</td>
                 <td>${tend}</td>
                 <td>${p.o.activos} <span class="inf-muted" style="font-size:.7rem;">activos liq.</span></td>
+                <td>${cmpCell}</td>
+                <td>${necesitaCell}</td>
             </tr>`;
         });
-        H += `<h3>${sede}</h3><table><thead><tr><th>Profesional</th><th>Estado</th><th>Deserción</th><th>Tendencia</th><th>Socios</th></tr></thead><tbody>${rows}</tbody></table>`;
+        H += `<h3>${sede}</h3><table><thead><tr><th>Profesional</th><th>Estado</th><th>Deserción</th><th>Tendencia</th><th>Socios</th><th>Vs cierre ant.</th><th>Necesita altas</th></tr></thead><tbody>${rows}</tbody></table>`;
     });
 
     INF_SEDES_ORDER.forEach(sede=>{
