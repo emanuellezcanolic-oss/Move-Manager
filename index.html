@@ -6597,7 +6597,7 @@ async function informeGenerar(){
         ids.forEach(id=>{
             const p=infProfe[id];
             if(!p.o){ rows+=`<tr><td><b>${p.nombre}</b></td><td colspan="4" class="inf-muted">sin datos</td></tr>`; return; }
-            const des=p.o.desercion; const s=infSem(des);
+            const des=p.o.desercion; const sem=infSem(des);
             let tend='<span class="inf-muted">—</span>';
             if(p.oPrev && p.oPrev.desercion!=null){
                 const diff=des-p.oPrev.desercion;
@@ -6606,13 +6606,13 @@ async function informeGenerar(){
             }
             rows+=`<tr>
                 <td><b>${p.nombre}</b></td>
-                <td><span class="${s.cls}">● ${s.lbl}</span></td>
-                <td style="color:${s.c};font-weight:700;">${des.toFixed(1)}%</td>
+                <td><span class="${sem.cls}">● ${sem.lbl}</span></td>
+                <td style="color:${sem.c};font-weight:700;">${des.toFixed(1)}%</td>
                 <td>${tend}</td>
                 <td>${p.o.activos} <span class="inf-muted" style="font-size:.7rem;">activos liq.</span></td>
             </tr>`;
         });
-        H += `<h3>${sede}</h3><table><thead><tr><th>Profesional</th><th>Estado</th><th>Deserción ${''}</th><th>Tendencia</th><th>Socios</th></tr></thead><tbody>${rows}</tbody></table>`;
+        H += `<h3>${sede}</h3><table><thead><tr><th>Profesional</th><th>Estado</th><th>Deserción</th><th>Tendencia</th><th>Socios</th></tr></thead><tbody>${rows}</tbody></table>`;
     });
 
     INF_SEDES_ORDER.forEach(sede=>{
