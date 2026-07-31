@@ -123,16 +123,15 @@ function renderProfeEnSede(p, prefix) {
     set(prefix+'PnDeserc', p.nombre);
     line('ch'+prefix.charAt(0).toUpperCase()+prefix.slice(1)+'ProfAltas', MESES,
         [{l:'Altas 2025',d:p.histAltas25,c:'#94a3b8'},{l:'Altas 2026',d:p.histAltas26,c:'#10b981'}]);
-    // Deserción: 2026 y, si existe, la del profe equivalente de 2025 (según VS_PAIRS)
+    // Deserción: 2026 y, si existe, la del profe equivalente de 2025 (misma hoja de métricas)
     const setsDes = [];
     const nom26 = p.nombre.split(' ')[0];
-    const par = VS_PAIRS.find(v => normNom(v.n26) === normNom(nom26));
-    let d25 = null;
-    if (par && deserc25) {
-        const k = normNom(par.n25);
-        d25 = deserc25[k] || deserc25[Object.keys(deserc25).find(x => x.startsWith(k) || k.startsWith(x)) || ''] || null;
+    const par = (metricsData && metricsData.vs) ? metricsData.vs.find(v => normNom(v.n26) === normNom(nom26)) : null;
+    // los % pueden venir como fracción (0.25) o ya en porcentaje (25) → normalizamos
+    const aPct = arr => { const mx = Math.max(...arr.map(v=>Math.abs(v||0))); const f = mx<=1.5 ? 100 : 1; return arr.map(v=>+(((v||0)*f)).toFixed(1)); };
+    if (par && par.deseRc25 && par.deseRc25.some(v => v > 0)) {
+        setsDes.push({l:'% Deserc 2025 ('+par.n25+')', d:aPct(par.deseRc25), c:'#94a3b8'});
     }
-    if (d25) setsDes.push({l:'% Deserc 2025 ('+par.n25+')', d:d25, c:'#94a3b8'});
     setsDes.push({l:'% Deserc 2026', d:p.histDeserc26.map(v=>+(v*100).toFixed(1)), c:'#ef4444'});
     line('ch'+prefix.charAt(0).toUpperCase()+prefix.slice(1)+'ProfDeserc', MESES, setsDes);
     const a26=p.histAltas26.reduce((a,b)=>a+b,0), a25=p.histAltas25.reduce((a,b)=>a+b,0);
