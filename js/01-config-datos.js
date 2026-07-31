@@ -42,11 +42,11 @@ const SHEET_METRICS_GID = '1303962381';
 // Sección 1 (sheet 2-9): Altas2025=row4→ri3, Altas2026=row5→ri4, %Deserc2026=row9→ri8
 // Sección +1 cada 10 filas (9 datos + 1 vacía)
 const VS_PAIRS = [
-    {n26:'Belu',  ri26:4,  riD26:8,  n25:'Fran',  ri25:3,  sede:'El Bolsón'},
-    {n26:'Fer',   ri26:13, riD26:17, n25:'Belu',  ri25:12, sede:'El Bolsón'},
-    {n26:'Enzo',  ri26:22, riD26:26, n25:'Enzo',  ri25:21, sede:'El Bolsón'},
-    {n26:'Javi',  ri26:31, riD26:35, n25:'Luz',   ri25:30, sede:'Lago Puelo'},
-    {n26:'Agus',  ri26:40, riD26:44, n25:'Facu',  ri25:39, sede:'Lago Puelo'},
+    {n26:'Belu',  ri26:4,  riD26:8,  riD25:7,  n25:'Fran',  ri25:3,  sede:'El Bolsón'},
+    {n26:'Fer',   ri26:13, riD26:17, riD25:16, n25:'Belu',  ri25:12, sede:'El Bolsón'},
+    {n26:'Enzo',  ri26:22, riD26:26, riD25:25, n25:'Enzo',  ri25:21, sede:'El Bolsón'},
+    {n26:'Javi',  ri26:31, riD26:35, riD25:34, n25:'Luz',   ri25:30, sede:'Lago Puelo'},
+    {n26:'Agus',  ri26:40, riD26:44, riD25:43, n25:'Facu',  ri25:39, sede:'Lago Puelo'},
 ];
 
 // Intercept Google gviz format
@@ -61,76 +61,11 @@ let CH = {}, planData = null, wData = [], cData = [], bariData = [], metricsData
 function setVsMonth(idx) { vsMonth = idx; renderVersus(); }
 
 // cargarTodo with 10s safety timeout
-// ── Deserción 2025 por profesional (hoja "Planillas 2025") ──
-// Se lee por ETIQUETA (columna A = profe, columna B = "% DESERCIÓN"), no por número de fila,
-// así aguanta cambios de layout. Si no encuentra la fila, queda vacío y el gráfico no dibuja 2025.
-let deserc25 = null;
-function _fetchDeserc25(hoja, reqId){
-    return new Promise(resolve=>{
-        const timer=setTimeout(()=>{ delete _sheetCBs[reqId]; resolve(null); },12000);
-        _sheetCBs[reqId]=r=>{ clearTimeout(timer); resolve(parseDeserc25(r)); };
-        const s=document.createElement('script');
-        s.onerror=()=>{ clearTimeout(timer); delete _sheetCBs[reqId]; resolve(null); };
-        s.src=`https://docs.google.com/spreadsheets/d/${SHEET_METRICS_ID}/gviz/tq?tqx=out:json;reqId:${reqId}&headers=0&sheet=${encodeURIComponent(hoja)}`;
-        document.body.appendChild(s);
-    });
-}
-async function loadDeserc25(){
-    const hojas=['Planillas 2025','Planillas2025','PLANILLAS 2025','Planilla 2025'];
-    for(let i=0;i<hojas.length;i++){
-        const r = await _fetchDeserc25(hojas[i], 'deserc25_'+i);
-        if(r && Object.keys(r).length){ deserc25=r; return; }
-    }
-    deserc25 = deserc25 || {};
-}
 function normNom(s){ return String(s||'').normalize('NFD').replace(/[\u0300-\u036f]/g,'').trim().toLowerCase(); }
-function parseDeserc25(json){
-    const out={};
-    try{
-        const rows=(json&&json.table&&json.table.rows)||[];
-        const cel=(ri,ci)=>{ const c=rows[ri]&&rows[ri].c&&rows[ri].c[ci]; return c?c:null; };
-        const txt=(ri,ci)=>{ const c=cel(ri,ci); if(!c) return ''; return String(c.v!=null?c.v:(c.f||'')); };
-        const MES=['ENE','FEB','MAR','ABR','MAY','JUN','JUL','AGO','SEP','OCT','NOV','DIC'];
-        // fila de encabezado de meses (la que tenga 6 o más nombres de mes)
-        let colMes=null;
-        for(let ri=0; ri<rows.length && !colMes; ri++){
-            const idx={}, nc=((rows[ri]&&rows[ri].c)||[]).length;
-            for(let ci=0; ci<nc; ci++){
-                const mi=MES.indexOf(txt(ri,ci).trim().toUpperCase());
-                if(mi>=0 && idx[mi]==null) idx[mi]=ci;
-            }
-            if(Object.keys(idx).length>=6) colMes=idx;
-        }
-        if(!colMes) return out;
-        let prof=null;
-        for(let ri=0; ri<rows.length; ri++){
-            const a=txt(ri,0).trim();
-            if(a) prof=a;                                  // celda combinada: se arrastra el último nombre
-            const b=txt(ri,1).trim().toLowerCase().replace(/\s+/g,'');
-            if(!prof || !b) continue;
-            if(b.indexOf('deserc')<0) continue;            // buscamos la fila "% DESERCIÓN"
-            const arr=new Array(12).fill(0);
-            let hay=0;
-            for(let m=0;m<12;m++){
-                if(colMes[m]==null) continue;
-                const c=cel(ri,colMes[m]); if(!c) continue;
-                let val=null;
-                if(typeof c.v==='number') val = (c.f && String(c.f).indexOf('%')>=0) ? c.v*100 : c.v;
-                else if(c.f) val = parseFloat(String(c.f).replace('%','').replace(',','.'));
-                if(val==null||!isFinite(val)) continue;
-                if(val<0||val>100) continue;               // descarta valores que no son porcentaje
-                arr[m]=+val.toFixed(1); hay++;
-            }
-            if(hay>=3) out[normNom(prof)]=arr;             // solo si realmente hay datos
-        }
-    }catch(e){}
-    return out;
-}
-
 async function cargarTodo() {
     const hideTimer = setTimeout(() => { document.getElementById('loadOv').style.display='none'; }, 3000);
     document.getElementById('refreshIco').className = 'fas fa-spinner fa-spin';
-    await Promise.allSettled([loadPlanillas(), loadEncuestas(), loadBariloche(), loadMetrics(), loadDeserc25()]);
+    await Promise.allSettled([loadPlanillas(), loadEncuestas(), loadBariloche(), loadMetrics()]);
     clearTimeout(hideTimer);
     // loadPlanillas dibuja apenas llegan sus datos; deserc25 puede llegar después → redibujamos con todo listo
     if (planData) { try { renderPlanillas(); } catch(e){} }
@@ -291,7 +226,8 @@ function parseMetrics(json) {
         const altas25 = Array.from({length:12}, (_, i) => cell(p.ri25, i+1));
         const altas26 = Array.from({length:12}, (_, i) => cell(p.ri26, i+1));
         const deseRc26 = Array.from({length:12}, (_, i) => cell(p.riD26, i+1));
-        return { n26: p.n26, n25: p.n25, sede: p.sede, altas25, altas26, deseRc26 };
+        const deseRc25 = Array.from({length:12}, (_, i) => cell(p.riD25, i+1));
+        return { n26: p.n26, n25: p.n25, sede: p.sede, altas25, altas26, deseRc26, deseRc25 };
     });
     return { currentMesIdx, vs };
 }
