@@ -465,7 +465,15 @@ function renderEstadoStats(){
 
       <div class="estado-sede-card" style="margin-top:16px;border-left:3px solid #14b8a6;">
         <div class="estado-sede-title"><i class="fas fa-seedling"></i> Retención por cohorte · los primeros 90 días</div>
-        <div style="font-size:.78rem;color:var(--muted);margin-bottom:12px;">Sigue a los socios según el mes en que entraron y mide cuántos siguen activos al mes 1, 2 y 3. Es el indicador que mejor anticipa el valor de un socio en el negocio del fitness.</div>
+        <div style="font-size:.78rem;color:var(--muted);margin-bottom:10px;">Sigue a los socios según el mes en que entraron y mide cuántos siguen activos al mes 1, 2 y 3. Es el indicador que mejor anticipa el valor de un socio en el negocio del fitness.</div>
+        <details style="margin-bottom:12px;">
+          <summary style="cursor:pointer;font-size:.76rem;font-weight:600;color:#14b8a6;">Cómo se calcula y cómo leerlo</summary>
+          <div style="font-size:.76rem;color:var(--muted);line-height:1.55;margin-top:8px;padding-left:4px;border-left:2px solid var(--border);padding:8px 0 8px 12px;">
+            <b>Cómo se calcula.</b> Recorre socio por socio las 8 planillas, fila por fila. El <b>mes de alta</b> de cada socio es el primer mes en que aparece con un recepcionista cargado (Lucía/Tani, Ara/Azul o Keila/Rubén según la sede), que es como se registra un ingreso nuevo. A partir de ahí mira los meses siguientes de esa misma fila: si en alguno figura <b>BAJA</b>, ese socio se considera perdido desde ese mes; si no, sigue activo. Todos los que entraron el mismo mes forman una <b>cohorte</b>.<br><br>
+            <b>Un detalle importante:</b> solo se cuentan los meses que ya ocurrieron y están cargados. Si un socio entró en junio, todavía no tiene mes 3, así que <u>no</u> se lo cuenta como perdido: queda fuera de ese cálculo. Por eso el porcentaje del mes 3 se calcula solo sobre los socios que realmente llegaron a cumplir 3 meses (en estadística se llama censura, y evita que las cohortes nuevas hundan el número).<br><br>
+            <b>Cómo leerlo.</b> Cada línea es un mes de ingreso y arranca en 100%. Lo que importa no es tanto el número final sino <b>dónde cae la curva</b>: si el escalón grande está entre el alta y el mes 1, el problema es la primera experiencia (onboarding); si cae entre el mes 2 y el 3, el problema es el seguimiento. Como referencia del sector boutique, a los 90 días se considera bueno arriba del 70%. Solo se muestran cohortes con 5 altas o más, para que el porcentaje sea representativo.
+          </div>
+        </details>
         <div id="cohorteBox"><button class="aud-btn-save" onclick="cohorteAnalisis(this)" style="font-size:.82rem;padding:9px 18px;"><i class="fas fa-play"></i> Analizar cohortes</button></div>
       </div>
 
@@ -556,7 +564,8 @@ async function cohorteAnalisis(btn){
     const box=document.getElementById('cohorteBox');
     btn.disabled=true; btn.innerHTML='<i class="fas fa-spinner fa-spin"></i> Leyendo planillas…';
     const ids=Object.keys(AE_SHEETS||{});
-    // cohortes[mesAlta] = {n, vivos:[m1,m2,m3]}
+    const maxMes = estadoMi;   // último mes con datos cargados
+    // cohortes[mesAlta] = {n, obs:[m1,m2,m3], vivos:[m1,m2,m3]}
     const coh={};
     await Promise.all(ids.map(async id=>{
         try{
@@ -572,14 +581,16 @@ async function cohorteAnalisis(btn){
                 let alta=-1;
                 for(let m=0;m<est.length;m++){ if(est[m] && RECEP.has(est[m])){ alta=m; break; } }
                 if(alta<0) continue;
-                coh[alta]=coh[alta]||{n:0,vivos:[0,0,0]};
+                // mes en que dio de baja (si dio)
+                let bajaMes=-1;
+                for(let m=alta+1;m<est.length;m++){ if(est[m]==='BAJA'){ bajaMes=m; break; } }
+                coh[alta]=coh[alta]||{n:0,obs:[0,0,0],vivos:[0,0,0]};
                 coh[alta].n++;
                 for(let k=1;k<=3;k++){
-                    const m=alta+k; if(m>=est.length) break;
-                    const v=est[m];
-                    if(!v) continue;                       // mes sin cargar: no cuenta
-                    if(v==='BAJA') continue;               // se fue
-                    coh[alta].vivos[k-1]++;
+                    const m=alta+k;
+                    if(m>maxMes || m>=est.length) break;   // ese mes todavía no ocurrió/no se cargó → no se cuenta
+                    coh[alta].obs[k-1]++;                   // socio observable en ese horizonte
+                    if(bajaMes<0 || bajaMes>m) coh[alta].vivos[k-1]++;
                 }
             }
         }catch(e){}
@@ -590,11 +601,10 @@ async function cohorteAnalisis(btn){
 
     const r1=[],r2=[],r3=[];
     meses.forEach(m=>{ const c=coh[m];
-        r1.push(+(c.vivos[0]/c.n*100).toFixed(1));
-        r2.push(+(c.vivos[1]/c.n*100).toFixed(1));
-        r3.push(+(c.vivos[2]/c.n*100).toFixed(1));
+        const tasa=k=> c.obs[k]>0 ? +(c.vivos[k]/c.obs[k]*100).toFixed(1) : null;
+        r1.push(tasa(0)); r2.push(tasa(1)); r3.push(tasa(2));
     });
-    const prom=a=>{ const v=a.filter(x=>x>0); return v.length?+(v.reduce((x,y)=>x+y,0)/v.length).toFixed(1):0; };
+    const prom=a=>{ const v=a.filter(x=>x!=null); return v.length?+(v.reduce((x,y)=>x+y,0)/v.length).toFixed(1):0; };
     const p1=prom(r1), p2=prom(r2), p3=prom(r3);
 
     box.innerHTML=`<div style="height:280px;position:relative;"><canvas id="statCohorte"></canvas></div>
