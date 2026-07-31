@@ -123,8 +123,18 @@ function renderProfeEnSede(p, prefix) {
     set(prefix+'PnDeserc', p.nombre);
     line('ch'+prefix.charAt(0).toUpperCase()+prefix.slice(1)+'ProfAltas', MESES,
         [{l:'Altas 2025',d:p.histAltas25,c:'#94a3b8'},{l:'Altas 2026',d:p.histAltas26,c:'#10b981'}]);
-    line('ch'+prefix.charAt(0).toUpperCase()+prefix.slice(1)+'ProfDeserc', MESES,
-        [{l:'% Deserc 2026',d:p.histDeserc26.map(v=>+(v*100).toFixed(1)),c:'#ef4444'}]);
+    // Deserción: 2026 y, si existe, la del profe equivalente de 2025 (según VS_PAIRS)
+    const setsDes = [];
+    const nom26 = p.nombre.split(' ')[0];
+    const par = VS_PAIRS.find(v => normNom(v.n26) === normNom(nom26));
+    let d25 = null;
+    if (par && deserc25) {
+        const k = normNom(par.n25);
+        d25 = deserc25[k] || deserc25[Object.keys(deserc25).find(x => x.startsWith(k) || k.startsWith(x)) || ''] || null;
+    }
+    if (d25) setsDes.push({l:'% Deserc 2025 ('+par.n25+')', d:d25, c:'#94a3b8'});
+    setsDes.push({l:'% Deserc 2026', d:p.histDeserc26.map(v=>+(v*100).toFixed(1)), c:'#ef4444'});
+    line('ch'+prefix.charAt(0).toUpperCase()+prefix.slice(1)+'ProfDeserc', MESES, setsDes);
     const a26=p.histAltas26.reduce((a,b)=>a+b,0), a25=p.histAltas25.reduce((a,b)=>a+b,0);
     const pct = a25>0?Math.round(((a26-a25)/a25)*100):0;
     const firstName = p.nombre.split(' ')[0];
