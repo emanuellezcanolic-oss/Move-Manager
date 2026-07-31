@@ -440,6 +440,19 @@ function renderEstadoStats(){
           <div id="statHomog"></div>
         </div>
       </div>
+      <div class="estado-sede-card" style="margin-top:16px;border-left:3px solid #f59e0b;">
+        <div class="estado-sede-title"><i class="fas fa-calendar-check"></i> Deserción año contra año · anticipación de bajas</div>
+        <div style="font-size:.78rem;color:var(--muted);margin-bottom:10px;">Compara 2026 contra 2025 mes a mes y detecta los meses de riesgo históricos, para preparar acciones antes de que lleguen. Bolsón y Lago Puelo (Bariloche es sede nueva, sin base 2025).</div>
+        <div id="yoySedeBtns" style="display:flex;gap:6px;margin-bottom:12px;flex-wrap:wrap;"></div>
+        <div style="height:290px;position:relative;"><canvas id="statYoY"></canvas></div>
+        <div id="statYoYConc" style="margin-top:10px;font-size:.84rem;line-height:1.45;"></div>
+        <div style="font-size:.72rem;font-weight:700;text-transform:uppercase;letter-spacing:.5px;color:var(--muted);margin:18px 0 8px;"><i class="fas fa-user-group" style="margin-right:5px;color:#f59e0b;"></i>Comparativa por profesional</div>
+        <div id="statYoYTabla"></div>
+        <div style="font-size:.72rem;font-weight:700;text-transform:uppercase;letter-spacing:.5px;color:var(--muted);margin:18px 0 8px;"><i class="fas fa-triangle-exclamation" style="margin-right:5px;color:#ef4444;"></i>Meses de riesgo (estacionalidad 2025)</div>
+        <div style="height:230px;position:relative;"><canvas id="statEstac"></canvas></div>
+        <div id="statEstacConc" style="margin-top:10px;font-size:.84rem;line-height:1.45;"></div>
+      </div>
+
       <div class="estado-sede-card" style="margin-top:16px;border-left:3px solid #8b5cf6;">
         <div class="estado-sede-title"><i class="fas fa-hourglass-half"></i> Re-evaluaciones → Deserción: ¿impacto inmediato o con retraso?</div>
         <div style="font-size:.78rem;color:var(--muted);margin-bottom:12px;">Mide si reevaluar socios reduce las bajas en el mismo mes o recién 1-2 meses después. Correlación con retraso, juntando los 8 profes para tener más muestra.</div>
@@ -448,7 +461,117 @@ function renderEstadoStats(){
 
       <div style="font-size:.68rem;color:var(--muted);margin-top:10px;padding:0 4px;"><i class="fas fa-circle-info"></i> Regresión lineal por mínimos cuadrados sobre ENE–${MESES[estadoMi]}. Las conclusiones se generan solas según los números.</div>`;
 
-    statDrawTrend(); statRenderOutliers(); statRenderHomog();
+    statDrawTrend(); statRenderOutliers(); statRenderHomog(); statRenderYoY();
+}
+
+// ══ Deserción año contra año + estacionalidad (anticipación de bajas) ══
+let yoySede='Todas', statYoYChart=null, statEstacChart=null;
+function yoyPct(arr){ if(!arr) return null; const mx=Math.max(...arr.map(v=>Math.abs(v||0))); const f=mx<=1.5?100:1; return arr.map(v=>+(((v||0)*f)).toFixed(1)); }
+function yoyProfes(){
+    if(!metricsData || !metricsData.vs) return [];
+    return metricsData.vs
+        .filter(p => yoySede==='Todas' || p.sede===yoySede)
+        .map(p => ({...p, d25: yoyPct(p.deseRc25), d26: yoyPct(p.deseRc26)}));
+}
+function yoyProm(lista, campo, mes){
+    const vals = lista.map(p => p[campo] && p[campo][mes]).filter(v => v!=null && v>0);
+    return vals.length ? +(vals.reduce((a,b)=>a+b,0)/vals.length).toFixed(1) : null;
+}
+function statSetYoYSede(s){ yoySede=s; statRenderYoY(); }
+
+function statRenderYoY(){
+    const cv=document.getElementById('statYoY'); if(!cv||!window.Chart) return;
+    const btns=document.getElementById('yoySedeBtns');
+    if(btns) btns.innerHTML=['Todas','El Bolsón','Lago Puelo'].map(s=>
+        `<button onclick="statSetYoYSede('${s}')" style="border:none;cursor:pointer;font-family:inherit;font-size:.78rem;font-weight:600;padding:6px 14px;border-radius:8px;${yoySede===s?'background:#f59e0b;color:#fff;':'background:var(--bg);color:var(--muted);'}">${s}</button>`).join('');
+
+    const lista=yoyProfes();
+    if(!lista.length || !lista.some(p=>p.d25)){
+        document.getElementById('statYoYConc').innerHTML='<span style="color:var(--muted)">Todavía no hay datos de 2025 cargados para comparar.</span>';
+        document.getElementById('statYoYTabla').innerHTML=''; return;
+    }
+    const s25=MESES.map((_,m)=>yoyProm(lista,'d25',m));
+    const s26=MESES.map((_,m)=> m<=estadoMi ? yoyProm(lista,'d26',m) : null);
+
+    if(statYoYChart) statYoYChart.destroy();
+    statYoYChart=new Chart(cv,{type:'line',
+        data:{labels:MESES,datasets:[
+            {label:'Deserción 2025',data:s25,borderColor:'#94a3b8',backgroundColor:'#94a3b822',borderWidth:3,tension:.3,pointRadius:4,spanGaps:true},
+            {label:'Deserción 2026',data:s26,borderColor:'#ef4444',backgroundColor:'#ef444422',borderWidth:3,tension:.3,pointRadius:5,spanGaps:true}
+        ]},
+        plugins:[SUBTLE_LABELS],
+        options:{responsive:true,maintainAspectRatio:false,layout:{padding:{top:14}},
+            plugins:{legend:{position:'bottom',labels:{usePointStyle:true,boxWidth:9,font:{size:11}}},
+                tooltip:{callbacks:{label:c=>`${c.dataset.label}: ${c.parsed.y}%`}}},
+            scales:{y:{beginAtZero:true,ticks:{callback:v=>v+'%'},grid:{color:'rgba(120,130,150,.15)'}},x:{grid:{display:false}}}}});
+
+    // Conclusión YTD
+    const v25=[],v26=[];
+    for(let m=0;m<=estadoMi;m++){ if(s25[m]!=null) v25.push(s25[m]); if(s26[m]!=null) v26.push(s26[m]); }
+    const p25=v25.length?v25.reduce((a,b)=>a+b,0)/v25.length:null;
+    const p26=v26.length?v26.reduce((a,b)=>a+b,0)/v26.length:null;
+    let conc='';
+    if(p25!=null && p26!=null){
+        const dif=+(p26-p25).toFixed(1), mejor=dif<0;
+        const col=mejor?'#10b981':'#ef4444';
+        conc=`<b>${yoySede}</b> · acumulado ENE–${MESES[estadoMi]}: la deserción promedio de <b>2026 es ${p26.toFixed(1)}%</b> contra <b>${p25.toFixed(1)}%</b> en 2025 → <b style="color:${col}">${dif>0?'+':''}${dif} puntos</b> (${mejor?'mejoró':'empeoró'}).`;
+        // meses donde empeoró
+        const peores=[];
+        for(let m=0;m<=estadoMi;m++){ if(s25[m]!=null&&s26[m]!=null&&s26[m]-s25[m]>=3) peores.push(`${MESES[m]} (+${(s26[m]-s25[m]).toFixed(1)})`); }
+        if(peores.length) conc+=` Los meses que se despegaron para peor: <b>${peores.join(' · ')}</b>.`;
+        else if(mejor) conc+=` Ningún mes empeoró más de 3 puntos: la mejora es pareja, no un golpe de suerte de un mes puntual.`;
+    }
+    document.getElementById('statYoYConc').innerHTML=conc;
+
+    // Tabla por profesional
+    let filas='';
+    lista.forEach(p=>{
+        const a25=[],a26=[];
+        for(let m=0;m<=estadoMi;m++){ if(p.d25&&p.d25[m]>0)a25.push(p.d25[m]); if(p.d26&&p.d26[m]>0)a26.push(p.d26[m]); }
+        const m25=a25.length?a25.reduce((a,b)=>a+b,0)/a25.length:null;
+        const m26=a26.length?a26.reduce((a,b)=>a+b,0)/a26.length:null;
+        const dif=(m25!=null&&m26!=null)?+(m26-m25).toFixed(1):null;
+        const col=dif==null?'var(--muted)':dif<0?'#10b981':dif>0?'#ef4444':'var(--muted)';
+        filas+=`<div style="display:flex;justify-content:space-between;align-items:center;padding:7px 0;border-bottom:1px solid var(--border);font-size:.82rem;">
+            <span><b>${p.n26}</b> <span style="color:var(--muted);font-size:.7rem;">${p.sede} · vs ${p.n25} 2025</span></span>
+            <span style="font-family:monospace;">${m25!=null?m25.toFixed(1)+'%':'—'} → <b>${m26!=null?m26.toFixed(1)+'%':'—'}</b>
+                <span style="color:${col};font-weight:700;margin-left:6px;">${dif==null?'':(dif>0?'▲ +':'▼ ')+Math.abs(dif)}</span></span>
+        </div>`;
+    });
+    document.getElementById('statYoYTabla').innerHTML=filas;
+
+    statDrawEstacional(lista, s25);
+}
+
+function statDrawEstacional(lista, s25){
+    const cv=document.getElementById('statEstac'); if(!cv||!window.Chart) return;
+    const vals=s25.map(v=>v==null?0:v);
+    const conDato=vals.filter(v=>v>0);
+    if(!conDato.length){ document.getElementById('statEstacConc').innerHTML=''; return; }
+    const media=conDato.reduce((a,b)=>a+b,0)/conDato.length;
+    const cols=vals.map(v=> v===0?'#e2e8f0' : v>=media*1.2?'#ef4444' : v>=media?'#f59e0b' : '#10b981');
+    if(statEstacChart) statEstacChart.destroy();
+    statEstacChart=new Chart(cv,{type:'bar',
+        data:{labels:MESES,datasets:[{data:vals,backgroundColor:cols,borderRadius:6}]},
+        plugins:[SUBTLE_LABELS],
+        options:{responsive:true,maintainAspectRatio:false,layout:{padding:{top:14}},
+            plugins:{legend:{display:false},title:{display:true,text:`Deserción 2025 por mes · media anual ${media.toFixed(1)}%`,font:{size:11},color:'#94a3b8'},
+                tooltip:{callbacks:{label:c=>c.parsed.y+'% de deserción'}}},
+            scales:{y:{beginAtZero:true,ticks:{callback:v=>v+'%'},grid:{color:'rgba(120,130,150,.15)'}},x:{grid:{display:false}}}}});
+
+    // Conclusión: meses críticos y qué se viene
+    const criticos=vals.map((v,m)=>({m,v})).filter(o=>o.v>=media*1.2).sort((a,b)=>b.v-a.v);
+    let txt='';
+    if(criticos.length){
+        txt=`Históricamente los meses de mayor fuga en <b>${yoySede}</b> son <b style="color:#ef4444">${criticos.slice(0,3).map(o=>MESES[o.m]+' ('+o.v.toFixed(1)+'%)').join(' · ')}</b>, contra una media anual de ${media.toFixed(1)}%.`;
+        const prox=(estadoMi+1)%12;
+        const esCritico=criticos.some(o=>o.m===prox);
+        if(esCritico) txt+=` <b style="color:#ef4444">Atención: el mes que viene (${MESES[prox]}) fue crítico en 2025 (${vals[prox].toFixed(1)}%).</b> Conviene adelantar re-evaluaciones y contacto con socios en riesgo <b>este mes</b>, no cuando ya se estén yendo.`;
+        else txt+=` El mes que viene (${MESES[prox]}) no figura entre los críticos, es buen momento para trabajar fidelización de cara a los que sí lo son.`;
+    } else {
+        txt=`No hay meses que se despeguen claramente de la media (${media.toFixed(1)}%): la deserción de 2025 fue pareja a lo largo del año.`;
+    }
+    document.getElementById('statEstacConc').innerHTML=txt;
 }
 
 function statSetMetric(m){ statMetric=m; document.querySelectorAll('[data-sk]').forEach(b=>{const on=b.getAttribute('data-sk')===m; b.style.background=on?'var(--accent)':'var(--bg)'; b.style.color=on?'#fff':'var(--muted)';}); statDrawTrend(); statRenderOutliers(); statRenderHomog(); }
