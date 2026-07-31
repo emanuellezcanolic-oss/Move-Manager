@@ -221,13 +221,31 @@ function parseMetrics(json) {
     for (let ci = 1; ci <= 12; ci++) {
         if (cell(4, ci) > 5) currentMesIdx = ci - 1;
     }
+    // Mapa por ETIQUETA de la columna A: "% Deserc — Fran 2025", "% Deserc — Belu 2026", etc.
+    // Es más robusto que el número de fila: si la planilla se mueve, sigue encontrándolo.
+    const etiq = (ri) => { try { const c = rows[ri] && rows[ri].c && rows[ri].c[0]; return c ? String(c.v != null ? c.v : (c.f || '')) : ''; } catch(e){ return ''; } };
+    const desPorEtiqueta = {};
+    for (let ri = 0; ri < rows.length; ri++) {
+        const t = etiq(ri).trim();
+        if (!t || t.toLowerCase().indexOf('deserc') < 0) continue;
+        const m = t.match(/([A-Za-zÁÉÍÓÚÑáéíóúñ]+)\s*(20\d\d)/);
+        if (!m) continue;
+        const clave = normNom(m[1]) + '_' + m[2];
+        const vals = Array.from({length:12}, (_, i) => cell(ri, i+1));
+        if (vals.some(v => v > 0)) desPorEtiqueta[clave] = vals;
+    }
     // VS pairs: extract 12 months of altas25, altas26, and current %deseRc
     const vs = VS_PAIRS.map(p => {
         const altas25 = Array.from({length:12}, (_, i) => cell(p.ri25, i+1));
         const altas26 = Array.from({length:12}, (_, i) => cell(p.ri26, i+1));
         const deseRc26 = Array.from({length:12}, (_, i) => cell(p.riD26, i+1));
-        const deseRc25 = Array.from({length:12}, (_, i) => cell(p.riD25, i+1));
-        return { n26: p.n26, n25: p.n25, sede: p.sede, altas25, altas26, deseRc26, deseRc25 };
+        // 2025: primero por etiqueta; si no aparece, por índice de fila
+        let deseRc25 = desPorEtiqueta[normNom(p.n25) + '_2025'];
+        if (!deseRc25 && p.riD25 != null) {
+            const porFila = Array.from({length:12}, (_, i) => cell(p.riD25, i+1));
+            if (porFila.some(v => v > 0)) deseRc25 = porFila;
+        }
+        return { n26: p.n26, n25: p.n25, sede: p.sede, altas25, altas26, deseRc26, deseRc25: deseRc25 || null };
     });
     return { currentMesIdx, vs };
 }
