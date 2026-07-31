@@ -453,6 +453,22 @@ function renderEstadoStats(){
         <div id="statEstacConc" style="margin-top:10px;font-size:.84rem;line-height:1.45;"></div>
       </div>
 
+      <div class="estado-sede-card" style="margin-top:16px;border-left:3px solid #0ea5e9;">
+        <div class="estado-sede-title"><i class="fas fa-filter-circle-xmark"></i> Bajas evitables vs no evitables</div>
+        <div style="font-size:.78rem;color:var(--muted);margin-bottom:12px;">Separa las bajas que MOVE puede evitar (horarios, cupos, expectativas, atención) de las que no dependen del gimnasio (mudanza, salud, trabajo). Sobre las evitables es donde rinde el esfuerzo.</div>
+        <div style="display:grid;grid-template-columns:repeat(auto-fit,minmax(260px,1fr));gap:16px;align-items:start;">
+          <div style="height:230px;position:relative;"><canvas id="statEvit"></canvas></div>
+          <div id="statEvitDetalle"></div>
+        </div>
+        <div id="statEvitConc" style="margin-top:12px;font-size:.84rem;line-height:1.45;"></div>
+      </div>
+
+      <div class="estado-sede-card" style="margin-top:16px;border-left:3px solid #14b8a6;">
+        <div class="estado-sede-title"><i class="fas fa-seedling"></i> Retención por cohorte · los primeros 90 días</div>
+        <div style="font-size:.78rem;color:var(--muted);margin-bottom:12px;">Sigue a los socios según el mes en que entraron y mide cuántos siguen activos al mes 1, 2 y 3. Es el indicador que mejor anticipa el valor de un socio en el negocio del fitness.</div>
+        <div id="cohorteBox"><button class="aud-btn-save" onclick="cohorteAnalisis(this)" style="font-size:.82rem;padding:9px 18px;"><i class="fas fa-play"></i> Analizar cohortes</button></div>
+      </div>
+
       <div class="estado-sede-card" style="margin-top:16px;border-left:3px solid #8b5cf6;">
         <div class="estado-sede-title"><i class="fas fa-hourglass-half"></i> Re-evaluaciones → Deserción: ¿impacto inmediato o con retraso?</div>
         <div style="font-size:.78rem;color:var(--muted);margin-bottom:12px;">Mide si reevaluar socios reduce las bajas en el mismo mes o recién 1-2 meses después. Correlación con retraso, juntando los 8 profes para tener más muestra.</div>
@@ -461,7 +477,163 @@ function renderEstadoStats(){
 
       <div style="font-size:.68rem;color:var(--muted);margin-top:10px;padding:0 4px;"><i class="fas fa-circle-info"></i> Regresión lineal por mínimos cuadrados sobre ENE–${MESES[estadoMi]}. Las conclusiones se generan solas según los números.</div>`;
 
-    statDrawTrend(); statRenderOutliers(); statRenderHomog(); statRenderYoY();
+    statDrawTrend(); statRenderOutliers(); statRenderHomog(); statRenderYoY(); statRenderEvitables();
+}
+
+// ══ PUNTO 5 · Bajas evitables vs no evitables ══
+// Clasifica cada baja mirando motivo Y comentario (el comentario suele revelar la causa real).
+const BAJA_CAUSAS = [
+    {id:'horarios', label:'Horarios y cupos', evitable:true,  kw:['horario','turno','cupo','se lleno','se llenó','lugar','reserv','agenda','completo','falta de tiempo','no consegu','llena','lleno']},
+    {id:'expect',   label:'Expectativas / resultados', evitable:true, kw:['expectativa','no cumpl','resultado','esperaba','aburr','rutina','monoton','variar','no me gust']},
+    {id:'atencion', label:'Atención y seguimiento', evitable:true, kw:['atencion','atención','trato','profe','entrenador','seguimiento','acompan','acompañ','caso omiso','no me ayud']},
+    {id:'insta',    label:'Instalaciones y equipamiento', evitable:true, kw:['equipamiento','maquina','máquina','pesas','vestuario','limpi','musica','música','espacio','calor','frio','frío','app','aplicacion','aplicación']},
+    {id:'compe',    label:'Se fue a otra opción', evitable:true, kw:['otra opcion','otra opción','otro gimnasio','prefer','competencia','cambio de gimnasio']},
+    {id:'precio',   label:'Precio / valor percibido', evitable:null, kw:['econom','precio','costo','caro','plata','pagar','suscripcion','suscripción']},
+    {id:'salud',    label:'Lesión o salud', evitable:false, kw:['lesion','lesión','salud','enferm','embaraz','operac','cirug','dolor','medic']},
+    {id:'mudanza',  label:'Mudanza / trabajo / estudio', evitable:false, kw:['mudan','ciudad','viaj','trabajo','laboral','estudi','facultad','cambio de rutina']},
+    {id:'vacas',    label:'Vacaciones / pausa', evitable:false, kw:['vacacion','vacación','pausa','receso','verano','invierno']},
+];
+function clasificarBaja(motivo, comentario){
+    const t = ((motivo||'') + ' ' + (comentario||'')).toLowerCase()
+        .normalize('NFD').replace(/[\u0300-\u036f]/g,'');
+    for(const c of BAJA_CAUSAS){
+        if(c.kw.some(k => t.indexOf(k.normalize('NFD').replace(/[\u0300-\u036f]/g,'')) >= 0)) return c;
+    }
+    return {id:'otros', label:'Sin clasificar', evitable:null, kw:[]};
+}
+let statEvitChart=null;
+function statRenderEvitables(){
+    const cv=document.getElementById('statEvit'); if(!cv||!window.Chart) return;
+    const todas=[].concat(
+        (typeof cData!=='undefined'&&cData)?cData:[],
+        (typeof bbData!=='undefined'&&bbData)?bbData:[]
+    );
+    const det=document.getElementById('statEvitDetalle'), conc=document.getElementById('statEvitConc');
+    if(!todas.length){ if(conc) conc.innerHTML='<span style="color:var(--muted)">Todavía no hay encuestas de baja cargadas.</span>'; return; }
+
+    const cuenta={}; let ev=0, no=0, parc=0;
+    todas.forEach(r=>{
+        const c=clasificarBaja(getCol(r,'motivo'), getCol(r,'coment')||getCol(r,'sugerenc')||getCol(r,'mejorar'));
+        cuenta[c.id]=cuenta[c.id]||{label:c.label, n:0, evitable:c.evitable};
+        cuenta[c.id].n++;
+        if(c.evitable===true) ev++; else if(c.evitable===false) no++; else parc++;
+    });
+    const total=todas.length;
+
+    if(statEvitChart) statEvitChart.destroy();
+    statEvitChart=new Chart(cv,{type:'doughnut',
+        data:{labels:['Evitables','Parcialmente evitables','No evitables'],
+            datasets:[{data:[ev,parc,no],backgroundColor:['#ef4444','#f59e0b','#10b981'],borderWidth:2,borderColor:'#fff'}]},
+        options:{responsive:true,maintainAspectRatio:false,
+            plugins:{legend:{position:'bottom',labels:{usePointStyle:true,boxWidth:9,font:{size:11}}},
+                tooltip:{callbacks:{label:c=>`${c.label}: ${c.parsed} bajas (${Math.round(c.parsed/total*100)}%)`}}}}});
+
+    const orden=Object.values(cuenta).sort((a,b)=>b.n-a.n);
+    det.innerHTML=orden.map(c=>{
+        const col=c.evitable===true?'#ef4444':c.evitable===false?'#10b981':'#f59e0b';
+        const et=c.evitable===true?'evitable':c.evitable===false?'no evitable':'a revisar';
+        return `<div style="display:flex;justify-content:space-between;align-items:center;padding:6px 0;border-bottom:1px solid var(--border);font-size:.82rem;">
+            <span><span style="display:inline-block;width:8px;height:8px;border-radius:50%;background:${col};margin-right:7px;"></span>${c.label} <span style="color:var(--muted);font-size:.68rem;">${et}</span></span>
+            <b>${c.n}</b> <span style="color:var(--muted);font-size:.72rem;">(${Math.round(c.n/total*100)}%)</span>
+        </div>`;
+    }).join('');
+
+    const pctEv=Math.round(ev/total*100);
+    const topEv=orden.filter(c=>c.evitable===true)[0];
+    let txt=`Sobre <b>${total} bajas</b> registradas, <b style="color:#ef4444">${pctEv}% son evitables</b> por MOVE`;
+    if(parc) txt+=` y otro ${Math.round(parc/total*100)}% son de precio/valor, que en el fondo también se trabaja con percepción de valor`;
+    txt+='. ';
+    if(topEv) txt+=`La causa evitable número uno es <b>${topEv.label}</b> (${topEv.n} casos). `;
+    if(pctEv>=40) txt+=`<b>Es mucho: casi la mitad de las bajas se podían prevenir.</b> Ahí está la palanca más grande de retención que tenés hoy.`;
+    else if(pctEv>=20) txt+=`Hay margen real de mejora: una de cada ${Math.round(100/pctEv)} bajas se podía evitar.`;
+    else txt+=`La mayoría de las bajas son por causas externas, que es la mejor señal posible: el servicio no las está provocando.`;
+    conc.innerHTML=txt;
+}
+
+// ══ PUNTO 3 · Retención por cohorte (primeros 90 días) ══
+let cohorteChart=null;
+async function cohorteAnalisis(btn){
+    const box=document.getElementById('cohorteBox');
+    btn.disabled=true; btn.innerHTML='<i class="fas fa-spinner fa-spin"></i> Leyendo planillas…';
+    const ids=Object.keys(AE_SHEETS||{});
+    // cohortes[mesAlta] = {n, vivos:[m1,m2,m3]}
+    const coh={};
+    await Promise.all(ids.map(async id=>{
+        try{
+            const plan=await aeExportCSV(AE_SHEETS[id]);
+            const RECEP = (typeof AE_RECEP_SEDE!=='undefined' && AE_RECEP_SEDE[AE_SEDE[id]]) || AE_RECEP;
+            for(let i=6;i<plan.length;i++){
+                const r=plan[i]; if(!r) continue;
+                if(!/^\d/.test((r[2]||'').trim())) continue;
+                if(!(r[4]||'').trim()) continue;
+                // estado mes a mes
+                const est=AE_MES_COLS.map(c=> (r[c]||'').trim().toUpperCase());
+                // mes de alta = primer mes con recepcionista (socio nuevo)
+                let alta=-1;
+                for(let m=0;m<est.length;m++){ if(est[m] && RECEP.has(est[m])){ alta=m; break; } }
+                if(alta<0) continue;
+                coh[alta]=coh[alta]||{n:0,vivos:[0,0,0]};
+                coh[alta].n++;
+                for(let k=1;k<=3;k++){
+                    const m=alta+k; if(m>=est.length) break;
+                    const v=est[m];
+                    if(!v) continue;                       // mes sin cargar: no cuenta
+                    if(v==='BAJA') continue;               // se fue
+                    coh[alta].vivos[k-1]++;
+                }
+            }
+        }catch(e){}
+    }));
+
+    const meses=Object.keys(coh).map(Number).sort((a,b)=>a-b).filter(m=>coh[m].n>=5);
+    if(!meses.length){ box.innerHTML='<div style="font-size:.85rem;color:var(--muted)">No hay suficientes altas cargadas para armar cohortes todavía.</div>'; return; }
+
+    const r1=[],r2=[],r3=[];
+    meses.forEach(m=>{ const c=coh[m];
+        r1.push(+(c.vivos[0]/c.n*100).toFixed(1));
+        r2.push(+(c.vivos[1]/c.n*100).toFixed(1));
+        r3.push(+(c.vivos[2]/c.n*100).toFixed(1));
+    });
+    const prom=a=>{ const v=a.filter(x=>x>0); return v.length?+(v.reduce((x,y)=>x+y,0)/v.length).toFixed(1):0; };
+    const p1=prom(r1), p2=prom(r2), p3=prom(r3);
+
+    box.innerHTML=`<div style="height:280px;position:relative;"><canvas id="statCohorte"></canvas></div>
+        <div style="display:flex;gap:10px;flex-wrap:wrap;margin-top:12px;">
+            ${[['Mes 1',p1],['Mes 2',p2],['Mes 3 (90 días)',p3]].map(([l,v])=>{
+                const c=v>=80?'#10b981':v>=65?'#f59e0b':'#ef4444';
+                return `<div style="flex:1;min-width:120px;background:var(--bg);border-radius:10px;padding:10px 14px;">
+                    <div style="font-size:.68rem;color:var(--muted);font-weight:600;text-transform:uppercase;">${l}</div>
+                    <div style="font-size:1.5rem;font-weight:800;color:${c};font-family:monospace;">${v}%</div></div>`;}).join('')}
+        </div>
+        <div id="cohorteConc" style="margin-top:12px;font-size:.84rem;line-height:1.45;"></div>`;
+
+    if(cohorteChart) cohorteChart.destroy();
+    cohorteChart=new Chart(document.getElementById('statCohorte'),{type:'line',
+        data:{labels:['Alta','Mes 1','Mes 2','Mes 3'],
+            datasets:meses.map((m,i)=>{
+                const col=ESTADO_PAL[i%8];
+                return {label:MESES[m]+' ('+coh[m].n+')',data:[100,r1[i],r2[i],r3[i]],borderColor:col,backgroundColor:col+'22',borderWidth:2.5,tension:.3,pointRadius:4};
+            })},
+        options:{responsive:true,maintainAspectRatio:false,
+            plugins:{legend:{position:'bottom',labels:{usePointStyle:true,boxWidth:8,font:{size:10}}},
+                title:{display:true,text:'% de socios que siguen activos según el mes en que entraron',font:{size:11},color:'#94a3b8'},
+                tooltip:{callbacks:{label:c=>`${c.dataset.label}: ${c.parsed.y}% activos`}}},
+            scales:{y:{beginAtZero:true,max:105,ticks:{callback:v=>v+'%'},grid:{color:'rgba(120,130,150,.15)'}},x:{grid:{display:false}}}}});
+
+    const caida1=+(100-p1).toFixed(1), caida3=+(100-p3).toFixed(1);
+    let txt=`De cada 100 socios nuevos, a los <b>90 días siguen ${p3}</b>. La caída más fuerte se da `;
+    const c1=100-p1, c2=p1-p2, c3=p2-p3;
+    const mayor=Math.max(c1,c2,c3);
+    txt += mayor===c1 ? `<b style="color:#ef4444">en el primer mes</b> (se van ${caida1} de cada 100).`
+         : mayor===c2 ? `<b style="color:#ef4444">entre el mes 1 y el 2</b>.`
+         : `<b style="color:#ef4444">entre el mes 2 y el 3</b>.`;
+    if(p3>=70) txt+=` Un ${p3}% a 90 días está en el rango bueno para un gimnasio boutique.`;
+    else if(p3>=55) txt+=` Un ${p3}% a 90 días es mejorable: el estándar boutique se ubica cerca del 70%.`;
+    else txt+=` <b>Un ${p3}% a 90 días es bajo</b>: el problema está en el onboarding, no en la captación.`;
+    txt += mayor===c1
+        ? ` Con esa forma de curva, el foco es la <b>primera experiencia</b>: evaluación inicial, objetivo concreto y contacto en la primera semana.`
+        : ` Con esa forma de curva, el foco es el <b>seguimiento del segundo y tercer mes</b>: re-evaluación y cambio de plan antes de que se aburran.`;
+    document.getElementById('cohorteConc').innerHTML=txt;
 }
 
 // ══ Deserción año contra año + estacionalidad (anticipación de bajas) ══
