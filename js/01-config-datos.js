@@ -61,10 +61,70 @@ let CH = {}, planData = null, wData = [], cData = [], bariData = [], metricsData
 function setVsMonth(idx) { vsMonth = idx; renderVersus(); }
 
 // cargarTodo with 10s safety timeout
+// ── Deserción 2025 por profesional (hoja "Planillas 2025") ──
+// Se lee por ETIQUETA (columna A = profe, columna B = "% DESERCIÓN"), no por número de fila,
+// así aguanta cambios de layout. Si no encuentra la fila, queda vacío y el gráfico no dibuja 2025.
+let deserc25 = null;
+function loadDeserc25(){
+    const reqId='deserc25';
+    return new Promise(resolve=>{
+        const fin=()=>{ deserc25 = deserc25 || {}; resolve(); };
+        const timer=setTimeout(()=>{ delete _sheetCBs[reqId]; fin(); },15000);
+        _sheetCBs[reqId]=r=>{ clearTimeout(timer); deserc25=parseDeserc25(r); resolve(); };
+        const s=document.createElement('script');
+        s.onerror=()=>{ clearTimeout(timer); delete _sheetCBs[reqId]; fin(); };
+        s.src=`https://docs.google.com/spreadsheets/d/${SHEET_METRICS_ID}/gviz/tq?tqx=out:json;reqId:${reqId}&headers=0&sheet=${encodeURIComponent('Planillas 2025')}`;
+        document.body.appendChild(s);
+    });
+}
+function normNom(s){ return String(s||'').normalize('NFD').replace(/[\u0300-\u036f]/g,'').trim().toLowerCase(); }
+function parseDeserc25(json){
+    const out={};
+    try{
+        const rows=(json&&json.table&&json.table.rows)||[];
+        const cel=(ri,ci)=>{ const c=rows[ri]&&rows[ri].c&&rows[ri].c[ci]; return c?c:null; };
+        const txt=(ri,ci)=>{ const c=cel(ri,ci); if(!c) return ''; return String(c.v!=null?c.v:(c.f||'')); };
+        const MES=['ENE','FEB','MAR','ABR','MAY','JUN','JUL','AGO','SEP','OCT','NOV','DIC'];
+        // fila de encabezado de meses (la que tenga 6 o más nombres de mes)
+        let colMes=null;
+        for(let ri=0; ri<rows.length && !colMes; ri++){
+            const idx={}, nc=((rows[ri]&&rows[ri].c)||[]).length;
+            for(let ci=0; ci<nc; ci++){
+                const mi=MES.indexOf(txt(ri,ci).trim().toUpperCase());
+                if(mi>=0 && idx[mi]==null) idx[mi]=ci;
+            }
+            if(Object.keys(idx).length>=6) colMes=idx;
+        }
+        if(!colMes) return out;
+        let prof=null;
+        for(let ri=0; ri<rows.length; ri++){
+            const a=txt(ri,0).trim();
+            if(a) prof=a;                                  // celda combinada: se arrastra el último nombre
+            const b=txt(ri,1).trim().toLowerCase().replace(/\s+/g,'');
+            if(!prof || !b) continue;
+            if(b.indexOf('deserc')<0) continue;            // buscamos la fila "% DESERCIÓN"
+            const arr=new Array(12).fill(0);
+            let hay=0;
+            for(let m=0;m<12;m++){
+                if(colMes[m]==null) continue;
+                const c=cel(ri,colMes[m]); if(!c) continue;
+                let val=null;
+                if(typeof c.v==='number') val = (c.f && String(c.f).indexOf('%')>=0) ? c.v*100 : c.v;
+                else if(c.f) val = parseFloat(String(c.f).replace('%','').replace(',','.'));
+                if(val==null||!isFinite(val)) continue;
+                if(val<0||val>100) continue;               // descarta valores que no son porcentaje
+                arr[m]=+val.toFixed(1); hay++;
+            }
+            if(hay>=3) out[normNom(prof)]=arr;             // solo si realmente hay datos
+        }
+    }catch(e){}
+    return out;
+}
+
 async function cargarTodo() {
     const hideTimer = setTimeout(() => { document.getElementById('loadOv').style.display='none'; }, 3000);
     document.getElementById('refreshIco').className = 'fas fa-spinner fa-spin';
-    await Promise.allSettled([loadPlanillas(), loadEncuestas(), loadBariloche(), loadMetrics()]);
+    await Promise.allSettled([loadPlanillas(), loadEncuestas(), loadBariloche(), loadMetrics(), loadDeserc25()]);
     clearTimeout(hideTimer);
     integrarBariEnOverview();
     renderEstado();
