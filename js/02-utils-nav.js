@@ -5,25 +5,32 @@
 const SUBTLE_LABELS = {
     id:'subtleLabels',
     afterDatasetsDraw(chart){
-        const ctx=chart.ctx, esBar=chart.config.type==='bar', multi=chart.data.datasets.length>1;
-        ctx.save();
-        ctx.font='600 10px Inter, system-ui, sans-serif';
-        ctx.textAlign='center';
-        chart.data.datasets.forEach((ds,di)=>{
-            const meta=chart.getDatasetMeta(di);
-            if(meta.hidden) return;
-            const col = esBar ? ds.backgroundColor : ds.borderColor;
-            ctx.fillStyle = (typeof col==='string') ? col : '#64748b';
-            ctx.globalAlpha = .7;
-            meta.data.forEach((pt,i)=>{
-                const v=ds.data[i];
-                if(v==null||v===0||isNaN(v)) return;
-                const abajo = !esBar && multi && di===0;   // 1ra serie abajo, resto arriba → evita choques
-                ctx.textBaseline = abajo?'top':'bottom';
-                ctx.fillText(Math.round(v), pt.x, abajo? pt.y+7 : pt.y-7);
+        try{
+            const ctx=chart.ctx;
+            const tipo=(chart.config&&(chart.config.type||(chart.config._config&&chart.config._config.type)))||'line';
+            const esBar=tipo==='bar', multi=chart.data.datasets.length>1;
+            ctx.save();
+            ctx.font='600 11px Inter, system-ui, sans-serif';
+            ctx.textAlign='center';
+            chart.data.datasets.forEach((ds,di)=>{
+                const meta=chart.getDatasetMeta(di);
+                if(!meta || meta.hidden===true) return;
+                const col = esBar ? ds.backgroundColor : ds.borderColor;
+                ctx.fillStyle = (typeof col==='string') ? col : '#64748b';
+                ctx.globalAlpha = .78;
+                (meta.data||[]).forEach((pt,i)=>{
+                    let v=ds.data[i];
+                    if(v && typeof v==='object') v=v.y;
+                    v=Number(v);
+                    if(!isFinite(v) || v===0) return;
+                    if(!pt || pt.x==null || pt.y==null) return;
+                    const abajo = !esBar && multi && di===0;   // 1ra serie abajo, resto arriba → evita choques
+                    ctx.textBaseline = abajo?'top':'bottom';
+                    ctx.fillText(String(Math.round(v)), pt.x, abajo? pt.y+7 : pt.y-7);
+                });
             });
-        });
-        ctx.restore();
+            ctx.restore();
+        }catch(e){ /* nunca romper el gráfico por una etiqueta */ }
     }
 };
 function line(id,labels,sets){if(CH[id])CH[id].destroy();CH[id]=new Chart(document.getElementById(id),{type:'line',data:{labels,datasets:sets.map(s=>({label:s.l,data:s.d,borderColor:s.c,backgroundColor:s.c+'22',borderWidth:2.5,pointRadius:4,tension:.3,fill:false}))},plugins:[SUBTLE_LABELS],options:{responsive:true,interaction:{mode:'index',intersect:false},layout:{padding:{top:14}},plugins:{legend:{position:'bottom',labels:{boxWidth:11}}},scales:{y:{beginAtZero:true,grid:{color:'#f1f5f9'}},x:{grid:{display:false}}}}});}
