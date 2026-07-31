@@ -2421,7 +2421,7 @@ function renderEstadoStats(){
 
       <div style="display:grid;grid-template-columns:repeat(auto-fit,minmax(320px,1fr));gap:16px;margin-top:16px;">
         <div class="estado-sede-card">
-          <div class="estado-sede-title"><i class="fas fa-crosshairs"></i> Outliers del equipo (z-score)</div>
+          <div class="estado-sede-title"><i class="fas fa-bell-concierge"></i> Campana de Gauss · outliers del equipo (z-score)</div>
           <div id="statOutliers"></div>
         </div>
         <div class="estado-sede-card">
@@ -2505,7 +2505,49 @@ function statRenderOutliers(){
         if(mejor.length) parts.push(`<b style="color:#10b981">${mejor.map(r=>r.n).join(', ')}</b> como referente`);
         conc=`Media del equipo ${m.toFixed(1)}${statUnit()}. ${parts.join(' · ')}.`;
     }
-    el.innerHTML=html+`<div style="margin-top:10px;font-size:.8rem;line-height:1.4;">${conc}</div>`;
+    el.innerHTML=`<div style="font-size:.68rem;color:var(--muted);margin-bottom:2px;">Zona sombreada = ±1σ (comportamiento típico del equipo) · fuera de ±1.5σ se considera outlier</div>`
+        +`<div style="height:190px;position:relative;margin-bottom:10px;"><canvas id="statGauss"></canvas></div>`
+        +html+`<div style="margin-top:10px;font-size:.8rem;line-height:1.4;">${conc}</div>`;
+    statDrawGauss(rows, m, sd);
+}
+
+// Campana de Gauss: distribución del equipo con cada profe ubicado en su z-score
+let statGaussChart=null;
+function statDrawGauss(rows, m, sd){
+    const cv=document.getElementById('statGauss'); if(!cv||!window.Chart) return;
+    if(statGaussChart) statGaussChart.destroy();
+    const dens=z=>Math.exp(-(z*z)/2);
+    const curva=[], core=[];
+    for(let z=-3.2; z<=3.2001; z+=0.1){
+        const zz=Math.round(z*100)/100;
+        curva.push({x:zz, y:+dens(zz).toFixed(4)});
+        core.push({x:zz, y: Math.abs(zz)<=1 ? +dens(zz).toFixed(4) : null});
+    }
+    const pts=rows.map(r=>{
+        const z=Math.max(-3.1,Math.min(3.1,r.z));
+        const out=Math.abs(r.z)>=1.5;
+        const malo = statMetric==='deserc' ? r.z>0 : r.z<0;
+        return {x:+z.toFixed(2), y:+dens(z).toFixed(4), _n:r.n, _v:r.v, _z:r.z, _c: !out?'#94a3b8':(malo?'#ef4444':'#10b981'), _r: out?8:6};
+    });
+    statGaussChart=new Chart(cv,{
+        type:'line',
+        data:{datasets:[
+            {label:'core', data:core, borderColor:'transparent', backgroundColor:'rgba(59,130,246,.13)', fill:'origin', pointRadius:0, tension:.4, spanGaps:false, order:3},
+            {label:'Distribución', data:curva, borderColor:'#64748b', borderWidth:2, pointRadius:0, tension:.4, fill:false, order:2},
+            {type:'scatter', label:'Profes', data:pts, pointRadius:c=>c.raw._r, pointHoverRadius:c=>c.raw._r+3,
+             backgroundColor:c=>c.raw._c, borderColor:'#fff', borderWidth:2, order:1}
+        ]},
+        options:{responsive:true, maintainAspectRatio:false, parsing:false,
+            plugins:{ legend:{display:false},
+                tooltip:{ filter:c=>c.datasetIndex===2,
+                    callbacks:{ title:()=>'', label:c=>{ const r=c.raw; return `${r._n}: ${r._v}${statUnit()}  (z=${r._z>=0?'+':''}${r._z.toFixed(2)})`; } } } },
+            scales:{
+                x:{ type:'linear', min:-3.2, max:3.2,
+                    ticks:{ stepSize:1, font:{size:10},
+                        callback:v=> v===0?`media ${m.toFixed(1)}${statUnit()}` : (Math.abs(v)<=2? (v>0?'+':'')+v+'σ' : '') },
+                    grid:{color:'rgba(120,130,150,.15)'} },
+                y:{ display:false, min:0, max:1.15 } } }
+    });
 }
 
 function statRenderHomog(){
