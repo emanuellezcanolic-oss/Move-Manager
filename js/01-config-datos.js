@@ -65,17 +65,23 @@ function setVsMonth(idx) { vsMonth = idx; renderVersus(); }
 // Se lee por ETIQUETA (columna A = profe, columna B = "% DESERCIÓN"), no por número de fila,
 // así aguanta cambios de layout. Si no encuentra la fila, queda vacío y el gráfico no dibuja 2025.
 let deserc25 = null;
-function loadDeserc25(){
-    const reqId='deserc25';
+function _fetchDeserc25(hoja, reqId){
     return new Promise(resolve=>{
-        const fin=()=>{ deserc25 = deserc25 || {}; resolve(); };
-        const timer=setTimeout(()=>{ delete _sheetCBs[reqId]; fin(); },15000);
-        _sheetCBs[reqId]=r=>{ clearTimeout(timer); deserc25=parseDeserc25(r); resolve(); };
+        const timer=setTimeout(()=>{ delete _sheetCBs[reqId]; resolve(null); },12000);
+        _sheetCBs[reqId]=r=>{ clearTimeout(timer); resolve(parseDeserc25(r)); };
         const s=document.createElement('script');
-        s.onerror=()=>{ clearTimeout(timer); delete _sheetCBs[reqId]; fin(); };
-        s.src=`https://docs.google.com/spreadsheets/d/${SHEET_METRICS_ID}/gviz/tq?tqx=out:json;reqId:${reqId}&headers=0&sheet=${encodeURIComponent('Planillas 2025')}`;
+        s.onerror=()=>{ clearTimeout(timer); delete _sheetCBs[reqId]; resolve(null); };
+        s.src=`https://docs.google.com/spreadsheets/d/${SHEET_METRICS_ID}/gviz/tq?tqx=out:json;reqId:${reqId}&headers=0&sheet=${encodeURIComponent(hoja)}`;
         document.body.appendChild(s);
     });
+}
+async function loadDeserc25(){
+    const hojas=['Planillas 2025','Planillas2025','PLANILLAS 2025','Planilla 2025'];
+    for(let i=0;i<hojas.length;i++){
+        const r = await _fetchDeserc25(hojas[i], 'deserc25_'+i);
+        if(r && Object.keys(r).length){ deserc25=r; return; }
+    }
+    deserc25 = deserc25 || {};
 }
 function normNom(s){ return String(s||'').normalize('NFD').replace(/[\u0300-\u036f]/g,'').trim().toLowerCase(); }
 function parseDeserc25(json){
@@ -126,6 +132,8 @@ async function cargarTodo() {
     document.getElementById('refreshIco').className = 'fas fa-spinner fa-spin';
     await Promise.allSettled([loadPlanillas(), loadEncuestas(), loadBariloche(), loadMetrics(), loadDeserc25()]);
     clearTimeout(hideTimer);
+    // loadPlanillas dibuja apenas llegan sus datos; deserc25 puede llegar después → redibujamos con todo listo
+    if (planData) { try { renderPlanillas(); } catch(e){} }
     integrarBariEnOverview();
     renderEstado();
     renderVersus();
