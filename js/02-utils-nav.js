@@ -1,8 +1,33 @@
 // ══════════════════════════════════════════════════
 // CHART HELPERS — keep exactly
 // ══════════════════════════════════════════════════
-function line(id,labels,sets){if(CH[id])CH[id].destroy();CH[id]=new Chart(document.getElementById(id),{type:'line',data:{labels,datasets:sets.map(s=>({label:s.l,data:s.d,borderColor:s.c,backgroundColor:s.c+'22',borderWidth:2.5,pointRadius:4,tension:.3,fill:false}))},options:{responsive:true,interaction:{mode:'index',intersect:false},plugins:{legend:{position:'bottom',labels:{boxWidth:11}}},scales:{y:{beginAtZero:true,grid:{color:'#f1f5f9'}},x:{grid:{display:false}}}}});}
-function bar(id,labels,sets){if(CH[id])CH[id].destroy();CH[id]=new Chart(document.getElementById(id),{type:'bar',data:{labels,datasets:sets.map(s=>({label:s.l,data:s.d,backgroundColor:s.c+'cc',borderRadius:5,borderSkipped:false}))},options:{responsive:true,plugins:{legend:{position:'bottom',labels:{boxWidth:11}}},scales:{y:{beginAtZero:true,grid:{color:'#f1f5f9'}},x:{grid:{display:false}}}}});}
+// Etiquetas de datos sutiles — plugin propio, se aplica solo a los gráficos que lo piden
+const SUBTLE_LABELS = {
+    id:'subtleLabels',
+    afterDatasetsDraw(chart){
+        const ctx=chart.ctx, esBar=chart.config.type==='bar', multi=chart.data.datasets.length>1;
+        ctx.save();
+        ctx.font='600 10px Inter, system-ui, sans-serif';
+        ctx.textAlign='center';
+        chart.data.datasets.forEach((ds,di)=>{
+            const meta=chart.getDatasetMeta(di);
+            if(meta.hidden) return;
+            const col = esBar ? ds.backgroundColor : ds.borderColor;
+            ctx.fillStyle = (typeof col==='string') ? col : '#64748b';
+            ctx.globalAlpha = .7;
+            meta.data.forEach((pt,i)=>{
+                const v=ds.data[i];
+                if(v==null||v===0||isNaN(v)) return;
+                const abajo = !esBar && multi && di===0;   // 1ra serie abajo, resto arriba → evita choques
+                ctx.textBaseline = abajo?'top':'bottom';
+                ctx.fillText(Math.round(v), pt.x, abajo? pt.y+7 : pt.y-7);
+            });
+        });
+        ctx.restore();
+    }
+};
+function line(id,labels,sets){if(CH[id])CH[id].destroy();CH[id]=new Chart(document.getElementById(id),{type:'line',data:{labels,datasets:sets.map(s=>({label:s.l,data:s.d,borderColor:s.c,backgroundColor:s.c+'22',borderWidth:2.5,pointRadius:4,tension:.3,fill:false}))},plugins:[SUBTLE_LABELS],options:{responsive:true,interaction:{mode:'index',intersect:false},layout:{padding:{top:14}},plugins:{legend:{position:'bottom',labels:{boxWidth:11}}},scales:{y:{beginAtZero:true,grid:{color:'#f1f5f9'}},x:{grid:{display:false}}}}});}
+function bar(id,labels,sets){if(CH[id])CH[id].destroy();CH[id]=new Chart(document.getElementById(id),{type:'bar',data:{labels,datasets:sets.map(s=>({label:s.l,data:s.d,backgroundColor:s.c+'cc',borderRadius:5,borderSkipped:false}))},plugins:[SUBTLE_LABELS],options:{responsive:true,layout:{padding:{top:14}},plugins:{legend:{position:'bottom',labels:{boxWidth:11}}},scales:{y:{beginAtZero:true,grid:{color:'#f1f5f9'}},x:{grid:{display:false}}}}});}
 function barSimple(id,labels,data,colors){if(CH[id])CH[id].destroy();CH[id]=new Chart(document.getElementById(id),{type:'bar',data:{labels,datasets:[{data,backgroundColor:colors,borderRadius:7}]},options:{responsive:true,plugins:{legend:{display:false}},scales:{y:{min:-100,max:100,grid:{color:'#f1f5f9'}},x:{grid:{display:false}}}}});}
 function doughnut(id,data,colors){if(CH[id])CH[id].destroy();CH[id]=new Chart(document.getElementById(id),{type:'doughnut',data:{datasets:[{data,backgroundColor:colors,borderWidth:0}]},options:{cutout:'72%',responsive:true,plugins:{legend:{display:false},tooltip:{enabled:false}}}});}
 function pie(id,labels,data){if(CH[id])CH[id].destroy();const pal=['#6366f1','#10b981','#f59e0b','#ef4444','#8b5cf6','#3b82f6','#f97316','#06b6d4'];CH[id]=new Chart(document.getElementById(id),{type:'pie',data:{labels,datasets:[{data,backgroundColor:pal.slice(0,labels.length)}]},options:{responsive:true,plugins:{legend:{position:'right',labels:{boxWidth:11,font:{size:11}}}}}});}
