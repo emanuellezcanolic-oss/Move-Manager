@@ -327,12 +327,69 @@ function renderEstado() {
         </div>`;
     };
 
+    // ── Serie de altas (ventas) por sede, para el panel de meta ──
+    const sedeAltas = {};
+    if (planData) planData.profes.forEach(p => {
+        const s = getSede(p.nombre);
+        sedeAltas[s] = sedeAltas[s] || new Array(12).fill(0);
+        (p.histAltas26||[]).forEach((v,i)=>{ sedeAltas[s][i] += (v||0); });
+    });
+    bariData.forEach(p => {
+        sedeAltas['Bariloche'] = sedeAltas['Bariloche'] || new Array(12).fill(0);
+        (p.histAltas||[]).forEach((v,i)=>{ sedeAltas['Bariloche'][i] += (v||0); });
+    });
+
+    // Panel: cuánto falta este mes para igualar el promedio y el mejor mes
+    const metaPanel = (sede, mi, profes) => {
+        const serie = sedeAltas[sede]; if (!serie) return '';
+        const activos = profes.reduce((a,p)=>a+(p.activos||0),0);
+        const actual = serie[mi] || 0;
+        const cerrados = [];
+        for (let m=0; m<mi; m++) if (serie[m] > 0) cerrados.push({m, v:serie[m]});
+        if (!cerrados.length) return '';
+        const prom = Math.round(cerrados.reduce((a,b)=>a+b.v,0)/cerrados.length);
+        const mejor = cerrados.reduce((a,b)=> b.v>a.v ? b : a);
+        const faltaProm = Math.max(0, prom - actual);
+        const faltaMejor = Math.max(0, mejor.v - actual);
+        // días del mes en curso
+        const hoy = new Date(), año = 2026;
+        const diasMes = new Date(año, mi+1, 0).getDate();
+        const esMesActual = (hoy.getMonth() === mi);
+        const diaHoy = esMesActual ? hoy.getDate() : diasMes;
+        const restan = Math.max(0, diasMes - diaHoy);
+        const ritmoActual = diaHoy > 0 ? actual/diaHoy : 0;
+        const proy = Math.round(ritmoActual * diasMes);
+        const necDia = restan > 0 ? (faltaProm/restan) : 0;
+        const alcanza = proy >= prom;
+        const box = (lbl, val, col, sub) => `<div style="flex:1;min-width:104px;background:var(--bg);border-radius:10px;padding:9px 12px;">
+            <div style="font-size:.62rem;color:var(--muted);font-weight:700;text-transform:uppercase;letter-spacing:.4px;">${lbl}</div>
+            <div style="font-size:1.35rem;font-weight:800;color:${col};font-family:monospace;line-height:1.25;">${val}</div>
+            ${sub?`<div style="font-size:.64rem;color:var(--muted);">${sub}</div>`:''}</div>`;
+        return `<div style="background:var(--card);border:1px solid var(--border);border-left:3px solid #6366f1;border-radius:12px;padding:12px 14px;margin-bottom:14px;">
+            <div style="font-size:.72rem;font-weight:700;text-transform:uppercase;letter-spacing:.5px;color:#6366f1;margin-bottom:9px;">
+                <i class="fas fa-bullseye"></i> Meta de ventas · ${MESES[mi]}</div>
+            <div style="display:flex;gap:9px;flex-wrap:wrap;">
+                ${box('Socios activos', activos, 'var(--text)', 'entrenando hoy')}
+                ${box('Ventas '+MESES[mi], actual, actual>=prom?'#10b981':'#f59e0b', esMesActual?`día ${diaHoy} de ${diasMes}`:'mes cerrado')}
+                ${box('Faltan p/ promedio', faltaProm||'✓', faltaProm?'#f59e0b':'#10b981', 'promedio '+prom)}
+                ${box('Faltan p/ récord', faltaMejor||'✓', faltaMejor?'#ef4444':'#10b981', 'mejor: '+MESES[mejor.m]+' ('+mejor.v+')')}
+            </div>
+            ${esMesActual && restan>0 ? `<div style="margin-top:9px;font-size:.78rem;line-height:1.45;">
+                Quedan <b>${restan} días</b>. Para igualar el promedio hacen falta <b style="color:#6366f1">${necDia.toFixed(1)} ventas por día</b>.
+                Ritmo actual: <b>${ritmoActual.toFixed(1)}/día</b> → proyección de cierre <b style="color:${alcanza?'#10b981':'#ef4444'}">${proy}</b>
+                ${alcanza?'<span style="color:#10b981;font-weight:700;">· en camino</span>':'<span style="color:#ef4444;font-weight:700;">· no alcanza con este ritmo</span>'}.
+            </div>` : ''}
+        </div>`;
+    };
+
     let html = `<div class="estado-mes-badge"><i class="fas fa-calendar-alt"></i>&nbsp;${MESES[mesIdx]} 2026</div>`;
     SEDES_ORDER.forEach(sede => {
         const profes = bySedeMap[sede];
         if (!profes || !profes.length) return;
         const mi = sede === 'Bariloche' ? bMesIdx : mesIdx;
-        html += `<div class="estado-sede-card"><div class="estado-sede-title"><i class="fas fa-map-marker-alt"></i> ${sede}</div><div class="estado-list2">`;
+        html += `<div class="estado-sede-card"><div class="estado-sede-title"><i class="fas fa-map-marker-alt"></i> ${sede}</div>`;
+        html += metaPanel(sede, mi, profes);
+        html += `<div class="estado-list2">`;
         profes.forEach(p => { html += card(p, mi); });
         html += '</div></div>';
     });
@@ -567,12 +624,10 @@ async function cohorteAnalisis(btn){
     const maxMes = estadoMi;   // último mes con datos cargados
     // cohortes[mesAlta] = {n, obs:[m1,m2,m3], vivos:[m1,m2,m3]}
     const coh={};
-    const cohProf={};   // mismo cálculo, pero separado por profesional (cada planilla es un profe)
     await Promise.all(ids.map(async id=>{
         try{
             const plan=await aeExportCSV(AE_SHEETS[id]);
             const RECEP = (typeof AE_RECEP_SEDE!=='undefined' && AE_RECEP_SEDE[AE_SEDE[id]]) || AE_RECEP;
-            cohProf[id]={n:0,obs:[0,0,0],vivos:[0,0,0]};
             for(let i=6;i<plan.length;i++){
                 const r=plan[i]; if(!r) continue;
                 if(!/^\d/.test((r[2]||'').trim())) continue;
@@ -588,15 +643,11 @@ async function cohorteAnalisis(btn){
                 for(let m=alta+1;m<est.length;m++){ if(est[m]==='BAJA'){ bajaMes=m; break; } }
                 coh[alta]=coh[alta]||{n:0,obs:[0,0,0],vivos:[0,0,0]};
                 coh[alta].n++;
-                cohProf[id].n++;
                 for(let k=1;k<=3;k++){
                     const m=alta+k;
                     if(m>maxMes || m>=est.length) break;   // ese mes todavía no ocurrió/no se cargó → no se cuenta
                     coh[alta].obs[k-1]++;                   // socio observable en ese horizonte
-                    cohProf[id].obs[k-1]++;
-                    const vivo = (bajaMes<0 || bajaMes>m);
-                    if(vivo) coh[alta].vivos[k-1]++;
-                    if(vivo) cohProf[id].vivos[k-1]++;
+                    if(bajaMes<0 || bajaMes>m) coh[alta].vivos[k-1]++;
                 }
             }
         }catch(e){}
@@ -621,8 +672,7 @@ async function cohorteAnalisis(btn){
                     <div style="font-size:.68rem;color:var(--muted);font-weight:600;text-transform:uppercase;">${l}</div>
                     <div style="font-size:1.5rem;font-weight:800;color:${c};font-family:monospace;">${v}%</div></div>`;}).join('')}
         </div>
-        <div id="cohorteConc" style="margin-top:12px;font-size:.84rem;line-height:1.45;"></div>
-        <div id="cohorteProf" style="margin-top:18px;"></div>`;
+        <div id="cohorteConc" style="margin-top:12px;font-size:.84rem;line-height:1.45;"></div>`;
 
     if(cohorteChart) cohorteChart.destroy();
     cohorteChart=new Chart(document.getElementById('statCohorte'),{type:'line',
@@ -651,64 +701,6 @@ async function cohorteAnalisis(btn){
         ? ` Con esa forma de curva, el foco es la <b>primera experiencia</b>: evaluación inicial, objetivo concreto y contacto en la primera semana.`
         : ` Con esa forma de curva, el foco es el <b>seguimiento del segundo y tercer mes</b>: re-evaluación y cambio de plan antes de que se aburran.`;
     document.getElementById('cohorteConc').innerHTML=txt;
-    cohortePorProfe(cohProf);
-}
-
-// ══ PUNTO 3b · La misma cohorte, abierta por profesional ══
-// Cada planilla es un profe, así que la segmentación es exacta: no hay que
-// atribuir nada a nadie. Se usa la misma censura que el cálculo general.
-function cohortePorProfe(cohProf){
-    const box=document.getElementById('cohorteProf');
-    if(!box) return;
-    const MIN_ALTAS=10;   // por debajo de esto el % es ruido y se marca como tal
-    const tasa=(c,k)=> c.obs[k]>0 ? +(c.vivos[k]/c.obs[k]*100).toFixed(1) : null;
-    const filas=Object.keys(cohProf).map(id=>{
-        const c=cohProf[id];
-        return { id, nombre:(typeof AE_NOMBRE!=='undefined'&&AE_NOMBRE[id])||id,
-                 sede:(typeof AE_SEDE!=='undefined'&&AE_SEDE[id])||'',
-                 n:c.n, obs3:c.obs[2], m1:tasa(c,0), m2:tasa(c,1), m3:tasa(c,2) };
-    }).filter(f=>f.n>0)
-      .sort((a,b)=>(b.m3==null?-1:b.m3)-(a.m3==null?-1:a.m3));
-
-    if(!filas.length){ box.innerHTML=''; return; }
-
-    const col=v=> v==null?'var(--muted)' : v>=80?'#10b981' : v>=65?'#f59e0b' : '#ef4444';
-    const cel=(v,f)=> v==null ? '<span style="color:var(--muted)">—</span>'
-        : `<b style="color:${col(v)};font-family:monospace;">${v}%</b>${f.n<MIN_ALTAS?' <span style="font-size:.66rem;color:var(--muted)">*</span>':''}`;
-
-    const conMuestra=filas.filter(f=>f.m3!=null && f.n>=MIN_ALTAS);
-    const mejor=conMuestra[0], peor=conMuestra[conMuestra.length-1];
-    const pocos=filas.filter(f=>f.n<MIN_ALTAS);
-
-    let lect='';
-    if(mejor && peor && mejor.id!==peor.id){
-        const brecha=+(mejor.m3-peor.m3).toFixed(1);
-        lect=`<b>${mejor.nombre}</b> retiene mejor a 90 días (<b style="color:${col(mejor.m3)}">${mejor.m3}%</b>) y <b>${peor.nombre}</b> es quien más pierde (<b style="color:${col(peor.m3)}">${peor.m3}%</b>): <b>${brecha} puntos</b> de diferencia entre dos profes de la misma empresa. `;
-        lect+= brecha>=20
-            ? `Una brecha así no se explica por el mercado ni por la sede — es la señal más clara de que hay algo replicable en cómo trabaja ${mejor.nombre} el arranque del socio.`
-            : `La brecha es moderada: el problema del arranque parece ser más de MOVE en general que de una persona puntual.`;
-        // ¿dónde se le cae a cada uno? Escalón más grande de la curva.
-        const escalon=f=>{ if(f.m1==null||f.m2==null||f.m3==null) return null;
-            const d=[100-f.m1, f.m1-f.m2, f.m2-f.m3]; const mx=Math.max(...d);
-            return ['el primer mes','entre el mes 1 y el 2','entre el mes 2 y el 3'][d.indexOf(mx)]; };
-        const ep=escalon(peor);
-        if(ep) lect+=` A ${peor.nombre} la caída más fuerte se le da <b>${ep}</b>.`;
-    }
-    if(pocos.length) lect+=` <span style="color:var(--muted)">(*) ${pocos.map(f=>f.nombre).join(', ')} todavía ${pocos.length===1?'tiene':'tienen'} menos de ${MIN_ALTAS} altas cargadas: su porcentaje es orientativo.</span>`;
-
-    box.innerHTML=`
-      <div class="estado-sede-title" style="font-size:.82rem;margin-bottom:4px;"><i class="fas fa-user-check"></i> La misma cohorte, abierta por profesional</div>
-      <div style="font-size:.76rem;color:var(--muted);margin-bottom:10px;">Cada planilla es de un profe, así que cada socio ya viene asignado: no hay estimación de por medio. Mismo criterio de censura que el cuadro de arriba.</div>
-      <div class="tw"><table style="font-size:.8rem;">
-        <thead><tr><th>Profesional</th><th>Sede</th><th>Altas</th><th>Mes 1</th><th>Mes 2</th><th>Mes 3 (90 días)</th></tr></thead>
-        <tbody>${filas.map(f=>`<tr>
-            <td><b>${f.nombre}</b></td>
-            <td style="color:var(--muted)">${f.sede}</td>
-            <td>${f.n}</td>
-            <td>${cel(f.m1,f)}</td><td>${cel(f.m2,f)}</td><td>${cel(f.m3,f)}</td>
-        </tr>`).join('')}</tbody>
-      </table></div>
-      ${lect?`<div style="margin-top:10px;font-size:.84rem;line-height:1.45;">${lect}</div>`:''}`;
 }
 
 // ══ Deserción año contra año + estacionalidad (anticipación de bajas) ══
