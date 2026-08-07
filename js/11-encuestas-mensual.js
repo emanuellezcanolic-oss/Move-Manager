@@ -268,7 +268,7 @@ function encInformeDatosScope(){
         (encMState.sede==='todas' || r.sede===encMState.sede) &&
         (encMState.profe==='todos' || r.profe===encMState.profe));
     const B = f((encMAll && encMAll['bienvenida']) || []);
-    const C = f((encMAll && encMAll['bajas']) || []);
+    const C = f((encMAll && encMAll['baja']) || []);
     const nps = a => { const n=a.map(r=>r.nps).filter(v=>v!=null); return n.length?{v:calcNPS(n), n:n.length,
         prom:n.filter(x=>x>=9).length, pas:n.filter(x=>x>=7&&x<=8).length, det:n.filter(x=>x<=6).length}:null; };
     const motivos={};
@@ -333,9 +333,12 @@ function encRenderInforme(){
         </div>`;
     }
 
-    const btn = indiv
-        ? `<button class="aud-btn-save" onclick="encMsgAbrir()" style="font-size:.8rem;padding:8px 16px;"><i class="fas fa-comment-dots"></i> Generar mensaje</button>`
-        : `<span style="font-size:.72rem;color:var(--muted);align-self:center;">Elegí un profesional para generar su devolución</span>`;
+    const btn = `<div style="display:flex;gap:8px;flex-wrap:wrap;">
+        <button class="aud-btn-save" onclick="encImagen(this)" style="background:var(--card);border:1px solid var(--border);color:var(--text);font-size:.8rem;padding:8px 16px;"><i class="fas fa-image"></i> Imagen</button>
+        ${indiv
+            ? `<button class="aud-btn-save" onclick="encMsgAbrir()" style="font-size:.8rem;padding:8px 16px;"><i class="fas fa-comment-dots"></i> Generar mensaje</button>`
+            : `<span style="font-size:.72rem;color:var(--muted);align-self:center;">Elegí un profesional para su devolución</span>`}
+    </div>`;
 
     cont.innerHTML=`<div class="card" style="margin-bottom:16px;border-left:3px solid var(--accent);">
         <div style="display:flex;justify-content:space-between;align-items:flex-start;flex-wrap:wrap;gap:10px;margin-bottom:10px;">
@@ -354,6 +357,107 @@ function encRenderInforme(){
         ${coment}
         <div style="font-size:.68rem;color:var(--muted);margin-top:10px;"><i class="fas fa-circle-info"></i> Comentarios reales de las planillas, priorizando los de detractores. El mensaje se redacta solo con estos datos.</div>
     </div>`;
+}
+
+// ══ IMAGEN del informe de encuestas ══
+async function encImagen(btn){
+    const o=btn.innerHTML; btn.disabled=true; btn.innerHTML='<i class="fas fa-spinner fa-spin"></i> Generando…';
+    try{
+        const d=encInformeDatosScope();
+        const indiv = encMState.profe && encMState.profe!=='todos';
+        const titulo = indiv ? encMState.profe : (encMState.sede==='todas'?'Todas las sedes':encMState.sede);
+        const sub = indiv ? ((d.B[0]&&d.B[0].sede)||(d.C[0]&&d.C[0].sede)||'') : 'Informe general';
+        const destB=encDestacados(d.B,2), destC=encDestacados(d.C,2);
+        try{ await document.fonts.load('700 60px Poppins'); await document.fonts.ready; }catch(e){}
+
+        const W=1080, H=1500, cv=document.createElement('canvas'); cv.width=W; cv.height=H;
+        const x=cv.getContext('2d');
+        const BG='#0f1420',CARD='#1a2132',CARD2='#1f293d',ACC='#10b981',WHITE='#fff',MUT='#94a3b8',RED='#ef4444',AMB='#f59e0b',BLUE='#3b82f6';
+        const F=s=>`${s}px Poppins, 'Segoe UI', system-ui, sans-serif`;
+        const rr=(a,b,c,dd,r,f)=>{x.beginPath();x.moveTo(a+r,b);x.arcTo(a+c,b,a+c,b+dd,r);x.arcTo(a+c,b+dd,a,b+dd,r);x.arcTo(a,b+dd,a,b,r);x.arcTo(a,b,a+c,b,r);x.closePath();x.fillStyle=f;x.fill();};
+        const txt=(t,px,py,wt,sz,c,al)=>{x.font=`${wt} ${F(sz)}`;x.fillStyle=c;x.textAlign=al||'left';x.textBaseline='alphabetic';x.fillText(t,px,py);};
+        const wrap=(t,px,py,maxW,lh,wt,sz,c,maxL)=>{
+            x.font=`${wt} ${F(sz)}`;x.fillStyle=c;x.textAlign='left';
+            const ws=String(t).split(/\s+/); let ln='',n=0;
+            for(let i=0;i<ws.length;i++){
+                const test=ln?ln+' '+ws[i]:ws[i];
+                if(x.measureText(test).width>maxW && ln){
+                    if(n===maxL-1){ x.fillText(ln.replace(/[.,;]$/,'')+'…',px,py+n*lh); return py+(n+1)*lh; }
+                    x.fillText(ln,px,py+n*lh); ln=ws[i]; n++;
+                } else ln=test;
+            }
+            x.fillText(ln,px,py+n*lh); return py+(n+1)*lh;
+        };
+
+        x.fillStyle=BG; x.fillRect(0,0,W,H);
+        x.fillStyle='#0b0f19'; x.fillRect(0,0,W,210);
+        rr(60,52,92,92,22,ACC); txt('M',106,118,'700',68,WHITE,'center');
+        txt('MOVE',176,106,'700',54,WHITE);
+        txt('INFORME DE ENCUESTAS',179,150,'500',21,MUT);
+        txt(titulo,W-60,106,'700',46,WHITE,'right');
+        txt(sub,W-60,150,'400',24,ACC,'right');
+
+        // KPIs
+        let y=252; txt('Voz del socio',60,y+34,'700',36,WHITE);
+        const kp=[
+            {l:'NPS BIENVENIDA', v:d.npsB?String(d.npsB.v):'—', c:!d.npsB?MUT:d.npsB.v>=50?ACC:d.npsB.v>=30?BLUE:AMB, s:d.npsB?d.npsB.n+' respuestas':'sin datos'},
+            {l:'PROMOTORES', v:d.npsB?String(d.npsB.prom):'—', c:ACC, s:d.npsB?'de '+d.npsB.n:''},
+            {l:'DETRACTORES', v:d.npsB?String(d.npsB.det):'—', c:RED, s:d.npsB?'de '+d.npsB.n:''},
+            {l:'BAJAS', v:String(d.C.length), c:d.C.length?AMB:ACC, s:'encuestas de baja'},
+            {l:'NPS DE BAJAS', v:d.npsC?String(d.npsC.v):'—', c:!d.npsC?MUT:d.npsC.v>=50?ACC:d.npsC.v>=0?AMB:RED, s:d.npsC?d.npsC.n+' con puntaje':'sin datos'},
+        ];
+        const cw=(W-120-4*14)/5, ch=132, yb=y+58;
+        kp.forEach((k,i)=>{ const cx=60+i*(cw+14);
+            rr(cx,yb,cw,ch,16,CARD); rr(cx,yb,6,ch,3,k.c);
+            txt(k.v,cx+20,yb+66,'700',44,k.c);
+            txt(k.l,cx+21,yb+96,'700',14,MUT);
+            if(k.s) txt(k.s,cx+21,yb+118,'400',14,MUT);
+        });
+
+        // Motivos
+        let yy=yb+ch+34;
+        if(d.topMot.length){
+            txt('Motivos de baja declarados',60,yy+22,'700',26,WHITE);
+            let mx=60, my=yy+56;
+            d.topMot.forEach(m=>{
+                const t=`${m[0]}  (${m[1]})`;
+                x.font=`500 ${F(19)}`; const w=x.measureText(t).width+30;
+                if(mx+w>W-60){ mx=60; my+=44; }
+                rr(mx,my-24,w,36,10,CARD2); txt(t,mx+15,my,'500',19,MUT); mx+=w+10;
+            });
+            yy=my+34;
+        }
+
+        // Comentarios
+        const bloque=(titulo2,col,arr,yTop,alto)=>{
+            rr(60,yTop,W-120,alto,16,'#151c2b');
+            txt(titulo2,86,yTop+38,'700',24,col);
+            let cy=yTop+78;
+            if(!arr.length){ txt('Sin comentarios cargados.',86,cy,'400',19,MUT); return; }
+            arr.forEach(r=>{
+                const n=r.nps;
+                const cat=n==null?{t:'',c:MUT}:n>=9?{t:'Promotor',c:ACC}:n>=7?{t:'Pasivo',c:AMB}:{t:'Detractor',c:RED};
+                x.fillStyle=cat.c; x.fillRect(86,cy-20,4,52);
+                const fin=wrap('“'+(r.comentario||'').trim()+'”',102,cy,W-220,27,'400',19,'#e2e8f0',3);
+                const meta=[cat.t+(n!=null?' · '+n:''), (indiv?'':r.profe), r.sede, r.motivo].filter(Boolean).join('  ·  ');
+                txt(meta,102,fin+4,'600',15,cat.c);
+                cy=fin+40;
+            });
+        };
+        const altoB=Math.min(330, 120+destB.length*118);
+        bloque('Qué dicen los socios nuevos',ACC,destB,yy,altoB);
+        const y2=yy+altoB+18;
+        bloque('Qué dicen los que se fueron',RED,destC,y2,Math.min(330,120+destC.length*118));
+
+        const yf=H-58; x.fillStyle=CARD2; x.fillRect(60,yf,W-120,3);
+        txt('Cada socio, un atleta. Cada mes, un paso hacia una mejor versión de MOVE.',60,yf+36,'300',22,MUT);
+        txt(new Date().toLocaleDateString('es-AR'),W-60,yf+36,'400',21,MUT,'right');
+
+        const a=document.createElement('a');
+        a.download=`MOVE_Encuestas_${titulo.replace(/\s+/g,'_')}.png`;
+        a.href=cv.toDataURL('image/png'); a.click();
+    }catch(e){ alert('No se pudo generar la imagen: '+e.message); }
+    btn.disabled=false; btn.innerHTML=o;
 }
 
 // ── Mensaje al profesional a partir de las encuestas ──
