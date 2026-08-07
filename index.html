@@ -10,7 +10,7 @@
 <link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Poppins:wght@300;400;500;700&display=swap"/>
 <script src="https://cdn.jsdelivr.net/npm/chart.js@4.4.0/dist/chart.umd.min.js"></script>
 <script src="https://cdnjs.cloudflare.com/ajax/libs/jspdf/2.5.1/jspdf.umd.min.js"></script>
-<link rel="stylesheet" href="css/styles.css?v=20260807b">
+<link rel="stylesheet" href="css/styles.css?v=20260807c">
 </head>
 <body>
 
@@ -840,6 +840,27 @@
         </div>
 
         <!-- ════ MODAL GENERADOR DE MENSAJE (Groq) ════ -->
+        <div class="aud-modal-overlay" id="encMsgModal">
+            <div class="aud-modal">
+                <div style="display:flex;justify-content:space-between;align-items:flex-start;margin-bottom:4px;">
+                    <div class="aud-modal-title"><i class="fas fa-comment-dots" style="color:var(--accent);margin-right:6px;"></i>Devolución de encuestas · <span id="encMsgProfe">—</span></div>
+                    <span id="encMsgScope" style="font-size:.72rem;color:var(--muted);margin-top:4px;"></span>
+                </div>
+                <div style="font-size:.72rem;color:var(--muted);margin-bottom:12px;">Redactado con IA usando únicamente las respuestas reales de sus socios. Editá lo que quieras antes de copiar.</div>
+                <div id="encMsgStatus" style="font-size:.8rem;color:var(--muted);margin-bottom:8px;display:none;"></div>
+                <div style="margin-bottom:10px;">
+                    <label style="font-size:.72rem;font-weight:600;color:var(--muted);display:block;margin-bottom:5px;"><i class="fas fa-bullseye" style="margin-right:5px;color:var(--accent);"></i>¿En qué querés que se enfoque? (opcional)</label>
+                    <textarea id="encMsgFocus" rows="2" placeholder="Ej: destacar los comentarios sobre su seguimiento y pedirle foco en los horarios…" style="width:100%;background:var(--bg);border:1px solid var(--border);border-radius:8px;padding:9px 11px;font-size:.8rem;color:var(--text);line-height:1.4;font-family:inherit;resize:vertical;"></textarea>
+                </div>
+                <textarea id="encMsgTexto" rows="14" style="width:100%;background:var(--bg);border:1px solid var(--border);border-radius:8px;padding:12px;font-size:.82rem;color:var(--text);line-height:1.5;font-family:inherit;resize:vertical;"></textarea>
+                <div class="aud-modal-actions">
+                    <button class="aud-btn-cancel" onclick="encMsgCerrar()">Cerrar</button>
+                    <button class="aud-btn-save" onclick="encMsgGenerar(true)" style="background:var(--card);border:1px solid var(--border);color:var(--text);"><i class="fas fa-rotate"></i> Regenerar</button>
+                    <button class="aud-btn-save" onclick="encMsgCopiar(this)"><i class="fas fa-copy"></i> Copiar</button>
+                </div>
+            </div>
+        </div>
+
         <div class="aud-modal-overlay" id="aeMsgModal">
             <div class="aud-modal">
                 <div style="display:flex;justify-content:space-between;align-items:flex-start;margin-bottom:4px;">
@@ -1114,6 +1135,7 @@
             </div>
 
             <div id="encMStatus" style="font-size:.8rem;color:var(--muted);margin-bottom:12px;"></div>
+            <div id="encMInforme"></div>
 
             <!-- KPIs -->
             <div id="encMKpis" style="display:grid;grid-template-columns:repeat(auto-fill,minmax(150px,1fr));gap:10px;margin-bottom:16px;"></div>
@@ -1163,16 +1185,16 @@
 
 </div><!-- /main -->
 
-<script src="js/01-config-datos.js?v=20260807b"></script>
-<script src="js/02-utils-nav.js?v=20260807b"></script>
-<script src="js/03-planillas-estado.js?v=20260807b"></script>
-<script src="js/04-encuestas.js?v=20260807b"></script>
-<script src="js/05-auditoria.js?v=20260807b"></script>
-<script src="js/06-dashboard-profesional.js?v=20260807b"></script>
-<script src="js/07-recepcion.js?v=20260807b"></script>
-<script src="js/08-entrenadores.js?v=20260807b"></script>
-<script src="js/09-panel-mensaje-ia.js?v=20260807b"></script>
-<script src="js/10-informe.js?v=20260807b"></script>
-<script src="js/11-encuestas-mensual.js?v=20260807b"></script>
+<script src="js/01-config-datos.js?v=20260807c"></script>
+<script src="js/02-utils-nav.js?v=20260807c"></script>
+<script src="js/03-planillas-estado.js?v=20260807c"></script>
+<script src="js/04-encuestas.js?v=20260807c"></script>
+<script src="js/05-auditoria.js?v=20260807c"></script>
+<script src="js/06-dashboard-profesional.js?v=20260807c"></script>
+<script src="js/07-recepcion.js?v=20260807c"></script>
+<script src="js/08-entrenadores.js?v=20260807c"></script>
+<script src="js/09-panel-mensaje-ia.js?v=20260807c"></script>
+<script src="js/10-informe.js?v=20260807c"></script>
+<script src="js/11-encuestas-mensual.js?v=20260807c"></script>
 </body>
 </html>
