@@ -217,8 +217,8 @@ function encMRender(){
     // En bajas se suma la columna Motivo.
     const headR = document.getElementById('encMRespHead');
     if(headR) headR.innerHTML = esBienv
-        ? '<th>Fecha</th><th>Profesional</th><th>NPS</th><th>Categoría</th><th>Comentario</th>'
-        : '<th>Fecha</th><th>Profesional</th><th>NPS</th><th>Categoría</th><th>Motivo</th><th>Comentario</th>';
+        ? '<th style="width:92px;">Fecha</th><th style="width:150px;">Profesional</th><th style="width:56px;">NPS</th><th style="width:104px;">Categoría</th><th>Comentario</th>'
+        : '<th style="width:92px;">Fecha</th><th style="width:150px;">Profesional</th><th style="width:56px;">NPS</th><th style="width:104px;">Categoría</th><th style="width:210px;">Motivo</th><th>Comentario</th>';
     const nColsR = esBienv ? 5 : 6;
     const det = rows.slice().sort((a,b)=>(b.fecha?b.fecha.getTime():0)-(a.fecha?a.fecha.getTime():0));
     const ahora = Date.now();
@@ -231,7 +231,7 @@ function encMRender(){
         const cat = n==null?{t:'—',c:'#94a3b8'} : n>=9?{t:'Promotor',c:'#10b981'} : n>=7?{t:'Pasivo',c:'#f59e0b'} : {t:'Detractor',c:'#ef4444'};
         const cNps = n==null?'<span class="inf-muted">—</span>':`<b style="color:${cat.c};">${n}</b>`;
         const cCat = n==null?'<span class="inf-muted">—</span>':`<span style="background:${cat.c}22;color:${cat.c};font-weight:700;font-size:.68rem;padding:2px 9px;border-radius:9px;">${cat.t}</span>`;
-        const cMot = esBienv ? '' : `<td>${r.motivo ? r.motivo.replace(/</g,'&lt;') : '<span class="inf-muted">—</span>'}</td>`;
+        const cMot = esBienv ? '' : `<td style="min-width:190px;line-height:1.45;vertical-align:top;padding-top:10px;">${r.motivo ? r.motivo.replace(/</g,'&lt;') : '<span class="inf-muted">—</span>'}</td>`;
         const com = r.comentario ? r.comentario.replace(/</g,'&lt;') : '';
         const meta=encProfeMeta(r.profe); const profLbl = r.profe + (meta&&!meta.activo?' <span style="font-size:.58rem;color:#94a3b8;font-weight:700;">INACTIVO</span>':'') + (meta&&meta.kine?' <span style="font-size:.58rem;color:#6366f1;font-weight:700;">KINE</span>':'');
         rb += `<tr>
@@ -240,7 +240,7 @@ function encMRender(){
             <td>${cNps}</td>
             <td>${cCat}</td>
             ${cMot}
-            <td style="font-size:.78rem;color:var(--muted);max-width:300px;">${com}</td>
+            <td style="font-size:.78rem;color:var(--muted);min-width:340px;line-height:1.5;white-space:normal;word-break:normal;overflow-wrap:break-word;text-align:left;vertical-align:top;padding-top:10px;">${com}</td>
         </tr>`;
     });
     document.getElementById('encMTablaResp').innerHTML = rb || `<tr><td colspan="${nColsR}" style="text-align:center;color:var(--muted);padding:18px;">Sin respuestas para este filtro</td></tr>`;
