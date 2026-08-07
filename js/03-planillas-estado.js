@@ -351,34 +351,37 @@ function renderEstado() {
         const mejor = cerrados.reduce((a,b)=> b.v>a.v ? b : a);
         const faltaProm = Math.max(0, prom - actual);
         const faltaMejor = Math.max(0, mejor.v - actual);
-        // días del mes en curso
-        const hoy = new Date(), año = 2026;
-        const diasMes = new Date(año, mi+1, 0).getDate();
+        // El techo real del mes son los socios activos: si liquidan todos, ese es el número.
+        const porLiquidar = Math.max(0, activos - actual);
+        const pctLiq = activos > 0 ? Math.round(actual / activos * 100) : 0;
+        const hoy = new Date();
+        const diasMes = new Date(2026, mi+1, 0).getDate();
         const esMesActual = (hoy.getMonth() === mi);
         const diaHoy = esMesActual ? hoy.getDate() : diasMes;
         const restan = Math.max(0, diasMes - diaHoy);
-        const ritmoActual = diaHoy > 0 ? actual/diaHoy : 0;
-        const proy = Math.round(ritmoActual * diasMes);
-        const necDia = restan > 0 ? (faltaProm/restan) : 0;
-        const alcanza = proy >= prom;
+        const necDia = restan > 0 ? (porLiquidar/restan) : 0;
         const box = (lbl, val, col, sub) => `<div style="flex:1;min-width:104px;background:var(--bg);border-radius:10px;padding:9px 12px;">
             <div style="font-size:.62rem;color:var(--muted);font-weight:700;text-transform:uppercase;letter-spacing:.4px;">${lbl}</div>
             <div style="font-size:1.35rem;font-weight:800;color:${col};font-family:monospace;line-height:1.25;">${val}</div>
             ${sub?`<div style="font-size:.64rem;color:var(--muted);">${sub}</div>`:''}</div>`;
+        // ¿El techo alcanza para promedio/récord?
+        let techoTxt;
+        if (activos >= mejor.v) techoTxt = `Si liquidan los <b>${activos}</b>, sería <b style="color:#10b981">récord</b> (supera a ${MESES[mejor.m]}: ${mejor.v}).`;
+        else if (activos >= prom) techoTxt = `Si liquidan los <b>${activos}</b>, se supera el promedio (${prom}), pero <b>no alcanza el récord</b> de ${MESES[mejor.m]} (${mejor.v}): faltarían ${mejor.v - activos} altas nuevas.`;
+        else techoTxt = `Aun liquidando los <b>${activos}</b>, queda por debajo del promedio (${prom}): hacen falta <b style="color:#f59e0b">${prom - activos} altas nuevas</b> además de las renovaciones.`;
         return `<div style="background:var(--card);border:1px solid var(--border);border-left:3px solid #6366f1;border-radius:12px;padding:12px 14px;margin-bottom:14px;">
             <div style="font-size:.72rem;font-weight:700;text-transform:uppercase;letter-spacing:.5px;color:#6366f1;margin-bottom:9px;">
                 <i class="fas fa-bullseye"></i> Meta de ventas · ${MESES[mi]}</div>
             <div style="display:flex;gap:9px;flex-wrap:wrap;">
-                ${box('Socios activos', activos, 'var(--text)', 'entrenando hoy')}
-                ${box('Ventas '+MESES[mi], actual, actual>=prom?'#10b981':'#f59e0b', esMesActual?`día ${diaHoy} de ${diasMes}`:'mes cerrado')}
-                ${box('Faltan p/ promedio', faltaProm||'✓', faltaProm?'#f59e0b':'#10b981', 'promedio '+prom)}
-                ${box('Faltan p/ récord', faltaMejor||'✓', faltaMejor?'#ef4444':'#10b981', 'mejor: '+MESES[mejor.m]+' ('+mejor.v+')')}
+                ${box('Socios a liquidar', activos, 'var(--text)', 'techo del mes')}
+                ${box('Liquidados '+MESES[mi], actual, pctLiq>=80?'#10b981':pctLiq>=50?'#f59e0b':'#ef4444', pctLiq+'% de los activos')}
+                ${box('Faltan liquidar', porLiquidar||'✓', porLiquidar?'#f59e0b':'#10b981', esMesActual?`en ${restan} días`:'mes cerrado')}
+                ${box('Mejor mes', mejor.v, '#6366f1', MESES[mejor.m]+' · prom '+prom)}
             </div>
-            ${esMesActual && restan>0 ? `<div style="margin-top:9px;font-size:.78rem;line-height:1.45;">
-                Quedan <b>${restan} días</b>. Para igualar el promedio hacen falta <b style="color:#6366f1">${necDia.toFixed(1)} ventas por día</b>.
-                Ritmo actual: <b>${ritmoActual.toFixed(1)}/día</b> → proyección de cierre <b style="color:${alcanza?'#10b981':'#ef4444'}">${proy}</b>
-                ${alcanza?'<span style="color:#10b981;font-weight:700;">· en camino</span>':'<span style="color:#ef4444;font-weight:700;">· no alcanza con este ritmo</span>'}.
-            </div>` : ''}
+            <div style="margin-top:9px;font-size:.78rem;line-height:1.5;">
+                ${techoTxt}
+                ${esMesActual && restan>0 && porLiquidar>0 ? ` Para que no quede nadie sin renovar hacen falta <b style="color:#6366f1">${necDia.toFixed(1)} por día</b> en los ${restan} días que quedan.` : ''}
+            </div>
         </div>`;
     };
 
