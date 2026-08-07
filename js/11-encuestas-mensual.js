@@ -262,25 +262,39 @@ function encMRender(){
 
 // ══ INFORME POR PROFESIONAL (encuestas) ══
 // Junta bienvenida y bajas del profesional seleccionado. Solo datos reales de las planillas.
-function encInformeDatos(profe){
-    const B = ((encMAll && encMAll['bienvenida']) || []).filter(r=>r.profe===profe);
-    const C = ((encMAll && encMAll['bajas']) || []).filter(r=>r.profe===profe);
+function encInformeDatosScope(){
+    // Respeta el filtro de sede; si hay profesional elegido, filtra por él
+    const f = a => a.filter(r =>
+        (encMState.sede==='todas' || r.sede===encMState.sede) &&
+        (encMState.profe==='todos' || r.profe===encMState.profe));
+    const B = f((encMAll && encMAll['bienvenida']) || []);
+    const C = f((encMAll && encMAll['bajas']) || []);
     const nps = a => { const n=a.map(r=>r.nps).filter(v=>v!=null); return n.length?{v:calcNPS(n), n:n.length,
         prom:n.filter(x=>x>=9).length, pas:n.filter(x=>x>=7&&x<=8).length, det:n.filter(x=>x<=6).length}:null; };
     const motivos={};
     C.forEach(r=>{ const m=(r.motivo||'').trim(); if(m) motivos[m]=(motivos[m]||0)+1; });
     const topMot = Object.entries(motivos).sort((a,b)=>b[1]-a[1]).slice(0,4);
-    const coment = a => a.map(r=>(r.comentario||'').trim()).filter(t=>t.length>12).slice(0,6);
-    return {B, C, npsB:nps(B), npsC:nps(C), topMot, comB:coment(B), comC:coment(C),
-            sede:(B[0]&&B[0].sede)||(C[0]&&C[0].sede)||'—'};
+    return {B, C, npsB:nps(B), npsC:nps(C), topMot};
+}
+
+// Comentarios que aportan: los más extensos, priorizando detractores (lo que hay que corregir)
+function encDestacados(arr, cant){
+    return arr
+        .filter(r => (r.comentario||'').trim().length > 25)
+        .sort((a,b)=>{
+            const pa = (a.nps!=null && a.nps<=6) ? 1 : 0, pb = (b.nps!=null && b.nps<=6) ? 1 : 0;
+            if(pa!==pb) return pb-pa;
+            return (b.comentario||'').length - (a.comentario||'').length;
+        })
+        .slice(0, cant);
 }
 
 function encRenderInforme(){
     const cont=document.getElementById('encMInforme'); if(!cont) return;
-    const profe=encMState.profe;
-    if(!profe || profe==='todos'){ cont.innerHTML=''; return; }
-    const d=encInformeDatos(profe);
+    const d=encInformeDatosScope();
     if(!d.B.length && !d.C.length){ cont.innerHTML=''; return; }
+    const profe=encMState.profe, indiv = profe && profe!=='todos';
+    const scope = indiv ? profe : (encMState.sede==='todas' ? 'Todas las sedes' : encMState.sede);
 
     const kpi=(lbl,val,col,sub)=>`<div style="flex:1;min-width:118px;background:var(--bg);border-radius:10px;padding:9px 12px;">
         <div style="font-size:.62rem;color:var(--muted);font-weight:700;text-transform:uppercase;letter-spacing:.4px;">${lbl}</div>
@@ -293,11 +307,41 @@ function encRenderInforme(){
         <span style="color:var(--muted);font-weight:600;">Motivos de baja:</span>
         ${d.topMot.map(m=>`<span style="display:inline-block;background:var(--bg);border-radius:8px;padding:3px 9px;margin:3px 4px 0 0;">${m[0]} <b>(${m[1]})</b></span>`).join('')}</div>`;
 
+    // Comentarios destacados
+    const cita = (r, tipo) => {
+        const n = r.nps;
+        const cat = n==null ? {t:tipo, c:'#94a3b8'} : n>=9 ? {t:'Promotor', c:'#10b981'} : n>=7 ? {t:'Pasivo', c:'#f59e0b'} : {t:'Detractor', c:'#ef4444'};
+        const fec = r.fecha ? (r.fecha.getDate()+' '+ENCM_MS[r.fecha.getMonth()]) : '';
+        return `<div style="border-left:3px solid ${cat.c};background:var(--bg);border-radius:0 8px 8px 0;padding:9px 12px;margin-bottom:8px;">
+            <div style="font-size:.78rem;line-height:1.5;color:var(--text);">“${(r.comentario||'').replace(/</g,'&lt;')}”</div>
+            <div style="font-size:.66rem;color:var(--muted);margin-top:5px;">
+                <span style="color:${cat.c};font-weight:700;">${cat.t}${n!=null?' · '+n:''}</span>
+                ${indiv?'':' · <b>'+r.profe+'</b>'} · ${r.sede||''} ${fec?'· '+fec:''}
+                ${r.motivo?' · <i>'+r.motivo+'</i>':''}
+            </div></div>`;
+    };
+    const destB = encDestacados(d.B, 3), destC = encDestacados(d.C, 3);
+    let coment='';
+    if(destB.length || destC.length){
+        coment=`<div style="display:grid;grid-template-columns:repeat(auto-fit,minmax(300px,1fr));gap:16px;margin-top:14px;">
+            <div><div style="font-size:.72rem;font-weight:700;text-transform:uppercase;letter-spacing:.5px;color:var(--muted);margin-bottom:8px;">
+                <i class="fas fa-comment" style="color:#10b981;margin-right:5px;"></i>Qué dicen los socios nuevos</div>
+                ${destB.length?destB.map(r=>cita(r,'Bienvenida')).join(''):'<div style="font-size:.76rem;color:var(--muted);">Sin comentarios cargados.</div>'}</div>
+            <div><div style="font-size:.72rem;font-weight:700;text-transform:uppercase;letter-spacing:.5px;color:var(--muted);margin-bottom:8px;">
+                <i class="fas fa-comment-slash" style="color:#ef4444;margin-right:5px;"></i>Qué dicen los que se fueron</div>
+                ${destC.length?destC.map(r=>cita(r,'Baja')).join(''):'<div style="font-size:.76rem;color:var(--muted);">Sin comentarios cargados.</div>'}</div>
+        </div>`;
+    }
+
+    const btn = indiv
+        ? `<button class="aud-btn-save" onclick="encMsgAbrir()" style="font-size:.8rem;padding:8px 16px;"><i class="fas fa-comment-dots"></i> Generar mensaje</button>`
+        : `<span style="font-size:.72rem;color:var(--muted);align-self:center;">Elegí un profesional para generar su devolución</span>`;
+
     cont.innerHTML=`<div class="card" style="margin-bottom:16px;border-left:3px solid var(--accent);">
         <div style="display:flex;justify-content:space-between;align-items:flex-start;flex-wrap:wrap;gap:10px;margin-bottom:10px;">
-            <div class="card-title" style="margin:0;"><i class="fas fa-user-check" style="color:var(--accent);"></i> Informe de encuestas · ${profe}
-                <span style="font-size:.7rem;font-weight:500;color:var(--muted);">${d.sede}</span></div>
-            <button class="aud-btn-save" onclick="encMsgAbrir()" style="font-size:.8rem;padding:8px 16px;"><i class="fas fa-comment-dots"></i> Generar mensaje</button>
+            <div class="card-title" style="margin:0;"><i class="fas fa-user-check" style="color:var(--accent);"></i> Informe de encuestas
+                <span style="font-size:.72rem;font-weight:600;color:var(--muted);">· ${scope}</span></div>
+            ${btn}
         </div>
         <div style="display:flex;gap:9px;flex-wrap:wrap;">
             ${kpi('NPS bienvenida', d.npsB?d.npsB.v:'—', colNps(d.npsB?d.npsB.v:null), d.npsB?d.npsB.n+' respuestas':'sin datos')}
@@ -307,7 +351,8 @@ function encRenderInforme(){
             ${kpi('NPS de bajas', d.npsC?d.npsC.v:'—', colNps(d.npsC?d.npsC.v:null), d.npsC?d.npsC.n+' con puntaje':'sin datos')}
         </div>
         ${mot}
-        <div style="font-size:.68rem;color:var(--muted);margin-top:10px;"><i class="fas fa-circle-info"></i> Todo sale de las respuestas cargadas en las planillas de encuestas. El mensaje se redacta solo con esos datos.</div>
+        ${coment}
+        <div style="font-size:.68rem;color:var(--muted);margin-top:10px;"><i class="fas fa-circle-info"></i> Comentarios reales de las planillas, priorizando los de detractores. El mensaje se redacta solo con estos datos.</div>
     </div>`;
 }
 
@@ -333,7 +378,10 @@ async function encMsgGenerar(regen){
     if(!key){ st.innerHTML='<span style="color:#f59e0b;"><i class="fas fa-key"></i> Configurá la API Key de Groq desde Análisis Entrenadores → Generar mensaje.</span>'; return; }
     st.innerHTML='<i class="fas fa-spinner fa-spin"></i> Redactando con IA…'; txt.value='';
 
-    const profe=encMState.profe, d=encInformeDatos(profe);
+    const profe=encMState.profe, d=encInformeDatosScope();
+    d.sede = encMState.sede==='todas' ? ((d.B[0]&&d.B[0].sede)||(d.C[0]&&d.C[0].sede)||'—') : encMState.sede;
+    d.comB = encDestacados(d.B,6).map(r=>(r.comentario||'').trim());
+    d.comC = encDestacados(d.C,6).map(r=>(r.comentario||'').trim());
     const L=[];
     L.push(`Profesional: ${profe} (sede ${d.sede})`);
     if(d.npsB) L.push(`ENCUESTA DE BIENVENIDA — NPS ${d.npsB.v} sobre ${d.npsB.n} respuestas: ${d.npsB.prom} promotores, ${d.npsB.pas} pasivos, ${d.npsB.det} detractores.`);
