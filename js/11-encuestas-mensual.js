@@ -210,6 +210,7 @@ function encMRender(){
             ${esBienv?'':`<td>${x.motivo}</td>`}
         </tr>`;
     });
+    encRenderInforme();
     document.getElementById('encMTablaProfe').innerHTML = pb || `<tr><td colspan="${esBienv?4:5}" style="text-align:center;color:var(--muted);padding:18px;">Sin datos</td></tr>`;
 
     // Respuestas individuales (ordenadas por fecha, más nuevas primero)
@@ -257,6 +258,129 @@ function encMRender(){
     const wrap=document.getElementById('encMCharts');
     if(esBienv && labels.length){ wrap.style.display='grid'; try{ line('encMChartNps',labels,[{l:'NPS',d:npsData,c:'#6366f1'}]); bar('encMChartResp',labels,[{l:'Respuestas',d:respData,c:'#10b981'}]); }catch(e){} }
     else { wrap.style.display='none'; if(CH['encMChartNps'])CH['encMChartNps'].destroy(); if(CH['encMChartResp'])CH['encMChartResp'].destroy(); }
+}
+
+// ══ INFORME POR PROFESIONAL (encuestas) ══
+// Junta bienvenida y bajas del profesional seleccionado. Solo datos reales de las planillas.
+function encInformeDatos(profe){
+    const B = ((encMAll && encMAll['bienvenida']) || []).filter(r=>r.profe===profe);
+    const C = ((encMAll && encMAll['bajas']) || []).filter(r=>r.profe===profe);
+    const nps = a => { const n=a.map(r=>r.nps).filter(v=>v!=null); return n.length?{v:calcNPS(n), n:n.length,
+        prom:n.filter(x=>x>=9).length, pas:n.filter(x=>x>=7&&x<=8).length, det:n.filter(x=>x<=6).length}:null; };
+    const motivos={};
+    C.forEach(r=>{ const m=(r.motivo||'').trim(); if(m) motivos[m]=(motivos[m]||0)+1; });
+    const topMot = Object.entries(motivos).sort((a,b)=>b[1]-a[1]).slice(0,4);
+    const coment = a => a.map(r=>(r.comentario||'').trim()).filter(t=>t.length>12).slice(0,6);
+    return {B, C, npsB:nps(B), npsC:nps(C), topMot, comB:coment(B), comC:coment(C),
+            sede:(B[0]&&B[0].sede)||(C[0]&&C[0].sede)||'—'};
+}
+
+function encRenderInforme(){
+    const cont=document.getElementById('encMInforme'); if(!cont) return;
+    const profe=encMState.profe;
+    if(!profe || profe==='todos'){ cont.innerHTML=''; return; }
+    const d=encInformeDatos(profe);
+    if(!d.B.length && !d.C.length){ cont.innerHTML=''; return; }
+
+    const kpi=(lbl,val,col,sub)=>`<div style="flex:1;min-width:118px;background:var(--bg);border-radius:10px;padding:9px 12px;">
+        <div style="font-size:.62rem;color:var(--muted);font-weight:700;text-transform:uppercase;letter-spacing:.4px;">${lbl}</div>
+        <div style="font-size:1.4rem;font-weight:800;color:${col};font-family:monospace;line-height:1.25;">${val}</div>
+        ${sub?`<div style="font-size:.64rem;color:var(--muted);">${sub}</div>`:''}</div>`;
+    const colNps=v=>v==null?'var(--muted)':v>=50?'#10b981':v>=30?'#3b82f6':v>=0?'#f59e0b':'#ef4444';
+
+    let mot='';
+    if(d.topMot.length) mot=`<div style="margin-top:10px;font-size:.78rem;">
+        <span style="color:var(--muted);font-weight:600;">Motivos de baja:</span>
+        ${d.topMot.map(m=>`<span style="display:inline-block;background:var(--bg);border-radius:8px;padding:3px 9px;margin:3px 4px 0 0;">${m[0]} <b>(${m[1]})</b></span>`).join('')}</div>`;
+
+    cont.innerHTML=`<div class="card" style="margin-bottom:16px;border-left:3px solid var(--accent);">
+        <div style="display:flex;justify-content:space-between;align-items:flex-start;flex-wrap:wrap;gap:10px;margin-bottom:10px;">
+            <div class="card-title" style="margin:0;"><i class="fas fa-user-check" style="color:var(--accent);"></i> Informe de encuestas · ${profe}
+                <span style="font-size:.7rem;font-weight:500;color:var(--muted);">${d.sede}</span></div>
+            <button class="aud-btn-save" onclick="encMsgAbrir()" style="font-size:.8rem;padding:8px 16px;"><i class="fas fa-comment-dots"></i> Generar mensaje</button>
+        </div>
+        <div style="display:flex;gap:9px;flex-wrap:wrap;">
+            ${kpi('NPS bienvenida', d.npsB?d.npsB.v:'—', colNps(d.npsB?d.npsB.v:null), d.npsB?d.npsB.n+' respuestas':'sin datos')}
+            ${kpi('Promotores', d.npsB?d.npsB.prom:'—', '#10b981', d.npsB?'de '+d.npsB.n:'')}
+            ${kpi('Detractores', d.npsB?d.npsB.det:'—', '#ef4444', d.npsB?'de '+d.npsB.n:'')}
+            ${kpi('Bajas', d.C.length, d.C.length?'#f59e0b':'#10b981', 'encuestas de baja')}
+            ${kpi('NPS de bajas', d.npsC?d.npsC.v:'—', colNps(d.npsC?d.npsC.v:null), d.npsC?d.npsC.n+' con puntaje':'sin datos')}
+        </div>
+        ${mot}
+        <div style="font-size:.68rem;color:var(--muted);margin-top:10px;"><i class="fas fa-circle-info"></i> Todo sale de las respuestas cargadas en las planillas de encuestas. El mensaje se redacta solo con esos datos.</div>
+    </div>`;
+}
+
+// ── Mensaje al profesional a partir de las encuestas ──
+function encMsgCerrar(){ document.getElementById('encMsgModal').classList.remove('open'); }
+function encMsgCopiar(btn){
+    const t=document.getElementById('encMsgTexto');
+    t.select(); document.execCommand('copy');
+    const o=btn.innerHTML; btn.innerHTML='<i class="fas fa-check"></i> ¡Copiado!';
+    setTimeout(()=>btn.innerHTML=o,1600);
+}
+function encMsgAbrir(){
+    document.getElementById('encMsgProfe').textContent = encMState.profe;
+    document.getElementById('encMsgScope').textContent =
+        (encMState.sede==='todas'?'Todas las sedes':encMState.sede);
+    document.getElementById('encMsgModal').classList.add('open');
+    encMsgGenerar(false);
+}
+async function encMsgGenerar(regen){
+    const st=document.getElementById('encMsgStatus'), txt=document.getElementById('encMsgTexto');
+    const key = (typeof aeGetKey==='function') ? aeGetKey() : '';
+    st.style.display='block';
+    if(!key){ st.innerHTML='<span style="color:#f59e0b;"><i class="fas fa-key"></i> Configurá la API Key de Groq desde Análisis Entrenadores → Generar mensaje.</span>'; return; }
+    st.innerHTML='<i class="fas fa-spinner fa-spin"></i> Redactando con IA…'; txt.value='';
+
+    const profe=encMState.profe, d=encInformeDatos(profe);
+    const L=[];
+    L.push(`Profesional: ${profe} (sede ${d.sede})`);
+    if(d.npsB) L.push(`ENCUESTA DE BIENVENIDA — NPS ${d.npsB.v} sobre ${d.npsB.n} respuestas: ${d.npsB.prom} promotores, ${d.npsB.pas} pasivos, ${d.npsB.det} detractores.`);
+    else L.push('ENCUESTA DE BIENVENIDA — sin respuestas cargadas.');
+    if(d.comB.length) L.push('Comentarios textuales de socios nuevos:\n' + d.comB.map(c=>'· "'+c+'"').join('\n'));
+    L.push(`ENCUESTAS DE BAJA — ${d.C.length} registradas${d.npsC?` · NPS de bajas ${d.npsC.v}`:''}.`);
+    if(d.topMot.length) L.push('Motivos declarados: ' + d.topMot.map(m=>`${m[0]} (${m[1]})`).join(' · '));
+    if(d.comC.length) L.push('Comentarios textuales de socios que se fueron:\n' + d.comC.map(c=>'· "'+c+'"').join('\n'));
+
+    const foco=(document.getElementById('encMsgFocus').value||'').trim();
+    const sys = `Actuás como Emanuel Lezcano, Coordinador Deportivo de MOVE, cadena de gimnasios boutique de la Patagonia argentina. Le escribís a un profesional del equipo una devolución basada en lo que dijeron SUS socios en las encuestas de bienvenida y de baja.
+
+QUIÉN SOS: un líder que desarrolla personas, no un jefe que audita. Conocés a cada profe, lo acompañás y le das devoluciones para que crezca.
+
+REGLAS INNEGOCIABLES:
+- Usá ÚNICAMENTE los datos y comentarios que te paso. NO inventes números, ni frases de socios, ni situaciones. Si un dato no está, no lo menciones.
+- Podés citar textualmente algún comentario de los socios (son reales) para que la devolución tenga peso.
+- SIEMPRE empezás reconociendo algo positivo y concreto.
+- Los aspectos a mejorar se plantean como oportunidades ("creo que hay una oportunidad en…", "me gustaría que trabajemos…"), nunca como reproche.
+- Cerrás preguntando cómo lo podés ayudar y con una frase motivadora.
+- Si hay comentarios sobre cosas que no dependen del profesional (precio, horarios, equipamiento), aclaralo para no cargarle culpa: eso es del gimnasio, no suyo.
+
+ESTRUCTURA (WhatsApp):
+1) Saludo cálido por su nombre.
+2) Qué dicen sus socios nuevos (NPS y lo positivo que destacan, citando algún comentario).
+3) Qué se puede leer de las bajas (motivos, y si son evitables o no).
+4) Uno o dos focos de mejora concretos que dependan de él.
+5) Pregunta genuina de cómo ayudarlo.
+6) Cierre motivador.
+
+ESTILO: español argentino (vos/tenés/sos) con registro FORMAL y profesional: cálido y cercano pero prolijo, sin lunfardo. Sin markdown ni asteriscos. Emojis solo si aportan, con mucha moderación. Entre 180 y 240 palabras.`;
+
+    const usr = `Escribí la devolución para ${profe}.${foco?`\n\nENFOQUE PRIORITARIO QUE PIDIÓ EMANUEL: "${foco}"`:''}\n\nDATOS REALES DE SUS ENCUESTAS:\n\n${L.join('\n\n')}`;
+
+    try{
+        const resp=await fetch('https://api.groq.com/openai/v1/chat/completions',{
+            method:'POST',
+            headers:{'Authorization':`Bearer ${key}`,'Content-Type':'application/json'},
+            body:JSON.stringify({model:AE_GROQ_MODEL,messages:[{role:'system',content:sys},{role:'user',content:usr}],temperature:regen?1.05:0.9,max_tokens:950})
+        });
+        if(!resp.ok) throw new Error('HTTP '+resp.status+' — '+(await resp.text()).slice(0,160));
+        const data=await resp.json();
+        txt.value=(data.choices&&data.choices[0]&&data.choices[0].message.content||'').trim()||'(respuesta vacía)';
+        st.style.display='none';
+    }catch(e){
+        st.innerHTML=`<span style="color:#ef4444;"><i class="fas fa-triangle-exclamation"></i> ${e.message}</span>`;
+    }
 }
 
 cargarTodo();
