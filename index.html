@@ -10,7 +10,7 @@
 <link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Poppins:wght@300;400;500;700&display=swap"/>
 <script src="https://cdn.jsdelivr.net/npm/chart.js@4.4.0/dist/chart.umd.min.js"></script>
 <script src="https://cdnjs.cloudflare.com/ajax/libs/jspdf/2.5.1/jspdf.umd.min.js"></script>
-<link rel="stylesheet" href="css/styles.css?v=20260813c">
+<link rel="stylesheet" href="css/styles.css?v=20260813d">
 </head>
 <body>
 
@@ -753,6 +753,10 @@
                     </button>
                     <div style="flex:1;display:flex;justify-content:flex-end;align-items:center;padding-bottom:6px;gap:6px;">
                         <div id="audSyncStatus" style="min-height:18px;"></div>
+                        <button onclick="if(confirm('Esto va a sacar los socios duplicados que quedaron repetidos en más de una auditoría por el bug de sincronización, dejando cada uno solo en el día real en que fue auditado. Se guarda un backup automático antes. ¿Continuar?')) audLimpiarDuplicados();" title="Sacar socios duplicados entre auditorías"
+                            style="display:flex;align-items:center;gap:4px;background:#fef3c7;border:1px solid #f59e0b;color:#92400e;font-size:.68rem;padding:4px 8px;border-radius:6px;cursor:pointer;font-family:inherit;font-weight:700;">
+                            <i class="fas fa-broom" style="font-size:.6rem;"></i> Limpiar duplicados
+                        </button>
                         <button onclick="audExportar()" title="Backup del historial"
                             style="display:flex;align-items:center;gap:4px;background:var(--bg);border:1px solid var(--border);color:var(--muted);font-size:.68rem;padding:4px 8px;border-radius:6px;cursor:pointer;font-family:inherit;">
                             <i class="fas fa-download" style="font-size:.6rem;"></i> Backup
@@ -1185,16 +1189,16 @@
 
 </div><!-- /main -->
 
-<script src="js/01-config-datos.js?v=20260813c"></script>
-<script src="js/02-utils-nav.js?v=20260813c"></script>
-<script src="js/03-planillas-estado.js?v=20260813c"></script>
-<script src="js/04-encuestas.js?v=20260813c"></script>
-<script src="js/05-auditoria.js?v=20260813c"></script>
-<script src="js/06-dashboard-profesional.js?v=20260813c"></script>
-<script src="js/07-recepcion.js?v=20260813c"></script>
-<script src="js/08-entrenadores.js?v=20260813c"></script>
-<script src="js/09-panel-mensaje-ia.js?v=20260813c"></script>
-<script src="js/10-informe.js?v=20260813c"></script>
-<script src="js/11-encuestas-mensual.js?v=20260813c"></script>
+<script src="js/01-config-datos.js?v=20260813d"></script>
+<script src="js/02-utils-nav.js?v=20260813d"></script>
+<script src="js/03-planillas-estado.js?v=20260813d"></script>
+<script src="js/04-encuestas.js?v=20260813d"></script>
+<script src="js/05-auditoria.js?v=20260813d"></script>
+<script src="js/06-dashboard-profesional.js?v=20260813d"></script>
+<script src="js/07-recepcion.js?v=20260813d"></script>
+<script src="js/08-entrenadores.js?v=20260813d"></script>
+<script src="js/09-panel-mensaje-ia.js?v=20260813d"></script>
+<script src="js/10-informe.js?v=20260813d"></script>
+<script src="js/11-encuestas-mensual.js?v=20260813d"></script>
 </body>
 </html>
