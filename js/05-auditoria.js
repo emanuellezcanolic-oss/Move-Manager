@@ -688,6 +688,7 @@ function audFinalizarDia(){
     });
 
     audSociosAuditados={};
+    audGuardarAuditados();   // persiste el vaciado (local + Gist), si no la nube sigue con los viejos y reaparecen
     audRenderHistorial();
     audGuardarHistorial();
     document.getElementById('audProgresoWrap').style.display='none';
