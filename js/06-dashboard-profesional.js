@@ -9,20 +9,35 @@ function audFechaAud(a){
     if(p.length===3) return new Date(+p[2], +p[1]-1, +p[0]);
     return new Date(0);
 }
+let audDashMes = null; // {y, m} — null = mes actual (se fija la primera vez que se renderiza)
+function audDashCambiarMes(delta){
+    audDashMes.m += delta;
+    if(audDashMes.m<0){ audDashMes.m=11; audDashMes.y--; }
+    if(audDashMes.m>11){ audDashMes.m=0; audDashMes.y++; }
+    audRenderDashboard();
+}
 function audRenderDashboard(){
     const el = document.getElementById('audDashboard');
     if(!el) return;
 
     const ahora = new Date();
+    if(!audDashMes) audDashMes = {y:ahora.getFullYear(), m:ahora.getMonth()};
+    const esMesActual = audDashMes.y===ahora.getFullYear() && audDashMes.m===ahora.getMonth();
     const esteMes = (audHistorial||[]).filter(a=>{
         const d = audFechaAud(a);
-        return d.getMonth()===ahora.getMonth() && d.getFullYear()===ahora.getFullYear();
+        return d.getMonth()===audDashMes.m && d.getFullYear()===audDashMes.y;
     });
-    const nombreMes = ahora.toLocaleDateString('es-AR',{month:'long', year:'numeric'});
-    const aviso = `<div style="font-size:.72rem;color:var(--muted);margin-bottom:14px;"><i class="fas fa-calendar-day" style="color:var(--accent);margin-right:4px;"></i>Mostrando auditorías de <b style="text-transform:capitalize;">${nombreMes}</b> (el mes se reinicia solo). El historial completo está en la pestaña Historial.</div>`;
+    const nombreMes = new Date(audDashMes.y, audDashMes.m, 1).toLocaleDateString('es-AR',{month:'long', year:'numeric'});
+    const selector = `<div style="display:flex;align-items:center;gap:10px;margin-bottom:14px;">
+        <button onclick="audDashCambiarMes(-1)" style="border:1px solid var(--border);background:var(--card);color:var(--text);width:30px;height:30px;border-radius:8px;cursor:pointer;font-size:.85rem;"><i class="fas fa-chevron-left"></i></button>
+        <div style="font-size:.85rem;font-weight:700;color:var(--text);text-transform:capitalize;min-width:150px;text-align:center;"><i class="fas fa-calendar-day" style="color:var(--accent);margin-right:5px;"></i>${nombreMes}</div>
+        <button onclick="audDashCambiarMes(1)" ${esMesActual?'disabled style="opacity:.35;cursor:default;border:1px solid var(--border);background:var(--card);color:var(--text);width:30px;height:30px;border-radius:8px;font-size:.85rem;"':'style="border:1px solid var(--border);background:var(--card);color:var(--text);width:30px;height:30px;border-radius:8px;cursor:pointer;font-size:.85rem;"'}><i class="fas fa-chevron-right"></i></button>
+        ${!esMesActual?`<button onclick="audDashMes=null;audRenderDashboard();" style="border:none;background:none;color:var(--accent);font-size:.72rem;font-weight:600;cursor:pointer;text-decoration:underline;">volver a este mes</button>`:''}
+    </div>`;
+    const aviso = `<div style="font-size:.72rem;color:var(--muted);margin-bottom:14px;">El historial completo está en la pestaña Historial.</div>`;
 
     if(!esteMes.length){
-        el.innerHTML = aviso + '<div class="aud-empty"><i class="fas fa-chart-bar"></i>Todavía no hay auditorías cargadas este mes.</div>';
+        el.innerHTML = selector + aviso + '<div class="aud-empty"><i class="fas fa-clipboard"></i>Sin auditorías registradas en ese mes.</div>';
         return;
     }
 
@@ -84,7 +99,14 @@ function audRenderDashboard(){
     const semBg=s=>s>=80?'#d1fae5':s>=60?'#fef3c7':'#fee2e2';
     const semTxt=s=>s>=80?'#065f46':s>=60?'#92400e':'#991b1b';
 
-    el.innerHTML = aviso + `
+    const resumenChips = `<div style="display:flex;flex-wrap:wrap;gap:8px;margin-bottom:16px;">
+        ${profes.map(p=>`<div style="background:var(--card);border:1px solid var(--border);border-radius:10px;padding:7px 14px;display:flex;align-items:center;gap:8px;">
+            <span style="font-size:.8rem;font-weight:700;color:var(--text);">${p.nombre}</span>
+            <span style="background:var(--accent);color:#fff;font-weight:800;font-size:.78rem;border-radius:14px;padding:1px 9px;">${p.n}</span>
+        </div>`).join('')}
+    </div>`;
+
+    el.innerHTML = selector + aviso + resumenChips + `
         <div style="display:grid;grid-template-columns:repeat(auto-fill,minmax(300px,1fr));gap:16px;">
             ${profes.map(p=>{
                 const totTareas = Object.values(p.estados).reduce((s,v)=>s+v,0);
@@ -105,7 +127,10 @@ function audRenderDashboard(){
                     <div style="display:flex;justify-content:space-between;align-items:flex-start;margin-bottom:14px;">
                         <div>
                             <div style="font-size:1rem;font-weight:800;color:var(--text);">${p.nombre}</div>
-                            <div style="font-size:.72rem;color:var(--muted);margin-top:2px;">${p.n} auditoría${p.n!==1?'s':''} este mes · última: ${p.ultimaAud}</div>
+                            <div style="display:flex;align-items:center;gap:8px;margin-top:4px;">
+                                <span style="background:var(--accent);color:#fff;font-weight:800;font-size:.8rem;border-radius:20px;padding:2px 11px;"><i class="fas fa-clipboard-check" style="margin-right:4px;"></i>${p.n} auditoría${p.n!==1?'s':''}</span>
+                                <span style="font-size:.68rem;color:var(--muted);">última: ${p.ultimaAud}</span>
+                            </div>
                         </div>
                         <span style="background:${semBg(p.scoreGlobal)};color:${semTxt(p.scoreGlobal)};border-radius:20px;padding:3px 10px;font-size:.72rem;font-weight:700;">${semLabel(p.scoreGlobal)}</span>
                     </div>
