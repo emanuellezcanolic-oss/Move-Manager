@@ -129,6 +129,45 @@ async function audGuardarHistorial(){
     }
 }
 
+// ── Limpieza de duplicados heredados (bug de sincronización ya corregido para el futuro) ──
+// Un mismo socio quedó guardado en más de una auditoría del mismo profe por el bug de Gist.
+// Se deja al socio SOLO en el día en que realmente fue auditado por primera vez ese ciclo,
+// y se saca de las auditorías posteriores donde apareció arrastrado por error.
+function audLimpiarDuplicados(){
+    if(!audHistorial.length){ alert('No hay auditorías cargadas.'); return; }
+    // Backup antes de tocar nada
+    try{ localStorage.setItem('move_aud_backup_'+Date.now(), JSON.stringify({historial:audHistorial})); }catch(e){}
+
+    const porProfe = {};
+    audHistorial.forEach(a=>{ (porProfe[a.profe]=porProfe[a.profe]||[]).push(a); });
+
+    let socioRepetidos=0, entradasVaciasEliminadas=0;
+    Object.values(porProfe).forEach(entradas=>{
+        entradas.sort((a,b)=>audFechaAud(a)-audFechaAud(b));  // más vieja primero
+        const visto = new Set();
+        entradas.forEach(a=>{
+            const antes=(a.detalleSocios||[]).length;
+            a.detalleSocios = (a.detalleSocios||[]).filter(d=>{
+                if(visto.has(d.nombre)) return false;
+                visto.add(d.nombre);
+                return true;
+            });
+            socioRepetidos += antes - a.detalleSocios.length;
+            a.planesAuditados = a.detalleSocios.length;
+        });
+    });
+
+    // Auditorías que quedaron en 0 planes (eran 100% arrastre) se sacan del historial
+    const antesLen = audHistorial.length;
+    audHistorial = audHistorial.filter(a=>a.planesAuditados>0);
+    entradasVaciasEliminadas = antesLen - audHistorial.length;
+
+    audRenderHistorial();
+    audRenderDashboard();
+    audGuardarHistorial();
+    alert(`Limpieza lista.\n\n${socioRepetidos} socios duplicados sacados de auditorías posteriores.\n${entradasVaciasEliminadas} auditorías vacías (100% arrastre) eliminadas.\n\nCada socio quedó solo en el día real en que fue auditado. Se guardó un backup local por si hace falta revertir.`);
+}
+
 function audExportar(){
     const data = JSON.stringify({historial: audHistorial, exported: new Date().toISOString()}, null, 2);
     const blob = new Blob([data], {type:'application/json'});
