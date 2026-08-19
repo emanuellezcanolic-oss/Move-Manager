@@ -124,6 +124,83 @@ async function informeGenerar(){
         </tr></tfoot>
     </table>`;
 
+    // ══ ESTE MES VS EL ANTERIOR ══
+    const comp = INF_PROFE_IDS.map(id=>{
+        const p = infProfe[id];
+        return {id, nombre:p.nombre, sede:p.sede, o:p.o, oPrev:p.oPrev, mes:p.mes, mesPrev:p.mesPrev};
+    }).filter(p=>p.o);
+    const mesActNom = (comp.find(c=>c.mes)||{}).mes || gMesNombre;
+    const mesPrevNom = (comp.find(c=>c.mesPrev)||{}).mesPrev || 'mes anterior';
+
+    if(comp.length){
+        const prom = (arr,f)=>{ const v=arr.map(f).filter(x=>x!=null&&isFinite(x)&&x>0); return v.length? +(v.reduce((a,b)=>a+b,0)/v.length).toFixed(1) : null; };
+        const sum  = (arr,f)=> arr.map(f).filter(x=>x!=null&&isFinite(x)).reduce((a,b)=>a+b,0);
+
+        H += `<h2><i class="fas fa-arrow-trend-up"></i> ${mesActNom} vs ${mesPrevNom} — cómo venimos</h2>`;
+        H += `<div class="inf-muted" style="font-size:.78rem;margin-bottom:8px;">Comparación directa contra el mes anterior. En verde lo que mejoró, en rojo lo que empeoró.</div>`;
+
+        // KPIs globales
+        const kpis = [
+            {l:'Deserción promedio', act:prom(comp,c=>c.o.desercion), prev:prom(comp,c=>c.oPrev&&c.oPrev.desercion), u:'%', inv:true},
+            {l:'Retención promedio', act:prom(comp,c=>c.o.retencion), prev:prom(comp,c=>c.oPrev&&c.oPrev.retencion), u:'%', inv:false},
+            {l:'Re-evaluaciones prom.', act:prom(comp,c=>c.o.reeval), prev:prom(comp,c=>c.oPrev&&c.oPrev.reeval), u:'%', inv:false},
+            {l:'Socios activos (liq.)', act:sum(comp,c=>c.o.activos), prev:sum(comp,c=>c.oPrev&&c.oPrev.activos), u:'', inv:false},
+        ];
+        H += `<table><thead><tr><th>Indicador</th><th>${mesPrevNom}</th><th>${mesActNom}</th><th>Diferencia</th><th>Lectura</th></tr></thead><tbody>`;
+        kpis.forEach(k=>{
+            const dif = (k.prev!=null&&k.act!=null)? +(k.act-k.prev).toFixed(1) : null;
+            const mejor = dif==null?null : (k.inv ? dif<0 : dif>0);
+            const col = dif==null||dif===0 ? '#64748b' : mejor ? '#10b981' : '#ef4444';
+            const lect = dif==null?'sin base de comparación' : dif===0?'se mantuvo igual' : mejor?'mejoró':'empeoró';
+            H += `<tr><td><b>${k.l}</b></td>
+                <td>${k.prev!=null?k.prev+k.u:'—'}</td>
+                <td><b>${k.act!=null?k.act+k.u:'—'}</b></td>
+                <td style="color:${col};font-weight:700;">${dif==null?'—':(dif>0?'▲ +':dif<0?'▼ ':'= ')+Math.abs(dif)+k.u}</td>
+                <td style="color:${col};">${lect}</td></tr>`;
+        });
+        H += `</tbody></table>`;
+
+        // Por sede
+        H += `<h3>Por sede</h3><table><thead><tr><th>Sede</th><th>Deserción ${mesPrevNom}</th><th>Deserción ${mesActNom}</th><th>Dif.</th><th>Retención ${mesActNom}</th></tr></thead><tbody>`;
+        INF_SEDES_ORDER.forEach(sede=>{
+            const g = comp.filter(c=>c.sede===sede); if(!g.length) return;
+            const dp = prom(g,c=>c.oPrev&&c.oPrev.desercion), da = prom(g,c=>c.o.desercion), ra = prom(g,c=>c.o.retencion);
+            const dif = (dp!=null&&da!=null)? +(da-dp).toFixed(1) : null;
+            const col = dif==null||dif===0?'#64748b':dif<0?'#10b981':'#ef4444';
+            H += `<tr><td><b>${sede}</b></td><td>${dp!=null?dp+'%':'—'}</td><td><b>${da!=null?da+'%':'—'}</b></td>
+                <td style="color:${col};font-weight:700;">${dif==null?'—':(dif>0?'▲ +':'▼ ')+Math.abs(dif)}</td>
+                <td>${ra!=null?ra+'%':'—'}</td></tr>`;
+        });
+        H += `</tbody></table>`;
+
+        // Gráfico de barras: deserción por profesional
+        const barrasDes = comp.map(c=>({nombre:c.nombre, prev:c.oPrev?c.oPrev.desercion:null, act:c.o.desercion}))
+                              .sort((a,b)=>b.act-a.act);
+        H += `<h3>Deserción por profesional</h3>${infSvgBarras(barrasDes, mesPrevNom, mesActNom, '%', true)}`;
+
+        // Campana de Gauss comparada
+        const gPrev = comp.filter(c=>c.oPrev&&c.oPrev.activos>0).map(c=>({nombre:c.nombre, v:c.oPrev.desercion}));
+        const gAct  = comp.map(c=>({nombre:c.nombre, v:c.o.desercion}));
+        const sP = infStats(gPrev.map(p=>p.v)), sA = infStats(gAct.map(p=>p.v));
+        if(sA){
+            H += `<h3>Distribución del equipo (campana de Gauss)</h3>`;
+            H += `<div class="inf-muted" style="font-size:.76rem;margin-bottom:4px;">Cada punto es un profesional. Cuanto más angosta la campana, más pareja es la calidad entre el equipo.</div>`;
+            H += infSvgGauss(gPrev, gAct, mesPrevNom.slice(0,3), mesActNom.slice(0,3));
+            if(sP){
+                const dM = +(sA.m-sP.m).toFixed(1), dS = +(sA.sd-sP.sd).toFixed(1);
+                H += `<div style="font-size:.8rem;margin-top:6px;line-height:1.5;">
+                    La media del equipo pasó de <b>${sP.m.toFixed(1)}%</b> a <b style="color:${dM<0?'#10b981':'#ef4444'}">${sA.m.toFixed(1)}%</b> (${dM>0?'+':''}${dM} pts).
+                    La dispersión pasó de ${sP.sd.toFixed(1)} a <b style="color:${dS<0?'#10b981':'#ef4444'}">${sA.sd.toFixed(1)}</b>:
+                    ${dS<0?'el equipo se emparejó, la calidad es más homogénea.':dS>0?'el equipo se dispersó, hay más diferencia entre profesionales.':'la dispersión se mantuvo.'}</div>`;
+            }
+        }
+
+        // Re-evaluaciones por profesional
+        const barrasRe = comp.map(c=>({nombre:c.nombre, prev:c.oPrev?c.oPrev.reeval:null, act:c.o.reeval}))
+                             .sort((a,b)=>b.act-a.act);
+        H += `<h3>Re-evaluaciones por profesional</h3>${infSvgBarras(barrasRe, mesPrevNom, mesActNom, '%', false)}`;
+    }
+
     // ── ESTADO DEL GYM: semáforo de deserción por profesional ──
     const infSem = d => d<15 ? {c:'#10b981',cls:'inf-g',lbl:'Bajo control'} : d<25 ? {c:'#f59e0b',cls:'inf-y',lbl:'Moderada'} : {c:'#ef4444',cls:'inf-r',lbl:'Crítica'};
     H += `<h2><i class="fas fa-traffic-light"></i> Estado del Gym — Semáforo de deserción por profesional</h2>`;
@@ -367,4 +444,83 @@ function informeDescargarHTML(){
     a.href=url; a.download='Informe_MOVE_'+f+'.doc';
     document.body.appendChild(a); a.click(); document.body.removeChild(a);
     setTimeout(()=>URL.revokeObjectURL(url), 2000);
+}
+
+// ══════════════════════════════════════════════════
+// HELPERS SVG PARA EL INFORME (se imprimen nítidos en PDF)
+// ══════════════════════════════════════════════════
+function infEsc(s){ return String(s).replace(/&/g,'&amp;').replace(/</g,'&lt;'); }
+function infStats(vals){
+    const a = vals.filter(v=>v!=null && isFinite(v));
+    if(!a.length) return null;
+    const m = a.reduce((x,y)=>x+y,0)/a.length;
+    const sd = Math.sqrt(a.reduce((x,y)=>x+(y-m)*(y-m),0)/a.length);
+    return {m, sd:sd||1, n:a.length};
+}
+
+// Campana de Gauss comparando dos meses (deserción del equipo)
+function infSvgGauss(prev, act, labelPrev, labelAct){
+    const sPrev = infStats(prev.map(p=>p.v)), sAct = infStats(act.map(p=>p.v));
+    if(!sAct) return '';
+    const W=680, H=250, ml=40, mr=20, mt=26, mb=42;
+    const pw=W-ml-mr, ph=H-mt-mb;
+    const todos=[...prev.map(p=>p.v), ...act.map(p=>p.v)].filter(v=>v!=null);
+    const min=Math.max(0, Math.min(...todos)-8), max=Math.max(...todos)+8;
+    const sx=v=>ml+pw*(v-min)/((max-min)||1);
+    const dens=(v,s)=>Math.exp(-Math.pow((v-s.m)/s.sd,2)/2);
+    const curva=(s,color,dash)=>{
+        if(!s) return '';
+        let d='';
+        for(let i=0;i<=60;i++){
+            const v=min+(max-min)*i/60, py=mt+ph-ph*dens(v,s)*0.92;
+            d += (i?' L':'M')+sx(v).toFixed(1)+','+py.toFixed(1);
+        }
+        return `<path d="${d}" fill="none" stroke="${color}" stroke-width="2.5"${dash?' stroke-dasharray="6,4"':''}/>`;
+    };
+    const puntos=(arr,s,color)=> !s?'':arr.filter(p=>p.v!=null).map(p=>{
+        const py=mt+ph-ph*dens(p.v,s)*0.92;
+        return `<circle cx="${sx(p.v).toFixed(1)}" cy="${py.toFixed(1)}" r="4.5" fill="${color}" stroke="#fff" stroke-width="1.5"/>`;
+    }).join('');
+    let ejes='';
+    for(let i=0;i<=4;i++){
+        const v=min+(max-min)*i/4;
+        ejes += `<line x1="${sx(v)}" y1="${mt+ph}" x2="${sx(v)}" y2="${mt+ph+4}" stroke="#94a3b8"/>
+                 <text x="${sx(v)}" y="${mt+ph+17}" font-size="10" fill="#64748b" text-anchor="middle">${v.toFixed(0)}%</text>`;
+    }
+    const media=(s,color,txt)=> !s?'':`<line x1="${sx(s.m)}" y1="${mt}" x2="${sx(s.m)}" y2="${mt+ph}" stroke="${color}" stroke-width="1.2" stroke-dasharray="3,3" opacity=".7"/>
+        <text x="${sx(s.m)}" y="${mt-8}" font-size="10" fill="${color}" text-anchor="middle" font-weight="700">${txt} ${s.m.toFixed(1)}%</text>`;
+    return `<svg viewBox="0 0 ${W} ${H}" style="width:100%;max-width:${W}px;height:auto;">
+        <line x1="${ml}" y1="${mt+ph}" x2="${ml+pw}" y2="${mt+ph}" stroke="#cbd5e1"/>
+        ${ejes}
+        ${curva(sPrev,'#94a3b8',true)}${curva(sAct,'#10b981',false)}
+        ${puntos(prev,sPrev,'#94a3b8')}${puntos(act,sAct,'#10b981')}
+        ${media(sPrev,'#94a3b8',labelPrev)}${media(sAct,'#10b981',labelAct)}
+        <text x="${ml}" y="${H-6}" font-size="10" fill="#64748b">Deserción por profesional · dispersión del equipo</text>
+    </svg>`;
+}
+
+// Barras agrupadas: métrica por profesional, mes actual vs anterior
+function infSvgBarras(items, labelPrev, labelAct, unidad, invertir){
+    if(!items.length) return '';
+    const W=680, H=42+items.length*34, ml=104, mr=64;
+    const pw=W-ml-mr;
+    const max=Math.max(...items.flatMap(i=>[i.prev||0,i.act||0]),1);
+    let filas='';
+    items.forEach((it,i)=>{
+        const y=26+i*34;
+        const wPrev=pw*(it.prev||0)/max, wAct=pw*(it.act||0)/max;
+        const mejor = invertir ? (it.act<it.prev) : (it.act>it.prev);
+        const colAct = it.prev==null ? '#10b981' : mejor ? '#10b981' : (it.act===it.prev ? '#94a3b8' : '#ef4444');
+        const dif = (it.prev!=null&&it.act!=null) ? +(it.act-it.prev).toFixed(1) : null;
+        filas += `
+        <text x="0" y="${y+11}" font-size="11" fill="#334155" font-weight="700">${infEsc(it.nombre)}</text>
+        <rect x="${ml}" y="${y}" width="${wPrev.toFixed(1)}" height="10" rx="3" fill="#cbd5e1"/>
+        <rect x="${ml}" y="${y+13}" width="${wAct.toFixed(1)}" height="10" rx="3" fill="${colAct}"/>
+        <text x="${ml+Math.max(wPrev,wAct)+7}" y="${y+10}" font-size="10" fill="#94a3b8">${it.prev!=null?it.prev+unidad:'—'}</text>
+        <text x="${ml+Math.max(wPrev,wAct)+7}" y="${y+23}" font-size="10.5" fill="${colAct}" font-weight="700">${it.act!=null?it.act+unidad:'—'}${dif!=null&&dif!==0?` (${dif>0?'+':''}${dif})`:''}</text>`;
+    });
+    return `<svg viewBox="0 0 ${W} ${H}" style="width:100%;max-width:${W}px;height:auto;">
+        <rect x="${ml}" y="4" width="10" height="8" rx="2" fill="#cbd5e1"/><text x="${ml+15}" y="12" font-size="10" fill="#64748b">${labelPrev}</text>
+        <rect x="${ml+70}" y="4" width="10" height="8" rx="2" fill="#10b981"/><text x="${ml+85}" y="12" font-size="10" fill="#64748b">${labelAct}</text>
+        ${filas}</svg>`;
 }
