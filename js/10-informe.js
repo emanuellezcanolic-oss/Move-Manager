@@ -86,11 +86,14 @@ async function informeGenerar(){
         const o = li>=0 ? objs[li] : null;
         const pi = li>0 ? li-1 : -1;
         const oPrev = pi>=0 ? objs[pi] : null;
+        const ni = li>=0 ? li+1 : -1;           // mes en curso (todavía abierto)
+        const oNext = (ni>=0 && objs[ni] && objs[ni].activos>0) ? objs[ni] : null;
         infProfe[id] = {
             sede: INF_SEDE[id], nombre: INF_NOMBRE[id], li,
             mes: li>=0 ? ((d.mesesFull&&d.mesesFull[li])||ms[li]||'') : '',
             mesPrev: pi>=0 ? ((d.mesesFull&&d.mesesFull[pi])||ms[pi]||'') : '',
-            o, oPrev,
+            mesNext: oNext ? ((d.mesesFull&&d.mesesFull[ni])||ms[ni]||'') : '',
+            o, oPrev, oNext,
             tareas: (d.tareas&&d.tareas[li])||null
         };
     });
@@ -124,81 +127,97 @@ async function informeGenerar(){
         </tr></tfoot>
     </table>`;
 
-    // ══ ESTE MES VS EL ANTERIOR ══
+    // ══ TENDENCIA DE 3 MESES (dos cerrados + el mes en curso) ══
     const comp = INF_PROFE_IDS.map(id=>{
         const p = infProfe[id];
-        return {id, nombre:p.nombre, sede:p.sede, o:p.o, oPrev:p.oPrev, mes:p.mes, mesPrev:p.mesPrev};
-    }).filter(p=>p.o);
-    const mesActNom = (comp.find(c=>c.mes)||{}).mes || gMesNombre;
-    const mesPrevNom = (comp.find(c=>c.mesPrev)||{}).mesPrev || 'mes anterior';
+        return {id, nombre:p.nombre, sede:p.sede, o1:p.oPrev, o2:p.o, o3:p.oNext,
+                m1:p.mesPrev, m2:p.mes, m3:p.mesNext};
+    }).filter(p=>p.o2);
+    const M1 = (comp.find(c=>c.m1)||{}).m1 || '';
+    const M2 = (comp.find(c=>c.m2)||{}).m2 || gMesNombre;
+    const M3 = (comp.find(c=>c.m3)||{}).m3 || '';
+    const hayCurso = comp.some(c=>c.o3);
+    const diaHoy = new Date().getDate();
 
     if(comp.length){
         const prom = (arr,f)=>{ const v=arr.map(f).filter(x=>x!=null&&isFinite(x)&&x>0); return v.length? +(v.reduce((a,b)=>a+b,0)/v.length).toFixed(1) : null; };
-        const sum  = (arr,f)=> arr.map(f).filter(x=>x!=null&&isFinite(x)).reduce((a,b)=>a+b,0);
+        const sum  = (arr,f)=> { const v=arr.map(f).filter(x=>x!=null&&isFinite(x)); return v.length? v.reduce((a,b)=>a+b,0) : null; };
 
-        H += `<h2><i class="fas fa-arrow-trend-up"></i> ${mesActNom} vs ${mesPrevNom} — cómo venimos</h2>`;
-        H += `<div class="inf-muted" style="font-size:.78rem;margin-bottom:8px;">Comparación directa contra el mes anterior. En verde lo que mejoró, en rojo lo que empeoró.</div>`;
-
-        // KPIs globales
-        const kpis = [
-            {l:'Deserción promedio', act:prom(comp,c=>c.o.desercion), prev:prom(comp,c=>c.oPrev&&c.oPrev.desercion), u:'%', inv:true},
-            {l:'Retención promedio', act:prom(comp,c=>c.o.retencion), prev:prom(comp,c=>c.oPrev&&c.oPrev.retencion), u:'%', inv:false},
-            {l:'Re-evaluaciones prom.', act:prom(comp,c=>c.o.reeval), prev:prom(comp,c=>c.oPrev&&c.oPrev.reeval), u:'%', inv:false},
-            {l:'Socios activos (liq.)', act:sum(comp,c=>c.o.activos), prev:sum(comp,c=>c.oPrev&&c.oPrev.activos), u:'', inv:false},
-        ];
-        H += `<table><thead><tr><th>Indicador</th><th>${mesPrevNom}</th><th>${mesActNom}</th><th>Diferencia</th><th>Lectura</th></tr></thead><tbody>`;
-        kpis.forEach(k=>{
-            const dif = (k.prev!=null&&k.act!=null)? +(k.act-k.prev).toFixed(1) : null;
-            const mejor = dif==null?null : (k.inv ? dif<0 : dif>0);
-            const col = dif==null||dif===0 ? '#64748b' : mejor ? '#10b981' : '#ef4444';
-            const lect = dif==null?'sin base de comparación' : dif===0?'se mantuvo igual' : mejor?'mejoró':'empeoró';
-            H += `<tr><td><b>${k.l}</b></td>
-                <td>${k.prev!=null?k.prev+k.u:'—'}</td>
-                <td><b>${k.act!=null?k.act+k.u:'—'}</b></td>
-                <td style="color:${col};font-weight:700;">${dif==null?'—':(dif>0?'▲ +':dif<0?'▼ ':'= ')+Math.abs(dif)+k.u}</td>
-                <td style="color:${col};">${lect}</td></tr>`;
-        });
-        H += `</tbody></table>`;
-
-        // Por sede
-        H += `<h3>Por sede</h3><table><thead><tr><th>Sede</th><th>Deserción ${mesPrevNom}</th><th>Deserción ${mesActNom}</th><th>Dif.</th><th>Retención ${mesActNom}</th></tr></thead><tbody>`;
-        INF_SEDES_ORDER.forEach(sede=>{
-            const g = comp.filter(c=>c.sede===sede); if(!g.length) return;
-            const dp = prom(g,c=>c.oPrev&&c.oPrev.desercion), da = prom(g,c=>c.o.desercion), ra = prom(g,c=>c.o.retencion);
-            const dif = (dp!=null&&da!=null)? +(da-dp).toFixed(1) : null;
-            const col = dif==null||dif===0?'#64748b':dif<0?'#10b981':'#ef4444';
-            H += `<tr><td><b>${sede}</b></td><td>${dp!=null?dp+'%':'—'}</td><td><b>${da!=null?da+'%':'—'}</b></td>
-                <td style="color:${col};font-weight:700;">${dif==null?'—':(dif>0?'▲ +':'▼ ')+Math.abs(dif)}</td>
-                <td>${ra!=null?ra+'%':'—'}</td></tr>`;
-        });
-        H += `</tbody></table>`;
-
-        // Gráfico de barras: deserción por profesional
-        const barrasDes = comp.map(c=>({nombre:c.nombre, prev:c.oPrev?c.oPrev.desercion:null, act:c.o.desercion}))
-                              .sort((a,b)=>b.act-a.act);
-        H += `<h3>Deserción por profesional</h3>${infSvgBarras(barrasDes, mesPrevNom, mesActNom, '%', true)}`;
-
-        // Campana de Gauss comparada
-        const gPrev = comp.filter(c=>c.oPrev&&c.oPrev.activos>0).map(c=>({nombre:c.nombre, v:c.oPrev.desercion}));
-        const gAct  = comp.map(c=>({nombre:c.nombre, v:c.o.desercion}));
-        const sP = infStats(gPrev.map(p=>p.v)), sA = infStats(gAct.map(p=>p.v));
-        if(sA){
-            H += `<h3>Distribución del equipo (campana de Gauss)</h3>`;
-            H += `<div class="inf-muted" style="font-size:.76rem;margin-bottom:4px;">Cada punto es un profesional. Cuanto más angosta la campana, más pareja es la calidad entre el equipo.</div>`;
-            H += infSvgGauss(gPrev, gAct, mesPrevNom.slice(0,3), mesActNom.slice(0,3));
-            if(sP){
-                const dM = +(sA.m-sP.m).toFixed(1), dS = +(sA.sd-sP.sd).toFixed(1);
-                H += `<div style="font-size:.8rem;margin-top:6px;line-height:1.5;">
-                    La media del equipo pasó de <b>${sP.m.toFixed(1)}%</b> a <b style="color:${dM<0?'#10b981':'#ef4444'}">${sA.m.toFixed(1)}%</b> (${dM>0?'+':''}${dM} pts).
-                    La dispersión pasó de ${sP.sd.toFixed(1)} a <b style="color:${dS<0?'#10b981':'#ef4444'}">${sA.sd.toFixed(1)}</b>:
-                    ${dS<0?'el equipo se emparejó, la calidad es más homogénea.':dS>0?'el equipo se dispersó, hay más diferencia entre profesionales.':'la dispersión se mantuvo.'}</div>`;
-            }
+        H += `<h2><i class="fas fa-arrow-trend-up"></i> Tendencia de los últimos meses</h2>`;
+        H += `<div class="inf-muted" style="font-size:.78rem;margin-bottom:6px;">Comparación de <b>${M1}</b> y <b>${M2}</b> (meses cerrados) con <b>${M3||'el mes en curso'}</b>.</div>`;
+        if(hayCurso){
+            H += `<div style="background:#fef3c7;border-left:3px solid #f59e0b;padding:8px 12px;margin-bottom:10px;font-size:.8rem;border-radius:0 6px 6px 0;">
+                <b>⚠️ ${M3} está en curso</b> — los datos son parciales, al día ${diaHoy} del mes. Todavía faltan liquidaciones por cargar, así que los números van a seguir moviéndose hasta el cierre. Sirven para leer la tendencia, no como resultado final.</div>`;
         }
 
-        // Re-evaluaciones por profesional
-        const barrasRe = comp.map(c=>({nombre:c.nombre, prev:c.oPrev?c.oPrev.reeval:null, act:c.o.reeval}))
-                             .sort((a,b)=>b.act-a.act);
-        H += `<h3>Re-evaluaciones por profesional</h3>${infSvgBarras(barrasRe, mesPrevNom, mesActNom, '%', false)}`;
+        // Tabla de indicadores globales
+        const filaKpi = (lbl, f, u, inv, esSuma) => {
+            const calc = esSuma ? sum : prom;
+            const v1=calc(comp,c=>c.o1&&f(c.o1)), v2=calc(comp,c=>c.o2&&f(c.o2)), v3=calc(comp,c=>c.o3&&f(c.o3));
+            const d21=(v1!=null&&v2!=null)?+(v2-v1).toFixed(1):null;
+            const d32=(v2!=null&&v3!=null)?+(v3-v2).toFixed(1):null;
+            const pinta=(d)=>{ if(d==null) return '<span class="inf-muted">—</span>'; const mejor=inv?d<0:d>0; const col=d===0?'#64748b':mejor?'#10b981':'#ef4444';
+                return `<span style="color:${col};font-weight:700;">${d>0?'▲ +':d<0?'▼ ':'= '}${Math.abs(d)}${u}</span>`; };
+            return `<tr><td><b>${lbl}</b></td>
+                <td>${v1!=null?v1+u:'—'}</td>
+                <td>${v2!=null?v2+u:'—'}</td>
+                <td>${pinta(d21)}</td>
+                <td${hayCurso?' style="background:#fffbeb;"':''}>${v3!=null?'<b>'+v3+u+'</b>':'—'}</td>
+                <td${hayCurso?' style="background:#fffbeb;"':''}>${pinta(d32)}</td></tr>`;
+        };
+        H += `<table><thead><tr>
+            <th>Indicador</th><th>${M1}</th><th>${M2}</th><th>Var.</th>
+            <th style="background:#fef3c7;">${M3||'En curso'} *</th><th style="background:#fef3c7;">Var.</th></tr></thead><tbody>`;
+        H += filaKpi('Deserción promedio', o=>o.desercion, '%', true, false);
+        H += filaKpi('Retención promedio', o=>o.retencion, '%', false, false);
+        H += filaKpi('Re-evaluaciones prom.', o=>o.reeval, '%', false, false);
+        H += filaKpi('Socios activos (liquidados)', o=>o.activos, '', false, true);
+        H += `</tbody></table>`;
+        if(hayCurso) H += `<div class="inf-muted" style="font-size:.72rem;margin:-8px 0 14px;">* ${M3} es parcial: mes sin cerrar.</div>`;
+
+        // Por sede
+        H += `<h3>Deserción por sede</h3><table><thead><tr><th>Sede</th><th>${M1}</th><th>${M2}</th><th>Var.</th><th style="background:#fef3c7;">${M3||'En curso'}</th></tr></thead><tbody>`;
+        INF_SEDES_ORDER.forEach(sede=>{
+            const g = comp.filter(c=>c.sede===sede); if(!g.length) return;
+            const v1=prom(g,c=>c.o1&&c.o1.desercion), v2=prom(g,c=>c.o2&&c.o2.desercion), v3=prom(g,c=>c.o3&&c.o3.desercion);
+            const d=(v1!=null&&v2!=null)?+(v2-v1).toFixed(1):null;
+            const col=d==null||d===0?'#64748b':d<0?'#10b981':'#ef4444';
+            H += `<tr><td><b>${sede}</b></td><td>${v1!=null?v1+'%':'—'}</td><td><b>${v2!=null?v2+'%':'—'}</b></td>
+                <td style="color:${col};font-weight:700;">${d==null?'—':(d>0?'▲ +':'▼ ')+Math.abs(d)}</td>
+                <td style="background:#fffbeb;">${v3!=null?'<b>'+v3+'%</b>':'—'}</td></tr>`;
+        });
+        H += `</tbody></table>`;
+
+        // Series para los gráficos
+        const serDes = [{key:'o1v', label:M1, color:'#cbd5e1'}, {key:'o2v', label:M2, color:'#94a3b8'}];
+        if(hayCurso) serDes.push({key:'o3v', label:M3+' (en curso)', color:'#10b981', destacar:true});
+        else serDes[1] = {key:'o2v', label:M2, color:'#10b981', destacar:true};
+
+        const mk = (f) => comp.map(c=>({nombre:c.nombre,
+            o1v:c.o1?f(c.o1):null, o2v:c.o2?f(c.o2):null, o3v:c.o3?f(c.o3):null}));
+
+        const barrasDes = mk(o=>o.desercion).sort((a,b)=>(b.o3v??b.o2v??0)-(a.o3v??a.o2v??0));
+        H += `<h3>Deserción por profesional</h3>${infSvgBarras(barrasDes, serDes, '%', true)}`;
+
+        const barrasRe = mk(o=>o.reeval).sort((a,b)=>(b.o3v??b.o2v??0)-(a.o3v??a.o2v??0));
+        H += `<h3>Re-evaluaciones por profesional</h3>${infSvgBarras(barrasRe, serDes, '%', false)}`;
+
+        // Campana de Gauss con los 3 meses
+        const gs = [
+            {label:M1, color:'#cbd5e1', dash:true,  datos:comp.filter(c=>c.o1&&c.o1.activos>0).map(c=>({v:c.o1.desercion}))},
+            {label:M2, color:'#94a3b8', dash:false, datos:comp.filter(c=>c.o2&&c.o2.activos>0).map(c=>({v:c.o2.desercion}))},
+        ];
+        if(hayCurso) gs.push({label:M3+' (en curso)', color:'#10b981', destacar:true, datos:comp.filter(c=>c.o3).map(c=>({v:c.o3.desercion}))});
+        H += `<h3>Distribución del equipo (campana de Gauss)</h3>`;
+        H += `<div class="inf-muted" style="font-size:.76rem;margin-bottom:4px;">Cada punto es un profesional. Cuanto más angosta y más a la izquierda la campana, mejor: menos deserción y equipo más parejo.</div>`;
+        H += infSvgGauss(gs);
+        const s1=infStats(gs[0].datos.map(d=>d.v)), s2=infStats(gs[1].datos.map(d=>d.v)), s3=gs[2]?infStats(gs[2].datos.map(d=>d.v)):null;
+        if(s1&&s2){
+            const dM=+(s2.m-s1.m).toFixed(1), dS=+(s2.sd-s1.sd).toFixed(1);
+            let t = `De ${M1} a ${M2} la media del equipo pasó de <b>${s1.m.toFixed(1)}%</b> a <b style="color:${dM<0?'#10b981':'#ef4444'}">${s2.m.toFixed(1)}%</b> (${dM>0?'+':''}${dM} pts) y la dispersión ${dS<0?'se achicó':dS>0?'creció':'se mantuvo'} (${s1.sd.toFixed(1)} → ${s2.sd.toFixed(1)}): ${dS<0?'el equipo se emparejó':dS>0?'hay más diferencia entre profesionales':'sin cambios de homogeneidad'}.`;
+            if(s3) t += ` En <b>${M3}</b>, con el mes todavía abierto, la media va en <b style="color:${s3.m<s2.m?'#10b981':'#ef4444'}">${s3.m.toFixed(1)}%</b>.`;
+            H += `<div style="font-size:.8rem;margin-top:6px;line-height:1.5;">${t}</div>`;
+        }
     }
 
     // ── ESTADO DEL GYM: semáforo de deserción por profesional ──
@@ -458,69 +477,80 @@ function infStats(vals){
     return {m, sd:sd||1, n:a.length};
 }
 
-// Campana de Gauss comparando dos meses (deserción del equipo)
-function infSvgGauss(prev, act, labelPrev, labelAct){
-    const sPrev = infStats(prev.map(p=>p.v)), sAct = infStats(act.map(p=>p.v));
-    if(!sAct) return '';
-    const W=680, H=250, ml=40, mr=20, mt=26, mb=42;
+// Campana de Gauss con N meses superpuestos (deserción del equipo)
+function infSvgGauss(series){
+    const conDatos = series.filter(s=>s.datos.some(d=>d.v!=null));
+    if(!conDatos.length) return '';
+    const stats = conDatos.map(s=>({...s, st:infStats(s.datos.map(d=>d.v))})).filter(s=>s.st);
+    if(!stats.length) return '';
+    const W=680, H=262, ml=40, mr=20, mt=34, mb=42;
     const pw=W-ml-mr, ph=H-mt-mb;
-    const todos=[...prev.map(p=>p.v), ...act.map(p=>p.v)].filter(v=>v!=null);
+    const todos = stats.flatMap(s=>s.datos.map(d=>d.v)).filter(v=>v!=null);
     const min=Math.max(0, Math.min(...todos)-8), max=Math.max(...todos)+8;
     const sx=v=>ml+pw*(v-min)/((max-min)||1);
-    const dens=(v,s)=>Math.exp(-Math.pow((v-s.m)/s.sd,2)/2);
-    const curva=(s,color,dash)=>{
-        if(!s) return '';
+    const dens=(v,st)=>Math.exp(-Math.pow((v-st.m)/st.sd,2)/2);
+    let curvas='', puntos='', medias='', leyenda='';
+    stats.forEach((s,i)=>{
         let d='';
-        for(let i=0;i<=60;i++){
-            const v=min+(max-min)*i/60, py=mt+ph-ph*dens(v,s)*0.92;
-            d += (i?' L':'M')+sx(v).toFixed(1)+','+py.toFixed(1);
+        for(let k=0;k<=60;k++){
+            const v=min+(max-min)*k/60, py=mt+ph-ph*dens(v,s.st)*0.90;
+            d += (k?' L':'M')+sx(v).toFixed(1)+','+py.toFixed(1);
         }
-        return `<path d="${d}" fill="none" stroke="${color}" stroke-width="2.5"${dash?' stroke-dasharray="6,4"':''}/>`;
-    };
-    const puntos=(arr,s,color)=> !s?'':arr.filter(p=>p.v!=null).map(p=>{
-        const py=mt+ph-ph*dens(p.v,s)*0.92;
-        return `<circle cx="${sx(p.v).toFixed(1)}" cy="${py.toFixed(1)}" r="4.5" fill="${color}" stroke="#fff" stroke-width="1.5"/>`;
-    }).join('');
+        curvas += `<path d="${d}" fill="none" stroke="${s.color}" stroke-width="${s.destacar?3:2}"${s.dash?' stroke-dasharray="6,4"':''} opacity="${s.destacar?1:.75}"/>`;
+        puntos += s.datos.filter(d2=>d2.v!=null).map(d2=>{
+            const py=mt+ph-ph*dens(d2.v,s.st)*0.90;
+            return `<circle cx="${sx(d2.v).toFixed(1)}" cy="${py.toFixed(1)}" r="${s.destacar?4.5:3.5}" fill="${s.color}" stroke="#fff" stroke-width="1.4" opacity="${s.destacar?1:.8}"/>`;
+        }).join('');
+        medias += `<line x1="${sx(s.st.m)}" y1="${mt}" x2="${sx(s.st.m)}" y2="${mt+ph}" stroke="${s.color}" stroke-width="1.1" stroke-dasharray="3,3" opacity=".6"/>`;
+        const lx=ml+i*128;
+        leyenda += `<rect x="${lx}" y="6" width="11" height="9" rx="2" fill="${s.color}"/>
+                    <text x="${lx+16}" y="14" font-size="10" fill="#64748b">${s.label} (${s.st.m.toFixed(1)}%)</text>`;
+    });
     let ejes='';
     for(let i=0;i<=4;i++){
         const v=min+(max-min)*i/4;
         ejes += `<line x1="${sx(v)}" y1="${mt+ph}" x2="${sx(v)}" y2="${mt+ph+4}" stroke="#94a3b8"/>
                  <text x="${sx(v)}" y="${mt+ph+17}" font-size="10" fill="#64748b" text-anchor="middle">${v.toFixed(0)}%</text>`;
     }
-    const media=(s,color,txt)=> !s?'':`<line x1="${sx(s.m)}" y1="${mt}" x2="${sx(s.m)}" y2="${mt+ph}" stroke="${color}" stroke-width="1.2" stroke-dasharray="3,3" opacity=".7"/>
-        <text x="${sx(s.m)}" y="${mt-8}" font-size="10" fill="${color}" text-anchor="middle" font-weight="700">${txt} ${s.m.toFixed(1)}%</text>`;
     return `<svg viewBox="0 0 ${W} ${H}" style="width:100%;max-width:${W}px;height:auto;">
+        ${leyenda}
         <line x1="${ml}" y1="${mt+ph}" x2="${ml+pw}" y2="${mt+ph}" stroke="#cbd5e1"/>
-        ${ejes}
-        ${curva(sPrev,'#94a3b8',true)}${curva(sAct,'#10b981',false)}
-        ${puntos(prev,sPrev,'#94a3b8')}${puntos(act,sAct,'#10b981')}
-        ${media(sPrev,'#94a3b8',labelPrev)}${media(sAct,'#10b981',labelAct)}
-        <text x="${ml}" y="${H-6}" font-size="10" fill="#64748b">Deserción por profesional · dispersión del equipo</text>
+        ${ejes}${medias}${curvas}${puntos}
+        <text x="${ml}" y="${H-6}" font-size="10" fill="#64748b">Deserción por profesional · cada punto es un profe, la línea punteada es la media del mes</text>
     </svg>`;
 }
 
-// Barras agrupadas: métrica por profesional, mes actual vs anterior
-function infSvgBarras(items, labelPrev, labelAct, unidad, invertir){
+// Barras agrupadas con N meses por profesional
+function infSvgBarras(items, series, unidad, invertir){
     if(!items.length) return '';
-    const W=680, H=42+items.length*34, ml=104, mr=64;
+    const nS = series.length;
+    const alto = 9, sep = 3;
+    const filaH = nS*(alto+sep) + 16;
+    const W=680, H=24+items.length*filaH, ml=104, mr=78;
     const pw=W-ml-mr;
-    const max=Math.max(...items.flatMap(i=>[i.prev||0,i.act||0]),1);
+    const max=Math.max(...items.flatMap(i=>series.map(s=>i[s.key]||0)),1);
     let filas='';
     items.forEach((it,i)=>{
-        const y=26+i*34;
-        const wPrev=pw*(it.prev||0)/max, wAct=pw*(it.act||0)/max;
-        const mejor = invertir ? (it.act<it.prev) : (it.act>it.prev);
-        const colAct = it.prev==null ? '#10b981' : mejor ? '#10b981' : (it.act===it.prev ? '#94a3b8' : '#ef4444');
-        const dif = (it.prev!=null&&it.act!=null) ? +(it.act-it.prev).toFixed(1) : null;
-        filas += `
-        <text x="0" y="${y+11}" font-size="11" fill="#334155" font-weight="700">${infEsc(it.nombre)}</text>
-        <rect x="${ml}" y="${y}" width="${wPrev.toFixed(1)}" height="10" rx="3" fill="#cbd5e1"/>
-        <rect x="${ml}" y="${y+13}" width="${wAct.toFixed(1)}" height="10" rx="3" fill="${colAct}"/>
-        <text x="${ml+Math.max(wPrev,wAct)+7}" y="${y+10}" font-size="10" fill="#94a3b8">${it.prev!=null?it.prev+unidad:'—'}</text>
-        <text x="${ml+Math.max(wPrev,wAct)+7}" y="${y+23}" font-size="10.5" fill="${colAct}" font-weight="700">${it.act!=null?it.act+unidad:'—'}${dif!=null&&dif!==0?` (${dif>0?'+':''}${dif})`:''}</text>`;
+        const y=22+i*filaH;
+        filas += `<text x="0" y="${y+nS*(alto+sep)/2+2}" font-size="11" fill="#334155" font-weight="700">${infEsc(it.nombre)}</text>`;
+        let anchoMax=0;
+        series.forEach((s,j)=>{
+            const v=it[s.key];
+            const w=pw*(v||0)/max; anchoMax=Math.max(anchoMax,w);
+            const yy=y+j*(alto+sep);
+            let color=s.color;
+            if(s.destacar && v!=null){
+                const ref=it[series[nS-2].key];
+                if(ref!=null) color = (invertir ? v<ref : v>ref) ? '#10b981' : (v===ref ? '#94a3b8' : '#ef4444');
+            }
+            filas += `<rect x="${ml}" y="${yy}" width="${w.toFixed(1)}" height="${alto}" rx="3" fill="${color}" opacity="${s.destacar?1:.8}"/>
+                      <text x="${ml+w+6}" y="${yy+alto-1}" font-size="9.5" fill="${s.destacar?color:'#94a3b8'}" font-weight="${s.destacar?700:400}">${v!=null?v+unidad:'—'}</text>`;
+        });
     });
-    return `<svg viewBox="0 0 ${W} ${H}" style="width:100%;max-width:${W}px;height:auto;">
-        <rect x="${ml}" y="4" width="10" height="8" rx="2" fill="#cbd5e1"/><text x="${ml+15}" y="12" font-size="10" fill="#64748b">${labelPrev}</text>
-        <rect x="${ml+70}" y="4" width="10" height="8" rx="2" fill="#10b981"/><text x="${ml+85}" y="12" font-size="10" fill="#64748b">${labelAct}</text>
-        ${filas}</svg>`;
+    let leyenda='';
+    series.forEach((s,i)=>{
+        const lx=ml+i*118;
+        leyenda += `<rect x="${lx}" y="2" width="10" height="8" rx="2" fill="${s.color}"/><text x="${lx+15}" y="10" font-size="10" fill="#64748b">${s.label}</text>`;
+    });
+    return `<svg viewBox="0 0 ${W} ${H}" style="width:100%;max-width:${W}px;height:auto;">${leyenda}${filas}</svg>`;
 }
