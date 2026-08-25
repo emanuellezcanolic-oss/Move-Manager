@@ -531,6 +531,7 @@ function audProcesarSocios(socios){
     const shuffled = [...noAuditados].sort(() => Math.random() - 0.5);
     const paraAud = shuffled.slice(0, Math.min(audCantPlanes, shuffled.length));
     audSociosSeleccionados = paraAud;
+    audSesionActual = {};   // nueva sesión: el historial de hoy solo tendrá lo que se audite ahora
     // NO resetear audSociosAuditados — solo agregar nuevos
     document.getElementById('audHoyBadge').textContent=`${paraAud.length} planes (${Object.keys(audSociosAuditados).length} ya auditados)`;
     audRenderTablaHoy();
@@ -538,7 +539,8 @@ function audProcesarSocios(socios){
     document.getElementById('audBtnFinalizar').style.display='none';
 }
 
-let audSociosAuditados = {}; // {nombre: {semaforos, obs, hallazgos, planes}}
+let audSociosAuditados = {}; // acumulador del MES (evita re-auditar al mismo socio) — persiste entre sesiones
+let audSesionActual = {};    // SOLO lo auditado en la sesión de hoy — es lo que se guarda en el historial
 let audSocioActual = null;
 
 function audRenderTablaHoy(){
@@ -670,10 +672,12 @@ function audSaveAudit(){
         obs[sec.key]=(document.getElementById('aobs_'+sec.key).value||'').trim();
     });
 
-    audSociosAuditados[audSocioActual]={
+    const _reg = {
         semaforos, obs,
         audFHallazgos:(document.getElementById('audFHallazgos').value||'').trim(),
     };
+    audSociosAuditados[audSocioActual]=_reg;
+    audSesionActual[audSocioActual]=_reg;
     audCloseFormModal();
     audRenderTablaHoy();
     audGuardarAuditados();
@@ -692,7 +696,7 @@ function audFinalizarDia(){
     // Calcular semáforo promedio del día
     const semResumen=Object.fromEntries(AUD_SECTIONS.map(s=>[s.key,'verde']));
     const counts=Object.fromEntries(AUD_SECTIONS.map(s=>[s.key,{v:0,a:0,r:0}]));
-    Object.values(audSociosAuditados).forEach(a=>{
+    Object.values(audSesionActual).forEach(a=>{
         AUD_SECTIONS.forEach(sec=>{
             if(a.semaforos[sec.key]==='verde') counts[sec.key].v++;
             else if(a.semaforos[sec.key]==='amarillo') counts[sec.key].a++;
@@ -705,7 +709,7 @@ function audFinalizarDia(){
     });
 
     // Armar detalle por socio
-    const detalleSocios = Object.entries(audSociosAuditados).map(([nombre,a])=>({
+    const detalleSocios = Object.entries(audSesionActual).map(([nombre,a])=>({
         nombre,
         semaforos:a.semaforos,
         hallazgos:a.audFHallazgos,
@@ -726,8 +730,8 @@ function audFinalizarDia(){
         detalleSocios
     });
 
-    audSociosAuditados={};
-    audGuardarAuditados();   // persiste el vaciado (local + Gist), si no la nube sigue con los viejos y reaparecen
+    audSesionActual={};      // cierra la sesión del día; el acumulador del mes se mantiene para no repetir socios
+    audGuardarAuditados();
     audRenderHistorial();
     audGuardarHistorial();
     document.getElementById('audProgresoWrap').style.display='none';
