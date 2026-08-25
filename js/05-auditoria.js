@@ -135,37 +135,60 @@ async function audGuardarHistorial(){
 // y se saca de las auditorías posteriores donde apareció arrastrado por error.
 function audLimpiarDuplicados(){
     if(!audHistorial.length){ alert('No hay auditorías cargadas.'); return; }
-    // Backup antes de tocar nada
     try{ localStorage.setItem('move_aud_backup_'+Date.now(), JSON.stringify({historial:audHistorial})); }catch(e){}
 
     const porProfe = {};
     audHistorial.forEach(a=>{ (porProfe[a.profe]=porProfe[a.profe]||[]).push(a); });
 
-    let socioRepetidos=0, entradasVaciasEliminadas=0;
+    let socioRepetidos=0, estadosRescatados=0;
     Object.values(porProfe).forEach(entradas=>{
         entradas.sort((a,b)=>audFechaAud(a)-audFechaAud(b));  // más vieja primero
-        const visto = new Set();
+        const primera = {};   // nombre -> registro que se conserva
         entradas.forEach(a=>{
             const antes=(a.detalleSocios||[]).length;
             a.detalleSocios = (a.detalleSocios||[]).filter(d=>{
-                if(visto.has(d.nombre)) return false;
-                visto.add(d.nombre);
-                return true;
+                const yaEsta = primera[d.nombre];
+                if(!yaEsta){ primera[d.nombre]=d; return true; }
+                // Duplicado: antes de descartarlo, rescatamos los estados que se hayan cargado en él
+                const dst = yaEsta.estados = yaEsta.estados || {};
+                Object.entries(d.estados||{}).forEach(([k,v])=>{
+                    if(!v || v==='pendiente') return;                 // nada útil que rescatar
+                    if(!dst[k] || dst[k]==='pendiente'){ dst[k]=v; estadosRescatados++; }
+                });
+                return false;
             });
             socioRepetidos += antes - a.detalleSocios.length;
             a.planesAuditados = a.detalleSocios.length;
         });
     });
 
-    // Auditorías que quedaron en 0 planes (eran 100% arrastre) se sacan del historial
     const antesLen = audHistorial.length;
     audHistorial = audHistorial.filter(a=>a.planesAuditados>0);
-    entradasVaciasEliminadas = antesLen - audHistorial.length;
+    const vacias = antesLen - audHistorial.length;
 
     audRenderHistorial();
     audRenderDashboard();
     audGuardarHistorial();
-    alert(`Limpieza lista.\n\n${socioRepetidos} socios duplicados sacados de auditorías posteriores.\n${entradasVaciasEliminadas} auditorías vacías (100% arrastre) eliminadas.\n\nCada socio quedó solo en el día real en que fue auditado. Se guardó un backup local por si hace falta revertir.`);
+    alert(`Limpieza lista.\n\n${socioRepetidos} socios duplicados sacados.\n${estadosRescatados} estados de tareas rescatados y conservados.\n${vacias} auditorías vacías eliminadas.\n\nSe guardó un backup automático antes de tocar nada.`);
+}
+
+// Restaura el último backup automático (el que se guarda antes de cada limpieza)
+function audRestaurarBackupAuto(){
+    const claves = Object.keys(localStorage).filter(k=>k.startsWith('move_aud_backup_')).sort();
+    if(!claves.length){ alert('No hay backups automáticos guardados en este dispositivo.'); return; }
+    const ultima = claves[claves.length-1];
+    const ts = Number(ultima.replace('move_aud_backup_',''));
+    const cuando = isFinite(ts) ? new Date(ts).toLocaleString('es-AR') : '—';
+    if(!confirm(`Se va a restaurar el historial tal como estaba antes de la última limpieza (${cuando}).\n\nEsto reemplaza el historial actual. ¿Continuar?`)) return;
+    try{
+        const data = JSON.parse(localStorage.getItem(ultima));
+        if(!data || !data.historial) throw new Error('backup inválido');
+        audHistorial = data.historial;
+        audRenderHistorial();
+        audRenderDashboard();
+        audGuardarHistorial();
+        alert(`Historial restaurado al estado del ${cuando}.\n\n${audHistorial.length} auditorías recuperadas con sus estados.`);
+    }catch(e){ alert('No se pudo restaurar: '+e.message); }
 }
 
 function audExportar(){
