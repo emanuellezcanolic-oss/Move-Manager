@@ -539,12 +539,12 @@ function renderEstadoStats(){
 
       <div class="estado-sede-card" style="margin-top:16px;border-left:3px solid #f43f5e;">
         <div class="estado-sede-title"><i class="fas fa-person-walking-arrow-right"></i> Bajas precoces · socios nuevos que no llegan al segundo mes</div>
-        <div style="font-size:.78rem;color:var(--muted);margin-bottom:10px;">Detecta a los socios que entraron por recepción (Lucía/Tani, Ara/Azul o Keila/Rubén según la sede) y al mes siguiente figuran como BAJA. Muestra qué profesional y qué meses concentran la fuga temprana.</div>
+        <div style="font-size:.78rem;color:var(--muted);margin-bottom:10px;">Detecta a los socios que entraron por recepción (Lucía/Tani, Ara/Azul o Keila/Rubén según la sede) y al mes siguiente figuran como BAJA. <b>La baja se cuenta en el mes en que ocurrió</b>: si el alta fue en marzo y la baja en abril, aparece en abril.</div>
         <details style="margin-bottom:12px;">
           <summary style="cursor:pointer;font-size:.76rem;font-weight:600;color:#f43f5e;">Cómo se calcula</summary>
           <div style="font-size:.76rem;color:var(--muted);line-height:1.55;margin-top:8px;padding:8px 0 8px 12px;border-left:2px solid var(--border);">
             Recorre socio por socio las 8 planillas. Un <b>socio nuevo</b> es el que en algún mes tiene cargado el nombre de un recepcionista de su sede (así se registra un ingreso). Después mira el mes siguiente de esa misma fila: si dice <b>BAJA</b>, es una <b>baja precoz</b> — entró y se fue en el primer ciclo.<br><br>
-            El porcentaje de cada celda es <i>bajas precoces ÷ altas de ese mes</i>. Solo se evalúan los meses cuyo mes siguiente ya está cargado; los que todavía no se pueden medir aparecen como "—" y no ensucian el promedio.
+            El porcentaje de cada celda es <i>bajas precoces del mes ÷ altas del mes anterior</i>. Enero no se puede evaluar (no hay mes previo) y aparece como "—".
           </div>
         </details>
         <div id="precozBox"><button class="aud-btn-save" onclick="precozAnalisis(this)" style="font-size:.82rem;padding:9px 18px;background:#f43f5e;"><i class="fas fa-play"></i> Analizar bajas precoces</button></div>
@@ -1172,32 +1172,33 @@ function precozDetalle(nombre, mes){
     const M=['ENE','FEB','MAR','ABR','MAY','JUN','JUL','AGO','SEP','OCT','NOV','DIC'];
     const p=Object.values(precozDatos).find(x=>x.nombre===nombre); if(!p) return;
     const d=p.meses[mes]; if(!d) return;
-    const vals=Object.entries(d.vals||{}).sort((a,b)=>b[1]-a[1]);
+    const base=mes>=1?p.meses[mes-1].altas:0;
+    const vals=Object.entries((p.meses[mes-1]||{}).vals||{}).sort((a,b)=>b[1]-a[1]);
     const chips=vals.map(([k,v])=>`<span style="display:inline-block;background:var(--card);border:1px solid var(--border);border-radius:6px;padding:2px 8px;margin:2px 3px 0 0;font-size:.7rem;">${k} <b>${v}</b></span>`).join('');
     if(!d.lista.length){
         const el2=document.getElementById('precozDetalleBox');
         if(el2) el2.innerHTML=`<div style="margin-top:14px;background:var(--bg);border-radius:10px;padding:12px;">
-            <b style="font-size:.84rem;">${nombre} · ${M[mes]}: no se detectaron altas por recepción</b>
-            <div style="font-size:.76rem;color:var(--muted);margin:8px 0 4px;">Esto es lo que hay cargado en la columna de ese mes:</div>
+            <b style="font-size:.84rem;">${nombre} · ${M[mes]}: ninguna de las ${base} altas de ${M[mes-1]} se dio de baja</b>
+            <div style="font-size:.76rem;color:var(--muted);margin:8px 0 4px;">Valores cargados en ${M[mes-1]}:</div>
             <div>${chips||'<i>columna vacía</i>'}</div></div>`;
         return;
     }
     const el=document.getElementById('precozDetalleBox'); if(!el) return;
     const filas=d.lista.map(s=>`<tr style="border-bottom:1px solid var(--border);">
         <td style="padding:5px 8px;">${s.n}</td>
+        <td style="padding:5px 8px;color:var(--muted);">${M[s.mesAlta]}</td>
         <td style="padding:5px 8px;color:var(--muted);">${s.recep}</td>
-        <td style="padding:5px 8px;"><b style="color:${s.precoz?'#ef4444':'#10b981'};">${s.sig}</b></td>
-        <td style="padding:5px 8px;text-align:center;">${s.precoz?'🔴 baja precoz':'✅ siguió'}</td></tr>`).join('');
+        <td style="padding:5px 8px;text-align:center;"><b style="color:#ef4444;">BAJA en ${M[mes]}</b></td></tr>`).join('');
     el.innerHTML=`<div style="margin-top:14px;background:var(--bg);border-radius:10px;padding:12px;">
         <div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:8px;">
-            <b style="font-size:.84rem;">${nombre} · altas de ${M[mes]} (${d.altas}) → qué pasó en ${M[mes+1]}</b>
+            <b style="font-size:.84rem;">${nombre} · bajas precoces de ${M[mes]} (${d.precoz} de las ${base} altas de ${M[mes-1]})</b>
             <button onclick="document.getElementById('precozDetalleBox').innerHTML=''" style="border:none;background:none;color:var(--muted);cursor:pointer;font-size:1rem;">&times;</button>
         </div>
-        <div style="font-size:.7rem;color:var(--muted);margin-bottom:6px;">Valores cargados ese mes: ${chips}</div>
+        <div style="font-size:.7rem;color:var(--muted);margin-bottom:6px;">Valores cargados en ${M[mes-1]}: ${chips}</div>
         <div style="overflow-x:auto;"><table style="width:100%;border-collapse:collapse;font-size:.78rem;">
             <thead><tr style="border-bottom:1px solid var(--border);color:var(--muted);font-size:.7rem;text-transform:uppercase;">
-            <th style="text-align:left;padding:4px 8px;">Socio</th><th style="text-align:left;padding:4px 8px;">Alta por</th>
-            <th style="text-align:left;padding:4px 8px;">Mes siguiente</th><th style="padding:4px 8px;">Resultado</th></tr></thead>
+            <th style="text-align:left;padding:4px 8px;">Socio</th><th style="text-align:left;padding:4px 8px;">Mes de alta</th>
+            <th style="text-align:left;padding:4px 8px;">Cargado por</th><th style="padding:4px 8px;">Resultado</th></tr></thead>
             <tbody>${filas}</tbody></table></div></div>`;
     el.scrollIntoView({behavior:'smooth',block:'nearest'});
 }
@@ -1239,11 +1240,12 @@ async function precozAnalisis(btn){
                 for(let alta=0; alta<=maxMes && alta<est.length; alta++){
                     if(est[alta]) reg.meses[alta].vals[est[alta]]=(reg.meses[alta].vals[est[alta]]||0)+1;
                     if(!esRecep(est[alta])) continue;
-                    reg.meses[alta].altas++;
-                    const sig = alta+1<=maxMes ? (est[alta+1]||'(vacío)') : '(sin cargar)';
-                    const esPrecoz = alta+1<=maxMes && est[alta+1]==='BAJA';
-                    if(esPrecoz) reg.meses[alta].precoz++;
-                    reg.meses[alta].lista.push({n:(r[4]||'').trim(), recep:est[alta], sig, precoz:esPrecoz});
+                    reg.meses[alta].altas++;                       // alta del mes en que la cargó recepción
+                    if(alta+1>maxMes || alta+1>=est.length) continue;
+                    if(est[alta+1]!=='BAJA') continue;
+                    // La baja se atribuye al MES EN QUE OCURRIÓ (alta+1)
+                    reg.meses[alta+1].precoz++;
+                    reg.meses[alta+1].lista.push({n:(r[4]||'').trim(), recep:est[alta], mesAlta:alta});
                 }
             }
             datos[id]=reg;
@@ -1254,7 +1256,7 @@ async function precozAnalisis(btn){
     const profes=Object.values(datos).filter(p=>p.meses.some(m=>m.altas>0));
     if(!profes.length){ box.innerHTML='<div style="font-size:.85rem;color:var(--muted)">No hay altas cargadas para analizar todavía.</div>'; return; }
 
-    const evaluable=m=>m<maxMes;                    // el mes siguiente tiene que estar cargado
+    const evaluable=m=>m>=1 && m<=maxMes;           // hace falta el mes anterior (las altas) y este (las bajas)
     const col=p=>p==null?'#e2e8f0':p<15?'#10b981':p<30?'#f59e0b':'#ef4444';
     const txtCol=p=>p==null?'#94a3b8':'#fff';
 
@@ -1269,11 +1271,12 @@ async function precozAnalisis(btn){
         let celdas='';
         for(let m=0;m<=maxMes;m++){
             const d=p.meses[m];
-            if(!evaluable(m) || !d.altas){ celdas+='<td style="text-align:center;color:#cbd5e1;">—</td>'; continue; }
-            const pct=Math.round(d.precoz/d.altas*100);
-            ta+=d.altas; tp+=d.precoz;
-            totMes[m].altas+=d.altas; totMes[m].precoz+=d.precoz;
-            celdas+=`<td style="text-align:center;padding:3px;"><span onclick="precozDetalle('${p.nombre}',${m})" title="${d.precoz} de ${d.altas} altas · tocá para ver el detalle" style="cursor:pointer;display:inline-block;min-width:42px;background:${col(pct)};color:${txtCol(pct)};font-weight:700;font-size:.72rem;border-radius:6px;padding:3px 6px;">${pct}%</span></td>`;
+            const base=m>=1?p.meses[m-1].altas:0;      // altas del mes anterior
+            if(!evaluable(m) || !base){ celdas+='<td style="text-align:center;color:#cbd5e1;">—</td>'; continue; }
+            const pct=Math.round(d.precoz/base*100);
+            ta+=base; tp+=d.precoz;
+            totMes[m].altas+=base; totMes[m].precoz+=d.precoz;
+            celdas+=`<td style="text-align:center;padding:3px;"><span onclick="precozDetalle('${p.nombre}',${m})" title="${d.precoz} bajas de las ${base} altas del mes anterior · tocá para ver el detalle" style="cursor:pointer;display:inline-block;min-width:42px;background:${col(pct)};color:${txtCol(pct)};font-weight:700;font-size:.72rem;border-radius:6px;padding:3px 6px;">${pct}%</span></td>`;
         }
         const tot=ta?Math.round(tp/ta*100):null;
         p._tot=tot; p._ta=ta; p._tp=tp;
