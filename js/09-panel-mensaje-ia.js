@@ -105,7 +105,7 @@ function aeRenderPanel(mesIdx){
         bar('% Deserción', d.desercion, AE_METAS_2026.desercion) +
         bar('Re-evaluaciones', d.reeval, AE_METAS_2026.reeval) +
         bar('Socios Nuevos', nuevos, AE_METAS_2026.nuevos) +
-        bar('Tarea Mensual', d.tarea, AE_METAS_2026.tarea);
+        bar('Tarea Mensual', tareaPct??d.tarea, AE_METAS_2026.tarea);
 }
 
 // ── API Key de Groq (localStorage) ──
@@ -152,7 +152,7 @@ async function aeGuardarMsgHist(btn){
 
 async function aeGenerarMensaje(regen){
     const modal = document.getElementById('aeMsgModal');
-    const {datos,d,prev,nuevos,adh,mesNombre} = aePanelDatos(aeMesActual);
+    const {datos,d,prev,nuevos,adh,mesNombre,tareaPct,tareaPctPrev,activosReales} = aePanelDatos(aeMesActual);
     const nombre = AE_NOMBRE[aeProfeActual]||datos.nombre||aeProfeActual;
     document.getElementById('aeMsgProfe').textContent = nombre;
     document.getElementById('aeMsgMes').textContent = mesNombre||'';
@@ -188,11 +188,11 @@ async function aeGenerarMensaje(regen){
     const metricas =
 `Entrenador: ${nombre} (sede ${AE_SEDE[aeProfeActual]||datos.sede||'—'})
 Mes analizado: ${mesNombre}
-👥 Socios activos: ${d.activos} (${cmp(d.activos, prev?prev.activos:null)}) — cupo objetivo 110
+👥 Socios activos: ${activosReales??d.activos} (padrón real de hoy) — cupo objetivo 110
 📉 Deserción: ${d.desercion}% (${cmp(d.desercion, prev?prev.desercion:null)}) — objetivo ≤10%
 🤝 Retención real: ${d.retencion}% (${cmp(d.retencion, prev?prev.retencion:null)}) — objetivo ≥90%
 🔄 Re-evaluaciones: ${d.reeval}% (${cmp(d.reeval, prev?prev.reeval:null)}) — objetivo ≥30% de socios activos
-📝 Tareas mensuales: ${d.tarea}% de cumplimiento — objetivo 100%
+📝 Tareas mensuales: ${tareaPct??d.tarea}% de cumplimiento (${(datos.tareas&&datos.tareas[aeMesActual]||[]).filter(t=>t.ok).length}/${(datos.tareas&&datos.tareas[aeMesActual]||[]).length} completadas)${tareaPctPrev!=null?` (${cmp(tareaPct??d.tarea, tareaPctPrev)})`:''} — objetivo 100%
 📈 Socios nuevos del mes: ${nuevos} — objetivo ≥70
 📊 Adherencia promedio de sus socios: ${adh!=null?adh+'%':'sin dato'}`;
 
@@ -293,7 +293,7 @@ async function aeDescargarImagen(){
 async function aeBuildDashboardCanvas(mesIdx){
     const datos = AE_DATA[aeProfeActual] || AE_BELEN;
     if(mesIdx==null || mesIdx<0 || mesIdx>=datos.objetivos.length) mesIdx = datos.objetivos.length-1;
-    const {d,prev,nuevos,nuevosPrev,adh,adhPrev,mesNombre} = aePanelDatos(mesIdx);
+    const {d,prev,nuevos,nuevosPrev,adh,adhPrev,mesNombre,tareaPct,activosReales} = aePanelDatos(mesIdx);
     const nombre = AE_NOMBRE[aeProfeActual]||aeProfeActual;
     const sede = AE_SEDE[aeProfeActual]||datos.sede||'';
     const mesPrevN = mesIdx>0 ? (datos.meses[mesIdx-1]||'mes ant.') : 'mes ant.';
@@ -343,7 +343,7 @@ async function aeBuildDashboardCanvas(mesIdx){
     let y0=284; txt('Métricas del mes',60,y0+34,'700',40,WHITE);
     function dinfo(cur,pv,inv){ if(pv==null||cur==null) return{t:'sin previo',c:MUT,d:0}; let df=Math.round((cur-pv)*10)/10; if(df===0)return{t:'igual',c:MUT,d:0}; const bu=inv?df<0:df>0; return{t:`${df>0?'+':''}${df} vs ${mesPrevN}`,c:bu?ACC:RED,d:df>0?1:-1}; }
     const kpis=[
-        {l:'SOCIOS ACTIVOS',v:String(d.activos),c:d.activos>=95?ACC:d.activos>=70?AMB:RED,dl:dinfo(d.activos,prev?prev.activos:null,false)},
+        {l:'SOCIOS ACTIVOS',v:String(activosReales??d.activos),c:(activosReales??d.activos)>=95?ACC:(activosReales??d.activos)>=70?AMB:RED,dl:activosReales!=null?{t:'padrón real de hoy',c:MUT,d:0}:dinfo(d.activos,prev?prev.activos:null,false)},
         {l:'% DESERCIÓN',v:(d.desercion??0)+'%',c:d.desercion<=10?ACC:d.desercion<=20?AMB:RED,dl:dinfo(d.desercion,prev?prev.desercion:null,true)},
         {l:'RETENCIÓN REAL',v:(d.retencion??0)+'%',c:d.retencion>=90?ACC:AMB,dl:dinfo(d.retencion,prev?prev.retencion:null,false)},
         {l:'RE-EVALUACIONES',v:(d.reeval??0)+'%',c:d.reeval>=30?ACC:d.reeval>=15?AMB:RED,dl:dinfo(d.reeval,prev?prev.reeval:null,false)},
