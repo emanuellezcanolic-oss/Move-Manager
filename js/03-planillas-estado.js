@@ -1209,14 +1209,16 @@ async function precozAnalisis(btn){
                 if(!/^\d/.test((r[2]||'').trim())) continue;
                 if(!(r[4]||'').trim()) continue;
                 const est=AE_MES_COLS.map(c=>(r[c]||'').trim().toUpperCase());
-                let alta=-1;
-                for(let m=0;m<est.length;m++){ if(est[m] && RECEP.has(est[m])){ alta=m; break; } }
-                if(alta<0 || alta>maxMes) continue;
-                reg.meses[alta].altas++;
-                const sig = alta+1<=maxMes ? (est[alta+1]||'(vacío)') : '(sin cargar)';
-                const esPrecoz = alta+1<=maxMes && est[alta+1]==='BAJA';
-                if(esPrecoz) reg.meses[alta].precoz++;
-                reg.meses[alta].lista.push({n:(r[4]||'').trim(), recep:est[alta], sig, precoz:esPrecoz});
+                // Regla: CUALQUIER mes con recepcionista cuenta como alta de ese mes.
+                // Si el mes siguiente dice BAJA, es baja precoz.
+                for(let alta=0; alta<=maxMes && alta<est.length; alta++){
+                    if(!est[alta] || !RECEP.has(est[alta])) continue;
+                    reg.meses[alta].altas++;
+                    const sig = alta+1<=maxMes ? (est[alta+1]||'(vacío)') : '(sin cargar)';
+                    const esPrecoz = alta+1<=maxMes && est[alta+1]==='BAJA';
+                    if(esPrecoz) reg.meses[alta].precoz++;
+                    reg.meses[alta].lista.push({n:(r[4]||'').trim(), recep:est[alta], sig, precoz:esPrecoz});
+                }
             }
             datos[id]=reg;
         }catch(e){}
