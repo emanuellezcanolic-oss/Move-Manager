@@ -382,14 +382,14 @@ const AE_SHEETS = {
 const AE_MES_COLS = [11,12,13,14,16,17,18,19,21,22,23,24];
 
 // Recepcionistas (socios nuevos): Bariloche KEILA/RUBEN · Puelo ARA/AZUL · Bolsón LUCIA/TANI
-const AE_RECEP = new Set(['LUCIA','TANI','RUBEN','KEILA','ARA','AZUL']);
+const AE_RECEP = new Set(['LUCIA','TANI','RUBEN','KEILA','ARA','AZUL','RAYU','RAYEN']);
 // Cada sede cuenta SOLO sus propios recepcionistas (evita contar, ej., KEILA de Bari en planillas de Puelo)
 const AE_RECEP_SEDE = {
-    'El Bolsón':  new Set(['LUCIA','TANI']),
+    'El Bolsón':  new Set(['LUCIA','TANI','RAYU','RAYEN']),
     'Lago Puelo': new Set(['ARA','AZUL']),
     'Bariloche':  new Set(['KEILA','RUBEN']),
 };
-const AE_RECEP_LABEL = {'El Bolsón':'Lucía/Tani', 'Lago Puelo':'Ara/Azul', 'Bariloche':'Keila/Rubén'};
+const AE_RECEP_LABEL = {'El Bolsón':'Recepción', 'Lago Puelo':'Ara/Azul', 'Bariloche':'Keila/Rubén'};
 
 // Metas anuales MOVE 2026 (para barras de progreso del panel ejecutivo)
 const AE_METAS_2026 = {
