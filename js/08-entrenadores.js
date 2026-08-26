@@ -591,6 +591,12 @@ async function aeSelProfe(id, btn){
     aeProfeActual = id;
     document.querySelectorAll('#section-analisis-entrenadores .tab').forEach(b=>b.classList.remove('active'));
     if(btn) btn.classList.add('active');
+    // Padrón real: hace falta para el KPI de Socios Activos (misma fuente que Estado del Gym)
+    const esBari = AE_SEDE[id]==='Bariloche';
+    try{
+        if(!esBari && (typeof planData==='undefined' || !planData)) await cargarTodo();
+        if(esBari && (typeof bariData==='undefined' || !bariData || !bariData.length)) await loadBariloche();
+    }catch(e){}
     // Cargar datos vivos (si no están cacheados). Fallback al hardcodeado si falla.
     if(!aeLiveCargado[id]){
         try { await aeLoadLive(id); }
@@ -600,6 +606,21 @@ async function aeSelProfe(id, btn){
     const mesConDatos = datos.objetivos.map((o,i)=>o.activos>0?i:-1).filter(i=>i>=0);
     aeMesActual = mesConDatos.length ? mesConDatos[mesConDatos.length-1] : 4;
     aeRender(aeMesActual);
+    aeActualizarSelector();
+}
+
+// Los "N socios" de los botones vienen fijos del HTML: los pasamos al padrón real
+function aeActualizarSelector(){
+    document.querySelectorAll('#section-analisis-entrenadores .tab').forEach(b=>{
+        const m = /aeSelProfe\('([a-z]+)'/.exec(b.getAttribute('onclick')||'');
+        if(!m) return;
+        const prev = aeProfeActual; aeProfeActual = m[1];
+        const n = (typeof aeActivosReales==='function') ? aeActivosReales() : null;
+        aeProfeActual = prev;
+        if(n==null) return;
+        const sp = b.querySelector('span');
+        if(sp) sp.textContent = n + ' socios';
+    });
 }
 
 function aeRender(mesIdx){
