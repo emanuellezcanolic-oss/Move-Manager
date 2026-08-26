@@ -1171,7 +1171,17 @@ let precozDatos={};
 function precozDetalle(nombre, mes){
     const M=['ENE','FEB','MAR','ABR','MAY','JUN','JUL','AGO','SEP','OCT','NOV','DIC'];
     const p=Object.values(precozDatos).find(x=>x.nombre===nombre); if(!p) return;
-    const d=p.meses[mes]; if(!d||!d.lista.length) return;
+    const d=p.meses[mes]; if(!d) return;
+    const vals=Object.entries(d.vals||{}).sort((a,b)=>b[1]-a[1]);
+    const chips=vals.map(([k,v])=>`<span style="display:inline-block;background:var(--card);border:1px solid var(--border);border-radius:6px;padding:2px 8px;margin:2px 3px 0 0;font-size:.7rem;">${k} <b>${v}</b></span>`).join('');
+    if(!d.lista.length){
+        const el2=document.getElementById('precozDetalleBox');
+        if(el2) el2.innerHTML=`<div style="margin-top:14px;background:var(--bg);border-radius:10px;padding:12px;">
+            <b style="font-size:.84rem;">${nombre} · ${M[mes]}: no se detectaron altas por recepción</b>
+            <div style="font-size:.76rem;color:var(--muted);margin:8px 0 4px;">Esto es lo que hay cargado en la columna de ese mes:</div>
+            <div>${chips||'<i>columna vacía</i>'}</div></div>`;
+        return;
+    }
     const el=document.getElementById('precozDetalleBox'); if(!el) return;
     const filas=d.lista.map(s=>`<tr style="border-bottom:1px solid var(--border);">
         <td style="padding:5px 8px;">${s.n}</td>
@@ -1183,6 +1193,7 @@ function precozDetalle(nombre, mes){
             <b style="font-size:.84rem;">${nombre} · altas de ${M[mes]} (${d.altas}) → qué pasó en ${M[mes+1]}</b>
             <button onclick="document.getElementById('precozDetalleBox').innerHTML=''" style="border:none;background:none;color:var(--muted);cursor:pointer;font-size:1rem;">&times;</button>
         </div>
+        <div style="font-size:.7rem;color:var(--muted);margin-bottom:6px;">Valores cargados ese mes: ${chips}</div>
         <div style="overflow-x:auto;"><table style="width:100%;border-collapse:collapse;font-size:.78rem;">
             <thead><tr style="border-bottom:1px solid var(--border);color:var(--muted);font-size:.7rem;text-transform:uppercase;">
             <th style="text-align:left;padding:4px 8px;">Socio</th><th style="text-align:left;padding:4px 8px;">Alta por</th>
@@ -1203,7 +1214,21 @@ async function precozAnalisis(btn){
             const plan=await aeExportCSV(AE_SHEETS[id]);
             const sede=AE_SEDE[id];
             const RECEP=(typeof AE_RECEP_SEDE!=='undefined' && AE_RECEP_SEDE[sede]) || AE_RECEP;
-            const reg={sede, nombre:AE_NOMBRE[id]||id, meses:Array.from({length:12},()=>({altas:0,precoz:0,lista:[]}))};
+            // Recepcionistas de OTRAS sedes: no cuentan (aparecen sueltos en algunas planillas)
+            const OTRAS=new Set([...(typeof AE_RECEP!=='undefined'?AE_RECEP:[])].filter(x=>!RECEP.has(x)));
+            // Estados que NO son un alta por recepción
+            const ESTADOS=['RENUEVA','BAJA','NUEVO','LIBERADO','VACACIONES','DERIV','LIBRE','PAUSA','CONGEL'];
+            // Es alta por recepción si es un recepcionista conocido de la sede,
+            // o cualquier otro nombre cargado que no sea un estado (cubre recepcionistas nuevos: RAYU, etc.)
+            const esRecep=v=>{
+                if(!v) return false;
+                if(RECEP.has(v)) return true;
+                if(OTRAS.has(v)) return false;
+                if(ESTADOS.some(e=>v.startsWith(e))) return false;
+                if(/^[\d\s.,%$/-]+$/.test(v)) return false;   // números o fechas sueltas
+                return true;
+            };
+            const reg={sede, nombre:AE_NOMBRE[id]||id, meses:Array.from({length:12},()=>({altas:0,precoz:0,lista:[],vals:{}}))};
             for(let i=6;i<plan.length;i++){
                 const r=plan[i]; if(!r) continue;
                 if(!/^\d/.test((r[2]||'').trim())) continue;
@@ -1212,7 +1237,8 @@ async function precozAnalisis(btn){
                 // Regla: CUALQUIER mes con recepcionista cuenta como alta de ese mes.
                 // Si el mes siguiente dice BAJA, es baja precoz.
                 for(let alta=0; alta<=maxMes && alta<est.length; alta++){
-                    if(!est[alta] || !RECEP.has(est[alta])) continue;
+                    if(est[alta]) reg.meses[alta].vals[est[alta]]=(reg.meses[alta].vals[est[alta]]||0)+1;
+                    if(!esRecep(est[alta])) continue;
                     reg.meses[alta].altas++;
                     const sig = alta+1<=maxMes ? (est[alta+1]||'(vacío)') : '(sin cargar)';
                     const esPrecoz = alta+1<=maxMes && est[alta+1]==='BAJA';
