@@ -537,6 +537,19 @@ function renderEstadoStats(){
         <div id="cohorteBox"><button class="aud-btn-save" onclick="cohorteAnalisis(this)" style="font-size:.82rem;padding:9px 18px;"><i class="fas fa-play"></i> Analizar cohortes</button></div>
       </div>
 
+      <div class="estado-sede-card" style="margin-top:16px;border-left:3px solid #f43f5e;">
+        <div class="estado-sede-title"><i class="fas fa-person-walking-arrow-right"></i> Bajas precoces · socios nuevos que no llegan al segundo mes</div>
+        <div style="font-size:.78rem;color:var(--muted);margin-bottom:10px;">Detecta a los socios que entraron por recepción (Lucía/Tani, Ara/Azul o Keila/Rubén según la sede) y al mes siguiente figuran como BAJA. Muestra qué profesional y qué meses concentran la fuga temprana.</div>
+        <details style="margin-bottom:12px;">
+          <summary style="cursor:pointer;font-size:.76rem;font-weight:600;color:#f43f5e;">Cómo se calcula</summary>
+          <div style="font-size:.76rem;color:var(--muted);line-height:1.55;margin-top:8px;padding:8px 0 8px 12px;border-left:2px solid var(--border);">
+            Recorre socio por socio las 8 planillas. Un <b>socio nuevo</b> es el que en algún mes tiene cargado el nombre de un recepcionista de su sede (así se registra un ingreso). Después mira el mes siguiente de esa misma fila: si dice <b>BAJA</b>, es una <b>baja precoz</b> — entró y se fue en el primer ciclo.<br><br>
+            El porcentaje de cada celda es <i>bajas precoces ÷ altas de ese mes</i>. Solo se evalúan los meses cuyo mes siguiente ya está cargado; los que todavía no se pueden medir aparecen como "—" y no ensucian el promedio.
+          </div>
+        </details>
+        <div id="precozBox"><button class="aud-btn-save" onclick="precozAnalisis(this)" style="font-size:.82rem;padding:9px 18px;background:#f43f5e;"><i class="fas fa-play"></i> Analizar bajas precoces</button></div>
+      </div>
+
       <div class="estado-sede-card" style="margin-top:16px;border-left:3px solid #8b5cf6;">
         <div class="estado-sede-title"><i class="fas fa-hourglass-half"></i> Re-evaluaciones → Deserción: ¿impacto inmediato o con retraso?</div>
         <div style="font-size:.78rem;color:var(--muted);margin-bottom:12px;">Mide si reevaluar socios reduce las bajas en el mismo mes o recién 1-2 meses después. Correlación con retraso, juntando los 8 profes para tener más muestra.</div>
@@ -1151,4 +1164,116 @@ function renderVersus() {
     });
 
     el.innerHTML = html;
+}
+
+// ══ BAJAS PRECOCES · socios nuevos que se van en el primer ciclo ══
+async function precozAnalisis(btn){
+    const box=document.getElementById('precozBox');
+    btn.disabled=true; btn.innerHTML='<i class="fas fa-spinner fa-spin"></i> Leyendo planillas…';
+    const ids=Object.keys(AE_SHEETS||{});
+    const maxMes=estadoMi;
+    const M=['ENE','FEB','MAR','ABR','MAY','JUN','JUL','AGO','SEP','OCT','NOV','DIC'];
+    const datos={};   // profe -> {sede, meses:[{altas, precoz, evaluable}]}
+
+    await Promise.all(ids.map(async id=>{
+        try{
+            const plan=await aeExportCSV(AE_SHEETS[id]);
+            const sede=AE_SEDE[id];
+            const RECEP=(typeof AE_RECEP_SEDE!=='undefined' && AE_RECEP_SEDE[sede]) || AE_RECEP;
+            const reg={sede, nombre:AE_NOMBRE[id]||id, meses:Array.from({length:12},()=>({altas:0,precoz:0}))};
+            for(let i=6;i<plan.length;i++){
+                const r=plan[i]; if(!r) continue;
+                if(!/^\d/.test((r[2]||'').trim())) continue;
+                if(!(r[4]||'').trim()) continue;
+                const est=AE_MES_COLS.map(c=>(r[c]||'').trim().toUpperCase());
+                let alta=-1;
+                for(let m=0;m<est.length;m++){ if(est[m] && RECEP.has(est[m])){ alta=m; break; } }
+                if(alta<0 || alta>maxMes) continue;
+                reg.meses[alta].altas++;
+                if(alta+1<=maxMes && est[alta+1]==='BAJA') reg.meses[alta].precoz++;
+            }
+            datos[id]=reg;
+        }catch(e){}
+    }));
+
+    const profes=Object.values(datos).filter(p=>p.meses.some(m=>m.altas>0));
+    if(!profes.length){ box.innerHTML='<div style="font-size:.85rem;color:var(--muted)">No hay altas cargadas para analizar todavía.</div>'; return; }
+
+    const evaluable=m=>m<maxMes;                    // el mes siguiente tiene que estar cargado
+    const col=p=>p==null?'#e2e8f0':p<15?'#10b981':p<30?'#f59e0b':'#ef4444';
+    const txtCol=p=>p==null?'#94a3b8':'#fff';
+
+    // Tabla heatmap
+    let head='<th style="text-align:left;">Profesional</th>';
+    for(let m=0;m<=maxMes;m++) head+=`<th style="text-align:center;font-size:.7rem;">${M[m]}</th>`;
+    head+='<th style="text-align:center;">Total</th>';
+    let filas='';
+    const totMes=Array.from({length:12},()=>({altas:0,precoz:0}));
+    profes.forEach(p=>{
+        let ta=0,tp=0;
+        let celdas='';
+        for(let m=0;m<=maxMes;m++){
+            const d=p.meses[m];
+            if(!evaluable(m) || !d.altas){ celdas+='<td style="text-align:center;color:#cbd5e1;">—</td>'; continue; }
+            const pct=Math.round(d.precoz/d.altas*100);
+            ta+=d.altas; tp+=d.precoz;
+            totMes[m].altas+=d.altas; totMes[m].precoz+=d.precoz;
+            celdas+=`<td style="text-align:center;padding:3px;"><span title="${d.precoz} de ${d.altas} altas" style="display:inline-block;min-width:42px;background:${col(pct)};color:${txtCol(pct)};font-weight:700;font-size:.72rem;border-radius:6px;padding:3px 6px;">${pct}%</span></td>`;
+        }
+        const tot=ta?Math.round(tp/ta*100):null;
+        p._tot=tot; p._ta=ta; p._tp=tp;
+        filas+=`<tr><td style="font-weight:700;">${p.nombre} <span style="color:var(--muted);font-size:.68rem;">${p.sede}</span></td>${celdas}
+            <td style="text-align:center;"><b style="color:${col(tot)==='#e2e8f0'?'var(--muted)':col(tot)};">${tot==null?'—':tot+'%'}</b>
+            <div style="font-size:.62rem;color:var(--muted);">${tp}/${ta}</div></td></tr>`;
+    });
+    let filaTot='<td style="font-weight:800;">TOTAL MOVE</td>';
+    let gA=0,gP=0;
+    for(let m=0;m<=maxMes;m++){
+        const d=totMes[m];
+        if(!evaluable(m)||!d.altas){ filaTot+='<td style="text-align:center;color:#cbd5e1;">—</td>'; continue; }
+        const pct=Math.round(d.precoz/d.altas*100); gA+=d.altas; gP+=d.precoz;
+        filaTot+=`<td style="text-align:center;"><b style="color:${col(pct)};">${pct}%</b></td>`;
+    }
+    const gTot=gA?Math.round(gP/gA*100):0;
+    filaTot+=`<td style="text-align:center;"><b style="color:${col(gTot)};">${gTot}%</b><div style="font-size:.62rem;color:var(--muted);">${gP}/${gA}</div></td>`;
+
+    // Conclusiones
+    const conDato=profes.filter(p=>p._tot!=null && p._ta>=5).sort((a,b)=>b._tot-a._tot);
+    const peorProfe=conDato[0], mejorProfe=conDato[conDato.length-1];
+    let peorMes=null;
+    for(let m=0;m<=maxMes;m++){
+        if(!evaluable(m)||!totMes[m].altas) continue;
+        const pct=totMes[m].precoz/totMes[m].altas*100;
+        if(!peorMes||pct>peorMes.pct) peorMes={m,pct,d:totMes[m]};
+    }
+    let conc=`De <b>${gA} altas</b> evaluables, <b style="color:${col(gTot)}">${gP} se dieron de baja al mes siguiente (${gTot}%)</b>. `;
+    if(gTot>=30) conc+='<b>Es alto:</b> uno de cada tres socios nuevos no llega al segundo mes. El problema está en la primera experiencia, no en la captación.';
+    else if(gTot>=15) conc+='Está en una zona intermedia: hay margen claro de mejora en el onboarding.';
+    else conc+='Es un buen número: los socios que entran se quedan.';
+    if(peorMes) conc+=` El mes con más fuga temprana fue <b>${M[peorMes.m]}</b> (${Math.round(peorMes.pct)}%).`;
+    if(peorProfe&&mejorProfe&&peorProfe!==mejorProfe) conc+=` Entre profesionales, <b style="color:#ef4444">${peorProfe.nombre}</b> concentra la mayor fuga precoz (${peorProfe._tot}%) y <b style="color:#10b981">${mejorProfe.nombre}</b> la menor (${mejorProfe._tot}%): vale mirar qué hace distinto en el primer mes.`;
+
+    box.innerHTML=`
+        <div style="display:flex;gap:10px;flex-wrap:wrap;margin-bottom:12px;">
+            <div style="flex:1;min-width:130px;background:var(--bg);border-radius:10px;padding:10px 14px;">
+                <div style="font-size:.62rem;color:var(--muted);font-weight:700;text-transform:uppercase;">Altas evaluadas</div>
+                <div style="font-size:1.5rem;font-weight:800;font-family:monospace;">${gA}</div></div>
+            <div style="flex:1;min-width:130px;background:var(--bg);border-radius:10px;padding:10px 14px;">
+                <div style="font-size:.62rem;color:var(--muted);font-weight:700;text-transform:uppercase;">Bajas precoces</div>
+                <div style="font-size:1.5rem;font-weight:800;font-family:monospace;color:${col(gTot)};">${gP}</div></div>
+            <div style="flex:1;min-width:130px;background:var(--bg);border-radius:10px;padding:10px 14px;">
+                <div style="font-size:.62rem;color:var(--muted);font-weight:700;text-transform:uppercase;">% que no llega al mes 2</div>
+                <div style="font-size:1.5rem;font-weight:800;font-family:monospace;color:${col(gTot)};">${gTot}%</div></div>
+        </div>
+        <div style="overflow-x:auto;"><table style="width:100%;border-collapse:collapse;font-size:.8rem;">
+            <thead><tr style="border-bottom:1px solid var(--border);">${head}</tr></thead>
+            <tbody>${filas}<tr style="border-top:2px solid var(--border);background:var(--bg);">${filaTot}</tr></tbody>
+        </table></div>
+        <div style="display:flex;gap:12px;flex-wrap:wrap;margin-top:10px;font-size:.68rem;color:var(--muted);">
+            <span><span style="display:inline-block;width:10px;height:10px;border-radius:3px;background:#10b981;"></span> &lt;15% bueno</span>
+            <span><span style="display:inline-block;width:10px;height:10px;border-radius:3px;background:#f59e0b;"></span> 15-30% a mejorar</span>
+            <span><span style="display:inline-block;width:10px;height:10px;border-radius:3px;background:#ef4444;"></span> &gt;30% crítico</span>
+            <span>— = mes sin evaluar todavía</span>
+        </div>
+        <div style="margin-top:12px;font-size:.84rem;line-height:1.5;">${conc}</div>`;
 }
