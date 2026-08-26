@@ -533,7 +533,10 @@ async function aeLoadLive(id){
             if(obs==='Observaciones') obs='';   // placeholder vacío de la planilla
             const cond=(row[cC]||'').trim();
             if(!desc || desc.toLowerCase().includes('descripción de tarea') || desc==='Tarea') continue;
-            const ok = cond==='✔'||cond==='✓'||cond.toUpperCase()==='SI'||cond.toUpperCase()==='SÍ';
+            // La planilla usa distintas formas para marcar una tarea cumplida
+            const c = cond.toLowerCase().normalize('NFD').replace(/[\u0300-\u036f]/g,'');
+            const ok = ['✔','✓','x','si','ok','listo','hecho','cumplido','cumplida','completado','completada','completo','terminado','realizado','realizada','100%'].includes(c)
+                       || c.startsWith('complet') || c.startsWith('cumpl') || c.startsWith('realiz') || c.startsWith('hech');
             ts.push({desc, obs:obs||'—', ok});
         }
         tareas.push(ts);
