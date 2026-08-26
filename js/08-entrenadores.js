@@ -631,7 +631,7 @@ function aeRender(mesIdx){
     // Objetivos con barras
     document.getElementById('aeObjs').innerHTML = [
         {l:'Socios Activos',    v:d.activos,        mx:110},
-        {l:'Tareas completadas',v:d.tarea,          mx:100},
+        {l:'Tareas completadas',v:(tareas.length?Math.round(tareas.filter(t=>t.ok).length/tareas.length*100):d.tarea), mx:100},
         {l:'Re-evaluaciones',   v:Math.min(d.reeval,40), mx:40},
         {l:'Retención real',    v:d.retencion,      mx:100},
         {l:'Puntaje total',     v:d.puntaje,        mx:160},
