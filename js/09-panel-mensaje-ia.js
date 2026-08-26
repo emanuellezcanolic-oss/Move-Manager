@@ -5,6 +5,28 @@ const AE_GROQ_MODEL = 'openai/gpt-oss-120b';
 const AE_NOMBRE = {belen:'Belén',fer:'Fer',enzo:'Enzo',javi:'Javi',agus:'Agus',camila:'Camila',carla:'Carla',estefania:'Estefanía'};
 const AE_SEDE = {belen:'El Bolsón',fer:'El Bolsón',enzo:'El Bolsón',javi:'Lago Puelo',agus:'Lago Puelo',camila:'Bariloche',carla:'Bariloche',estefania:'Bariloche'};
 
+// Padrón real del profe (misma fuente que Estado del Gym), no la celda manual de Objetivos
+function aeActivosReales(){
+    const mapBP={belen:'belu',fer:'fer',enzo:'enzo',javi:'javi',agus:'agus'};
+    const t=mapBP[aeProfeActual];
+    if(t && typeof planData!=='undefined' && planData && planData.profes){
+        const p=planData.profes.find(x=>String(x.nombre||'').toLowerCase().startsWith(t));
+        if(p && p.activos>0) return p.activos;
+    }
+    const mapB={camila:'camila',carla:'carla',estefania:'estef'};
+    const tb=mapB[aeProfeActual];
+    if(tb && typeof bariData!=='undefined' && bariData && bariData.length){
+        const p=bariData.find(x=>String(x.nombre||'').toLowerCase().startsWith(tb));
+        if(p && p.activos>0) return p.activos;
+    }
+    return null;
+}
+// % de tareas cumplidas del mes, calculado sobre las tareas reales de la planilla
+function aeTareaPct(datos, mesIdx){
+    const ts = (datos.tareas && datos.tareas[mesIdx]) || [];
+    if(!ts.length) return null;
+    return Math.round(ts.filter(t=>t.ok).length / ts.length * 100);
+}
 function aePanelDatos(mesIdx){
     const datos = AE_DATA[aeProfeActual] || AE_BELEN;
     const d = datos.objetivos[mesIdx] || {};
@@ -15,11 +37,14 @@ function aePanelDatos(mesIdx){
     const nuevosPrev = movPrev.nuevos!=null ? movPrev.nuevos : (movPrev.luciaTani||0);
     const adh = datos.adherencia ? datos.adherencia[mesIdx] : null;
     const adhPrev = (prev && datos.adherencia) ? datos.adherencia[mesIdx-1] : null;
-    return {datos,d,prev,nuevos,nuevosPrev,adh,adhPrev,mesNombre:datos.mesesFull?datos.mesesFull[mesIdx]:datos.meses[mesIdx]};
+    const tareaPct = aeTareaPct(datos, mesIdx);
+    const tareaPctPrev = mesIdx>0 ? aeTareaPct(datos, mesIdx-1) : null;
+    const activosReales = aeActivosReales();
+    return {datos,d,prev,nuevos,nuevosPrev,adh,adhPrev,tareaPct,tareaPctPrev,activosReales,mesNombre:datos.mesesFull?datos.mesesFull[mesIdx]:datos.meses[mesIdx]};
 }
 
 function aeRenderPanel(mesIdx){
-    const {datos,d,prev,nuevos,nuevosPrev,adh,adhPrev} = aePanelDatos(mesIdx);
+    const {datos,d,prev,nuevos,nuevosPrev,adh,adhPrev,tareaPct,tareaPctPrev,activosReales} = aePanelDatos(mesIdx);
     document.getElementById('aePanelProfe').textContent = `${AE_NOMBRE[aeProfeActual]||datos.nombre||aeProfeActual} · ${datos.meses[mesIdx]}`;
 
     // delta: valor actual - previo. mejorInv=true cuando menos es mejor (deserción)
@@ -35,11 +60,12 @@ function aeRenderPanel(mesIdx){
     const sc = p => p>=80?'#10b981':p>=50?'#f59e0b':'#ef4444';
 
     const kpis = [
-        {l:'Socios Activos', v:d.activos, c:d.activos>=95?'#10b981':d.activos>=70?'#f59e0b':'#ef4444', dl:delta(d.activos, prev?prev.activos:null,false)},
+        {l:'Socios Activos', v:(activosReales??d.activos), c:(activosReales??d.activos)>=95?'#10b981':(activosReales??d.activos)>=70?'#f59e0b':'#ef4444',
+         dl: activosReales!=null ? '<span style="font-size:.66rem;color:var(--muted);">padrón real de hoy</span>' : delta(d.activos, prev?prev.activos:null,false)},
         {l:'% Deserción', v:(d.desercion??0)+'%', c:d.desercion<=10?'#10b981':d.desercion<=20?'#f59e0b':'#ef4444', dl:delta(d.desercion, prev?prev.desercion:null,true)},
         {l:'Retención Real', v:(d.retencion??0)+'%', c:d.retencion>=90?'#10b981':d.retencion>=75?'#f59e0b':'#ef4444', dl:delta(d.retencion, prev?prev.retencion:null,false)},
         {l:'Re-evaluaciones', v:d.reeval??0, c:d.reeval>=30?'#10b981':d.reeval>=15?'#f59e0b':'#ef4444', dl:delta(d.reeval, prev?prev.reeval:null,false)},
-        {l:'Tarea Mensual', v:(d.tarea??0)+'%', c:sc(d.tarea), dl:delta(d.tarea, prev?prev.tarea:null,false)},
+        {l:'Tarea Mensual', v:(tareaPct??d.tarea??0)+'%', c:sc(tareaPct??d.tarea), dl:delta(tareaPct??d.tarea, tareaPctPrev??(prev?prev.tarea:null),false)},
         {l:'Socios Nuevos', v:nuevos, c:nuevos>=70?'#10b981':nuevos>=35?'#f59e0b':'#ef4444', dl:delta(nuevos, prev?nuevosPrev:null,false)},
         {l:'Adherencia Prom.', v:adh!=null?adh+'%':'—', c:adh>=80?'#10b981':adh>=50?'#f59e0b':'#ef4444', dl:delta(adh, adhPrev,false)},
     ];
