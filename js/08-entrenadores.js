@@ -477,6 +477,77 @@ function aeParseActivosCierre(res){
     return best;
 }
 
+// ── Auditoría "Tarea Mensual" ──
+// Hay DOS fuentes independientes para el cumplimiento de tareas del mes:
+//  1) datos.tareas[mes]  → checklist autoreportado por el profe (pestaña "Tareas Mensuales",
+//     texto libre tipo "cumplido"/"hecho"). Nadie verifica que sea cierto.
+//  2) datos.objetivos[mes].tarea → % calculado por la fórmula de la pestaña "Objetivos".
+// Antes el dashboard usaba SIEMPRE la (1) si existía, ignorando la (2) por completo.
+// Por eso Enzo aparecía con "6/6 completadas · 100%" en el panel mientras la planilla
+// de Objetivos calculaba 0,00% para el mismo mes: el checklist estaba tildado a mano
+// sin que el trabajo real (el que mide la fórmula) estuviera hecho.
+// Ahora: si ambas existen y difieren ≥15 pts, no le creemos al autoreporte — mandamos
+// el valor más exigente de los dos y marcamos mismatch:true para mostrar la alerta.
+function aeTareaAuditada(datos, mesIdx){
+    const ts = (datos.tareas && datos.tareas[mesIdx]) || [];
+    const checklist = ts.length ? Math.round(ts.filter(t=>t.ok).length/ts.length*100) : null;
+    const objetivo = (datos.objetivos && datos.objetivos[mesIdx] && datos.objetivos[mesIdx].tarea!=null)
+        ? datos.objetivos[mesIdx].tarea : null;
+    if(checklist==null && objetivo==null) return {valor:0, mismatch:false, checklist, objetivo};
+    if(checklist==null) return {valor:objetivo, mismatch:false, checklist, objetivo};
+    if(objetivo==null)  return {valor:checklist, mismatch:false, checklist, objetivo};
+    const mismatch = Math.abs(checklist-objetivo) >= 15;
+    const valor = mismatch ? Math.min(checklist, objetivo) : checklist;
+    return {valor, mismatch, checklist, objetivo};
+}
+
+// Recorre los 8 profes y arma una tabla de coincidencia/discrepancia para un mes dado.
+// Fuerza la carga en vivo del que todavía no esté cacheado.
+async function aeAuditarTodos(mesIdx){
+    if(mesIdx==null) mesIdx = aeMesActual;
+    const cont = document.getElementById('aeAuditoriaTodos');
+    if(cont) cont.innerHTML = `<div style="padding:14px;color:var(--muted);font-size:.8rem;"><i class="fas fa-spinner fa-spin"></i> Auditando los 8 profesionales…</div>`;
+    const ids = Object.keys(AE_SHEETS);
+    await Promise.all(ids.map(async id=>{
+        if(!aeLiveCargado[id]){
+            try{ await aeLoadLive(id); }
+            catch(e){ console.warn('Auditoría: fallo carga viva de', id, e); }
+        }
+    }));
+    const filas = ids.map(id=>{
+        const datos = AE_DATA[id] || AE_FALLBACK[id];
+        const mIdx = Math.min(mesIdx, datos.objetivos.length-1);
+        const a = aeTareaAuditada(datos, mIdx);
+        return {id, nombre: AE_NOMBRE[id]||id, mes: datos.meses[mIdx], ...a};
+    });
+    if(cont){
+        const badMismatch = filas.filter(f=>f.mismatch);
+        cont.innerHTML = `
+            <div style="font-size:.78rem;color:var(--muted);margin-bottom:10px;">
+                ${badMismatch.length
+                    ? `<span style="color:#ef4444;font-weight:700;"><i class="fas fa-triangle-exclamation"></i> ${badMismatch.length} de ${filas.length} profesionales</span> tienen el checklist autoreportado sin verificar contra la fórmula de Objetivos.`
+                    : `<span style="color:#10b981;font-weight:700;"><i class="fas fa-check"></i> Todo coincide.</span> El checklist autoreportado coincide con la fórmula de Objetivos en los ${filas.length} profesionales.`}
+            </div>
+            <table style="width:100%;border-collapse:collapse;font-size:.8rem;">
+                <thead><tr style="text-align:left;border-bottom:1px solid var(--border);color:var(--muted);font-size:.68rem;text-transform:uppercase;">
+                    <th style="padding:6px 8px;">Profesional</th><th style="padding:6px 8px;">Mes</th>
+                    <th style="padding:6px 8px;">Autoreportado</th><th style="padding:6px 8px;">Fórmula Objetivos</th>
+                    <th style="padding:6px 8px;">Estado</th>
+                </tr></thead>
+                <tbody>
+                ${filas.map(f=>`<tr style="border-bottom:1px solid var(--border);${f.mismatch?'background:rgba(239,68,68,.06);':''}">
+                    <td style="padding:6px 8px;font-weight:600;">${f.nombre}</td>
+                    <td style="padding:6px 8px;color:var(--muted);">${f.mes}</td>
+                    <td style="padding:6px 8px;font-family:monospace;">${f.checklist!=null?f.checklist+'%':'—'}</td>
+                    <td style="padding:6px 8px;font-family:monospace;">${f.objetivo!=null?f.objetivo+'%':'—'}</td>
+                    <td style="padding:6px 8px;${f.mismatch?'color:#ef4444;font-weight:700;':'color:#10b981;'}">${f.mismatch?'⚠ Discrepancia — revisar':'✓ Coincide'}</td>
+                </tr>`).join('')}
+                </tbody>
+            </table>`;
+    }
+    return filas;
+}
+
 // Construye el objeto datos (mismo shape que el hardcodeado) leyendo las pestañas
 async function aeLoadLive(id){
     const sid=AE_SHEETS[id];
@@ -629,6 +700,7 @@ function aeRender(mesIdx){
     const d = datos.objetivos[mesIdx];
     const mov = datos.movimiento[mesIdx];
     const tareas = datos.tareas[mesIdx]||[];
+    const auditoria = aeTareaAuditada(datos, mesIdx);
     const sc = p => p>=80?'#10b981':p>=50?'#f59e0b':'#ef4444';
 
     // Tabs mes
@@ -652,7 +724,7 @@ function aeRender(mesIdx){
     // Objetivos con barras
     document.getElementById('aeObjs').innerHTML = [
         {l:'Socios Activos',    v:d.activos,        mx:110},
-        {l:'Tareas completadas',v:(tareas.length?Math.round(tareas.filter(t=>t.ok).length/tareas.length*100):d.tarea), mx:100},
+        {l:'Tareas completadas'+(auditoria.mismatch?' ⚠':''),v:auditoria.valor, mx:100},
         {l:'Re-evaluaciones',   v:Math.min(d.reeval,40), mx:40},
         {l:'Retención real',    v:d.retencion,      mx:100},
         {l:'Puntaje total',     v:d.puntaje,        mx:160},
@@ -676,10 +748,13 @@ function aeRender(mesIdx){
     } else {
         const ok=tareas.filter(t=>t.ok).length;
         tEl.innerHTML=`
-            <div style="display:flex;justify-content:space-between;margin-bottom:10px;font-size:.75rem;">
-                <span style="color:var(--muted);">${ok}/${tareas.length} completadas</span>
+            <div style="display:flex;justify-content:space-between;margin-bottom:${auditoria.mismatch?'4px':'10px'};font-size:.75rem;">
+                <span style="color:var(--muted);">${ok}/${tareas.length} completadas (autoreportado)</span>
                 <span style="font-weight:700;color:${sc(ok/tareas.length*100)}">${Math.round(ok/tareas.length*100)}%</span>
             </div>
+            ${auditoria.mismatch?`<div style="display:flex;align-items:center;gap:6px;background:rgba(239,68,68,.1);color:#ef4444;font-size:.7rem;font-weight:600;padding:6px 9px;border-radius:6px;margin-bottom:10px;">
+                <i class="fas fa-triangle-exclamation"></i> El checklist marca ${auditoria.checklist}% pero la planilla de Objetivos calcula ${auditoria.objetivo}% — no coincide, revisar con el profe antes de dar por cumplido.
+            </div>`:''}
             ${tareas.map(t=>`<div style="display:flex;align-items:flex-start;gap:8px;padding:7px 0;border-bottom:1px solid var(--border);">
                 <div style="width:20px;height:20px;border-radius:5px;display:flex;align-items:center;justify-content:center;flex-shrink:0;font-size:.7rem;font-weight:700;background:${t.ok?'rgba(16,185,129,.15)':'rgba(239,68,68,.1)'};color:${t.ok?'#10b981':'#ef4444'};">${t.ok?'✓':'✗'}</div>
                 <div>
