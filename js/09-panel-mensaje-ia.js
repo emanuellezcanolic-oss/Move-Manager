@@ -37,14 +37,18 @@ function aePanelDatos(mesIdx){
     const nuevosPrev = movPrev.nuevos!=null ? movPrev.nuevos : (movPrev.luciaTani||0);
     const adh = datos.adherencia ? datos.adherencia[mesIdx] : null;
     const adhPrev = (prev && datos.adherencia) ? datos.adherencia[mesIdx-1] : null;
-    const tareaPct = aeTareaPct(datos, mesIdx);
-    const tareaPctPrev = mesIdx>0 ? aeTareaPct(datos, mesIdx-1) : null;
+    // aeTareaAuditada (definida en 08-entrenadores.js) reconcilia el checklist autoreportado
+    // contra la fórmula real de la pestaña Objetivos, en vez de creerle ciegamente al checklist.
+    const auditoria = aeTareaAuditada(datos, mesIdx);
+    const auditoriaPrev = mesIdx>0 ? aeTareaAuditada(datos, mesIdx-1) : null;
+    const tareaPct = auditoria.valor;
+    const tareaPctPrev = auditoriaPrev ? auditoriaPrev.valor : null;
     const activosReales = aeActivosReales();
-    return {datos,d,prev,nuevos,nuevosPrev,adh,adhPrev,tareaPct,tareaPctPrev,activosReales,mesNombre:datos.mesesFull?datos.mesesFull[mesIdx]:datos.meses[mesIdx]};
+    return {datos,d,prev,nuevos,nuevosPrev,adh,adhPrev,tareaPct,tareaPctPrev,auditoria,activosReales,mesNombre:datos.mesesFull?datos.mesesFull[mesIdx]:datos.meses[mesIdx]};
 }
 
 function aeRenderPanel(mesIdx){
-    const {datos,d,prev,nuevos,nuevosPrev,adh,adhPrev,tareaPct,tareaPctPrev,activosReales} = aePanelDatos(mesIdx);
+    const {datos,d,prev,nuevos,nuevosPrev,adh,adhPrev,tareaPct,tareaPctPrev,auditoria,activosReales} = aePanelDatos(mesIdx);
     document.getElementById('aePanelProfe').textContent = `${AE_NOMBRE[aeProfeActual]||datos.nombre||aeProfeActual} · ${datos.meses[mesIdx]}`;
 
     // delta: valor actual - previo. mejorInv=true cuando menos es mejor (deserción)
@@ -65,7 +69,10 @@ function aeRenderPanel(mesIdx){
         {l:'% Deserción', v:(d.desercion??0)+'%', c:d.desercion<=10?'#10b981':d.desercion<=20?'#f59e0b':'#ef4444', dl:delta(d.desercion, prev?prev.desercion:null,true)},
         {l:'Retención Real', v:(d.retencion??0)+'%', c:d.retencion>=90?'#10b981':d.retencion>=75?'#f59e0b':'#ef4444', dl:delta(d.retencion, prev?prev.retencion:null,false)},
         {l:'Re-evaluaciones', v:d.reeval??0, c:d.reeval>=30?'#10b981':d.reeval>=15?'#f59e0b':'#ef4444', dl:delta(d.reeval, prev?prev.reeval:null,false)},
-        {l:'Tarea Mensual', v:(tareaPct??d.tarea??0)+'%', c:sc(tareaPct??d.tarea), dl:delta(tareaPct??d.tarea, tareaPctPrev??(prev?prev.tarea:null),false)},
+        {l:'Tarea Mensual'+(auditoria.mismatch?' ⚠':''), v:tareaPct+'%', c:sc(tareaPct),
+         dl: auditoria.mismatch
+            ? `<span style="font-size:.64rem;color:#ef4444;font-weight:700;">⚠ checklist ${auditoria.checklist}% vs objetivos ${auditoria.objetivo}%</span>`
+            : delta(tareaPct, tareaPctPrev,false)},
         {l:'Socios Nuevos', v:nuevos, c:nuevos>=70?'#10b981':nuevos>=35?'#f59e0b':'#ef4444', dl:delta(nuevos, prev?nuevosPrev:null,false)},
         {l:'Adherencia Prom.', v:adh!=null?adh+'%':'—', c:adh>=80?'#10b981':adh>=50?'#f59e0b':'#ef4444', dl:delta(adh, adhPrev,false)},
     ];
@@ -105,7 +112,7 @@ function aeRenderPanel(mesIdx){
         bar('% Deserción', d.desercion, AE_METAS_2026.desercion) +
         bar('Re-evaluaciones', d.reeval, AE_METAS_2026.reeval) +
         bar('Socios Nuevos', nuevos, AE_METAS_2026.nuevos) +
-        bar('Tarea Mensual', tareaPct??d.tarea, AE_METAS_2026.tarea);
+        bar('Tarea Mensual'+(auditoria.mismatch?' ⚠ sin verificar':''), tareaPct, AE_METAS_2026.tarea);
 }
 
 // ── API Key de Groq (localStorage) ──
@@ -152,7 +159,7 @@ async function aeGuardarMsgHist(btn){
 
 async function aeGenerarMensaje(regen){
     const modal = document.getElementById('aeMsgModal');
-    const {datos,d,prev,nuevos,adh,mesNombre,tareaPct,tareaPctPrev,activosReales} = aePanelDatos(aeMesActual);
+    const {datos,d,prev,nuevos,adh,mesNombre,tareaPct,tareaPctPrev,auditoria,activosReales} = aePanelDatos(aeMesActual);
     const nombre = AE_NOMBRE[aeProfeActual]||datos.nombre||aeProfeActual;
     document.getElementById('aeMsgProfe').textContent = nombre;
     document.getElementById('aeMsgMes').textContent = mesNombre||'';
@@ -192,7 +199,7 @@ Mes analizado: ${mesNombre}
 📉 Deserción: ${d.desercion}% (${cmp(d.desercion, prev?prev.desercion:null)}) — objetivo ≤10%
 🤝 Retención real: ${d.retencion}% (${cmp(d.retencion, prev?prev.retencion:null)}) — objetivo ≥90%
 🔄 Re-evaluaciones: ${d.reeval}% (${cmp(d.reeval, prev?prev.reeval:null)}) — objetivo ≥30% de socios activos
-📝 Tareas mensuales: ${tareaPct??d.tarea}% de cumplimiento (${(datos.tareas&&datos.tareas[aeMesActual]||[]).filter(t=>t.ok).length}/${(datos.tareas&&datos.tareas[aeMesActual]||[]).length} completadas)${tareaPctPrev!=null?` (${cmp(tareaPct??d.tarea, tareaPctPrev)})`:''} — objetivo 100%
+📝 Tareas mensuales: ${tareaPct}% de cumplimiento (${(datos.tareas&&datos.tareas[aeMesActual]||[]).filter(t=>t.ok).length}/${(datos.tareas&&datos.tareas[aeMesActual]||[]).length} completadas)${tareaPctPrev!=null?` (${cmp(tareaPct, tareaPctPrev)})`:''} — objetivo 100%${auditoria.mismatch?` ⚠ OJO: el checklist que marcó el profe dice ${auditoria.checklist}% pero la planilla de Objetivos calcula ${auditoria.objetivo}% — no está verificado, no lo felicites por esto todavía, pedile que lo revise con el coordinador.`:''}
 📈 Socios nuevos del mes: ${nuevos} — objetivo ≥70
 📊 Adherencia promedio de sus socios: ${adh!=null?adh+'%':'sin dato'}`;
 
