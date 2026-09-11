@@ -549,9 +549,14 @@ async function aeLoadLive(id){
             if(obs==='Observaciones') obs='';   // placeholder vacío de la planilla
             const cond=(row[cC]||'').trim();
             if(!desc || desc.toLowerCase().includes('descripción de tarea') || desc==='Tarea') continue;
-            // La planilla usa distintas formas para marcar una tarea cumplida
+            // La planilla "PLANTILLA DE TAREAS MENSUALES" usa ✔ para marcar una tarea cumplida.
+            // "X" es el valor por DEFECTO de la plantilla (pendiente/no hecho) — no significa
+            // "hecho". Antes 'x' estaba en la lista de "cumplido" por error: cualquier tarea
+            // sin marcar (con la X de plantilla intacta) se contaba como completada, por eso
+            // el checklist mostraba "6/6 · 100%" cuando en realidad la propia planilla —fila
+            // "0%" en la pestaña Tareas Mensuales— decía que ninguna estaba hecha.
             const c = cond.toLowerCase().normalize('NFD').replace(/[\u0300-\u036f]/g,'');
-            const ok = ['✔','✓','x','si','ok','listo','hecho','cumplido','cumplida','completado','completada','completo','terminado','realizado','realizada','100%'].includes(c)
+            const ok = ['✔','✓','si','ok','listo','hecho','cumplido','cumplida','completado','completada','completo','terminado','realizado','realizada','100%'].includes(c)
                        || c.startsWith('complet') || c.startsWith('cumpl') || c.startsWith('realiz') || c.startsWith('hech');
             ts.push({desc, obs:obs||'—', ok});
         }
