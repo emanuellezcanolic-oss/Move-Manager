@@ -69,10 +69,7 @@ function aeRenderPanel(mesIdx){
         {l:'% Deserción', v:(d.desercion??0)+'%', c:d.desercion<=10?'#10b981':d.desercion<=20?'#f59e0b':'#ef4444', dl:delta(d.desercion, prev?prev.desercion:null,true)},
         {l:'Retención Real', v:(d.retencion??0)+'%', c:d.retencion>=90?'#10b981':d.retencion>=75?'#f59e0b':'#ef4444', dl:delta(d.retencion, prev?prev.retencion:null,false)},
         {l:'Re-evaluaciones', v:d.reeval??0, c:d.reeval>=30?'#10b981':d.reeval>=15?'#f59e0b':'#ef4444', dl:delta(d.reeval, prev?prev.reeval:null,false)},
-        {l:'Tarea Mensual'+(auditoria.mismatch?' ⚠':''), v:tareaPct+'%', c:sc(tareaPct),
-         dl: auditoria.mismatch
-            ? `<span style="font-size:.64rem;color:#ef4444;font-weight:700;">⚠ checklist ${auditoria.checklist}% vs objetivos ${auditoria.objetivo}%</span>`
-            : delta(tareaPct, tareaPctPrev,false)},
+        {l:'Tarea Mensual', v:tareaPct+'%', c:sc(tareaPct), dl:delta(tareaPct, tareaPctPrev,false)},
         {l:'Socios Nuevos', v:nuevos, c:nuevos>=70?'#10b981':nuevos>=35?'#f59e0b':'#ef4444', dl:delta(nuevos, prev?nuevosPrev:null,false)},
         {l:'Adherencia Prom.', v:adh!=null?adh+'%':'—', c:adh>=80?'#10b981':adh>=50?'#f59e0b':'#ef4444', dl:delta(adh, adhPrev,false)},
     ];
@@ -112,7 +109,7 @@ function aeRenderPanel(mesIdx){
         bar('% Deserción', d.desercion, AE_METAS_2026.desercion) +
         bar('Re-evaluaciones', d.reeval, AE_METAS_2026.reeval) +
         bar('Socios Nuevos', nuevos, AE_METAS_2026.nuevos) +
-        bar('Tarea Mensual'+(auditoria.mismatch?' ⚠ sin verificar':''), tareaPct, AE_METAS_2026.tarea);
+        bar('Tarea Mensual', tareaPct, AE_METAS_2026.tarea);
 }
 
 // ── API Key de Groq (localStorage) ──
@@ -199,7 +196,7 @@ Mes analizado: ${mesNombre}
 📉 Deserción: ${d.desercion}% (${cmp(d.desercion, prev?prev.desercion:null)}) — objetivo ≤10%
 🤝 Retención real: ${d.retencion}% (${cmp(d.retencion, prev?prev.retencion:null)}) — objetivo ≥90%
 🔄 Re-evaluaciones: ${d.reeval}% (${cmp(d.reeval, prev?prev.reeval:null)}) — objetivo ≥30% de socios activos
-📝 Tareas mensuales: ${tareaPct}% de cumplimiento (${(datos.tareas&&datos.tareas[aeMesActual]||[]).filter(t=>t.ok).length}/${(datos.tareas&&datos.tareas[aeMesActual]||[]).length} completadas)${tareaPctPrev!=null?` (${cmp(tareaPct, tareaPctPrev)})`:''} — objetivo 100%${auditoria.mismatch?` ⚠ OJO: el checklist que marcó el profe dice ${auditoria.checklist}% pero la planilla de Objetivos calcula ${auditoria.objetivo}% — no está verificado, no lo felicites por esto todavía, pedile que lo revise con el coordinador.`:''}
+📝 Tarea mensual: ${tareaPct}% de cumplimiento${tareaPctPrev!=null?` (${cmp(tareaPct, tareaPctPrev)})`:''} — objetivo 100%
 📈 Socios nuevos del mes: ${nuevos} — objetivo ≥70
 📊 Adherencia promedio de sus socios: ${adh!=null?adh+'%':'sin dato'}`;
 
