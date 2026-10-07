@@ -240,6 +240,28 @@ function renderBariMesKpis(m) {
         kpiCard('Deserci\u00f3n', desPct, 'Tasa mensual', '#f59e0b');
 }
 
+// ══ SELECTOR DE MES (Estado del Gym) ══
+let estadoMesSel = null, estadoMesMax = 0;
+
+function estadoMesBar(sel){
+    let h = `<div style="display:flex;gap:6px;flex-wrap:wrap;align-items:center;margin-bottom:16px;">
+        <span style="font-size:.64rem;color:var(--muted);font-weight:700;text-transform:uppercase;letter-spacing:.5px;margin-right:4px;"><i class="fas fa-calendar-alt"></i> 2026</span>`;
+    for(let i=0;i<=estadoMesMax;i++){
+        const on = i===sel;
+        h += `<button onclick="estadoSetMes(${i})" style="cursor:pointer;font-family:inherit;font-size:.7rem;font-weight:700;letter-spacing:.4px;padding:6px 12px;border-radius:999px;transition:all .15s;
+            border:1px solid ${on?'#6366f1':'var(--border)'};
+            background:${on?'#6366f1':'var(--card)'};
+            color:${on?'#fff':'var(--muted)'};">${MESES[i]}</button>`;
+    }
+    if(sel < estadoMesMax) h += `<span style="font-size:.66rem;color:var(--muted);margin-left:6px;">mes cerrado</span>`;
+    return h + '</div>';
+}
+
+function estadoSetMes(i){
+    estadoMesSel = i;
+    renderEstado();
+}
+
 // ══ RENDER ESTADO DEL GYM ══
 function renderEstado() {
     const SEDES_ORDER = ['El Bolsón','Lago Puelo','Bariloche'];
@@ -253,6 +275,8 @@ function renderEstado() {
         }
         // No pasar del mes calendario actual (evita meses futuros con altas pre-cargadas)
         mesIdx = Math.min(mesIdx, new Date().getMonth());
+        estadoMesMax = mesIdx;
+        if (estadoMesSel !== null && estadoMesSel <= mesIdx) mesIdx = estadoMesSel;
         planData.profes.forEach(p => {
             const sede = getSede(p.nombre);
             const des  = (p.histDeserc26[mesIdx]  || 0) * 100;
@@ -274,6 +298,8 @@ function renderEstado() {
             if (bariData.some(p => (p.histAltas[i]||0) > 3)) { bMesIdx = i; break; }
         }
         bMesIdx = Math.min(bMesIdx, new Date().getMonth());
+        estadoMesMax = bMesIdx;
+        if (estadoMesSel !== null && estadoMesSel <= bMesIdx) bMesIdx = estadoMesSel;
     }
     bariData.forEach(p => {
         const des  = (p.histDeserc[bMesIdx]  || 0) * 100;
@@ -366,18 +392,32 @@ function renderEstado() {
             ${sub?`<div style="font-size:.64rem;color:var(--muted);">${sub}</div>`:''}</div>`;
         // ¿El techo alcanza para promedio/récord?
         let techoTxt;
-        if (activos >= mejor.v) techoTxt = `Si liquidan los <b>${activos}</b>, sería <b style="color:#10b981">récord</b> (supera a ${MESES[mejor.m]}: ${mejor.v}).`;
+        if (!esMesActual) {
+            techoTxt = actual >= mejor.v
+                ? `<b>${MESES[mi]}</b> cerró con <b style="color:#10b981">${actual}</b> liquidaciones: fue el <b>mejor mes</b> del año.`
+                : actual >= prom
+                    ? `<b>${MESES[mi]}</b> cerró con <b>${actual}</b>: por encima del promedio (${prom}), a ${mejor.v-actual} del récord de ${MESES[mejor.m]} (${mejor.v}).`
+                    : `<b>${MESES[mi]}</b> cerró con <b style="color:#f59e0b">${actual}</b>: ${prom-actual} por debajo del promedio del año (${prom}).`;
+        }
+        else if (activos >= mejor.v) techoTxt = `Si liquidan los <b>${activos}</b>, sería <b style="color:#10b981">récord</b> (supera a ${MESES[mejor.m]}: ${mejor.v}).`;
         else if (activos >= prom) techoTxt = `Si liquidan los <b>${activos}</b>, se supera el promedio (${prom}), pero <b>no alcanza el récord</b> de ${MESES[mejor.m]} (${mejor.v}): faltarían ${mejor.v - activos} altas nuevas.`;
         else techoTxt = `Aun liquidando los <b>${activos}</b>, queda por debajo del promedio (${prom}): hacen falta <b style="color:#f59e0b">${prom - activos} altas nuevas</b> además de las renovaciones.`;
+        // En un mes ya cerrado el padrón de activos es el de HOY, no el de ese mes:
+        // no se muestra como techo para no comparar contra un dato que no corresponde.
+        const difProm = actual - prom;
+        const boxes = esMesActual
+            ? box('Socios a liquidar', activos, 'var(--text)', 'techo del mes')
+              + box('Liquidados '+MESES[mi], actual, pctLiq>=80?'#10b981':pctLiq>=50?'#f59e0b':'#ef4444', pctLiq+'% de los activos')
+              + box('Faltan liquidar', porLiquidar||'✓', porLiquidar?'#f59e0b':'#10b981', `en ${restan} días`)
+              + box('Mejor mes', mejor.v, '#6366f1', MESES[mejor.m]+' · prom '+prom)
+            : box('Liquidados '+MESES[mi], actual, '#6366f1', 'cierre del mes')
+              + box('vs promedio', (difProm>=0?'+':'')+difProm, difProm>=0?'#10b981':'#ef4444', 'prom '+prom)
+              + box('vs mejor mes', (actual-mejor.v>=0?'+':'')+(actual-mejor.v), actual>=mejor.v?'#10b981':'#f59e0b', MESES[mejor.m]+' · '+mejor.v)
+              + box('Mejor mes', mejor.v, '#6366f1', MESES[mejor.m]);
         return `<div style="background:var(--card);border:1px solid var(--border);border-left:3px solid #6366f1;border-radius:12px;padding:12px 14px;margin-bottom:14px;">
             <div style="font-size:.72rem;font-weight:700;text-transform:uppercase;letter-spacing:.5px;color:#6366f1;margin-bottom:9px;">
-                <i class="fas fa-bullseye"></i> Meta de ventas · ${MESES[mi]}</div>
-            <div style="display:flex;gap:9px;flex-wrap:wrap;">
-                ${box('Socios a liquidar', activos, 'var(--text)', 'techo del mes')}
-                ${box('Liquidados '+MESES[mi], actual, pctLiq>=80?'#10b981':pctLiq>=50?'#f59e0b':'#ef4444', pctLiq+'% de los activos')}
-                ${box('Faltan liquidar', porLiquidar||'✓', porLiquidar?'#f59e0b':'#10b981', esMesActual?`en ${restan} días`:'mes cerrado')}
-                ${box('Mejor mes', mejor.v, '#6366f1', MESES[mejor.m]+' · prom '+prom)}
-            </div>
+                <i class="fas fa-bullseye"></i> ${esMesActual?'Meta de ventas':'Ventas'} · ${MESES[mi]}</div>
+            <div style="display:flex;gap:9px;flex-wrap:wrap;">${boxes}</div>
             <div style="margin-top:9px;font-size:.78rem;line-height:1.5;">
                 ${techoTxt}
                 ${esMesActual && restan>0 && porLiquidar>0 ? ` Para que no quede nadie sin renovar hacen falta <b style="color:#6366f1">${necDia.toFixed(1)} por día</b> en los ${restan} días que quedan.` : ''}
@@ -385,7 +425,7 @@ function renderEstado() {
         </div>`;
     };
 
-    let html = `<div class="estado-mes-badge"><i class="fas fa-calendar-alt"></i>&nbsp;${MESES[mesIdx]} 2026</div>`;
+    let html = estadoMesBar(mesIdx);
     SEDES_ORDER.forEach(sede => {
         const profes = bySedeMap[sede];
         if (!profes || !profes.length) return;
