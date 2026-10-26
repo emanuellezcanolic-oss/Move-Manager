@@ -232,5 +232,14 @@
     "ventasAcum": 62,
     "puntProm": 142,
     "auto": true
+  },
+  {
+    "ts": 1793039010676,
+    "fecha": "26/10/2026",
+    "mes": "Octubre",
+    "avance": 47,
+    "ventasAcum": 67,
+    "puntProm": 147,
+    "auto": true
   }
 ]
