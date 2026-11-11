@@ -268,5 +268,14 @@
     "ventasAcum": 9,
     "puntProm": 0,
     "auto": true
+  },
+  {
+    "ts": 1794424820354,
+    "fecha": "11/11/2026",
+    "mes": "Noviembre",
+    "avance": 16,
+    "ventasAcum": 16,
+    "puntProm": 0,
+    "auto": true
   }
 ]
